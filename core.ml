@@ -2,7 +2,10 @@ type operator =
     | Add
     | Sub
     | Mul
-    | Div;;
+    | Div
+    | LT
+    | GT
+    | EQ;;
 
 type pattern =
     | SinglePat of string
@@ -13,6 +16,7 @@ and lambda_call = {callee: string; call_args: expr list}
 
 and value =
     | Number of float
+    | Boolean of bool
     | Tuple of value list
     | Unit
     | Lambda of lambda
@@ -27,6 +31,7 @@ and expr =
 
 let rec string_of_val = function
     | Number n -> string_of_float n
+    | Boolean b -> string_of_bool b
     | Tuple ls -> String.concat ", " (List.map string_of_val ls)
     | Unit -> "()"
     | Lambda _ -> "Lambda"

@@ -16,6 +16,19 @@ let val_div lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Number (lhs /. rhs)
     | _ -> assert false
 
+let val_eq lhs rhs = match lhs, rhs with
+    | Number lhs, Number rhs -> Boolean (lhs = rhs)
+    | Boolean lhs, Boolean rhs -> Boolean (lhs = rhs)
+    | _ -> assert false
+
+let val_lt lhs rhs = match lhs, rhs with
+    | Number lhs, Number rhs -> Boolean (lhs < rhs)
+    | _ -> assert false
+
+let val_gt lhs rhs = match lhs, rhs with
+    | Number lhs, Number rhs -> Boolean (lhs > rhs)
+    | _ -> assert false
+
 let rec eval_let lhs rhs = match lhs with
     | SinglePat s -> fun state ->
             Hashtbl.add !state s ((eval_expr rhs) state);
@@ -54,6 +67,9 @@ and eval_expr: expr -> (string, value) Hashtbl.t ref -> value = fun expr -> matc
     | Binary ({op = Sub; _} as e) -> fun s -> val_sub ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
     | Binary ({op = Mul; _} as e) -> fun s -> val_mul ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
     | Binary ({op = Div; _} as e) -> fun s -> val_div ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
+    | Binary ({op = EQ; _} as e) -> fun s -> val_eq ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
+    | Binary ({op = LT; _} as e) -> fun s -> val_lt ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
+    | Binary ({op = GT; _} as e) -> fun s -> val_gt ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
     | Let (_ as l) -> fun s -> (eval_let l.assignee l.assigned_expr) s
     | TupleExpr ls -> fun s -> Tuple (List.map (fun e -> eval_expr e s) ls)
     | LambdaCall l -> fun s -> (eval_lambda_call l) s

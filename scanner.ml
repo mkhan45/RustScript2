@@ -1,6 +1,8 @@
 open Printf
 
 type token =
+    | True
+    | False
     | Number of float
     | Ident of string
     | Operator of Core.operator
@@ -44,12 +46,17 @@ and scan_ls = function
     | '-'::xs -> Operator Sub :: scan_ls xs
     | '*'::xs -> Operator Mul :: scan_ls xs
     | '/'::xs -> Operator Div :: scan_ls xs
+    | '<'::xs -> Operator LT :: scan_ls xs
+    | '>'::xs -> Operator GT :: scan_ls xs
+    | '='::'='::xs -> Operator EQ :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
     | '='::xs -> Equal :: scan_ls xs
     | ','::xs -> Comma :: scan_ls xs
     | 'l'::'e'::'t'::xs -> Let :: scan_ls xs
     | 'f'::'n'::xs -> Fn :: scan_ls xs
+    | 'T'::xs -> True :: scan_ls xs
+    | 'F'::xs -> False :: scan_ls xs
     | d::_ as ls when Base.Char.is_digit d -> scan_digit ls
     | i::_ as ls when not (Base.Char.is_digit i) -> scan_ident ls
     | _ as ls -> 
@@ -69,6 +76,8 @@ let string_of_tok = function
     | Comma -> "Comma"
     | Fn -> "Fn"
     | Arrow -> "Arrow"
+    | True -> "True"
+    | False -> "False"
 
 let print_toks ls =
     List.iter (fun t -> printf "%s " (string_of_tok t)) ls;

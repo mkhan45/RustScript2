@@ -3,6 +3,8 @@ open Scanner
 open Printf
 
 let op_bp = function
+    | EQ -> (1, 2)
+    | LT | GT -> (3, 4)
     | Add | Sub -> (4, 5)
     | Mul | Div -> (6, 7);;
 
@@ -26,6 +28,8 @@ and expr_bp ls min_bp = match ls with
                 else complete_expr paren_expr (List.tl temp) min_bp
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
+    | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp
+    | False::xs -> complete_expr (Atomic (Boolean false)) xs min_bp
     | _ -> assert false;;
 
 let rec parse_pat ls = match ls with
@@ -117,9 +121,9 @@ and parse_lambda_call = function
 
 and parse: token list -> expr * (token list) = fun s -> 
     match s with
-    | Let::xs -> parse_let xs
     | (Ident _)::LParen::_ -> parse_lambda_call s
-    | (Number _ | Ident _)::_ -> expr_bp s 0
+    | (True|False|Number _| Ident _)::_ -> expr_bp s 0
+    | Let::xs -> parse_let xs
     | LParen::_ ->  parse_tup s
     | Fn::_ ->  parse_lambda s
     | _ -> assert false (* TODO *);;
