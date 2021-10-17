@@ -47,3 +47,7 @@ let rec string_of_expr = function
     | LambdaCall _ -> "LambdaCall"
     | TupleExpr ls -> "(" ^ (Base.String.concat ~sep:", " (List.map string_of_expr ls)) ^ ")"
     | IfExpr _ -> "IfExpr"
+
+let rec string_of_pat = function
+    | SinglePat s -> s
+    | TuplePat ls -> "(" ^ (Base.String.concat ~sep:", " (List.map string_of_pat ls)) ^ ")"

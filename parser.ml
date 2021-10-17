@@ -8,6 +8,7 @@ let op_bp = function
     | Add | Sub -> (4, 5)
     | Mul | Div -> (6, 7);;
 
+(* TODO: Fix parsing tuples more than length 2 *)
 let rec complete_expr lhs ls min_bp = match ls with
     | (Operator op)::xs ->
             let (l_bp, r_bp) = op_bp op
@@ -24,20 +25,18 @@ let rec complete_expr lhs ls min_bp = match ls with
                        match rest with
                            | (Comma::rest) -> aux rest (nx::acc)
                            | (RParen::rest) -> (nx::acc, rest)
-                           | _ -> assert false
+                           | [] -> (nx::acc, rest)
+                           | _ -> 
+                                   printf "rest: ";
+                                   print_toks rest;
+                                   assert false
                 in
                 let (parsed, remaining) = aux xs [lhs]
                 in (TupleExpr (List.rev parsed), remaining)
     | _ -> (lhs, ls)
 
 and expr_bp ls min_bp = match ls with
-    | (LParen::xs) ->
-            let (paren_expr, rest) = parse xs 0
-            in begin
-                match rest with
-                | RParen::xs -> (paren_expr, xs)
-                | _ -> assert false (* Mismatched parens *)
-            end
+    | (LParen::xs) -> parse xs 0
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
     | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp

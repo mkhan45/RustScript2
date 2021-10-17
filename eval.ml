@@ -37,17 +37,21 @@ let rec eval_let lhs rhs = match lhs with
             Hashtbl.add !state s ((eval_expr rhs) state);
             Unit
     | TuplePat lhs_ls -> fun state ->
-            let rhs_evaled = (eval_expr rhs) state in
-            match rhs_evaled with
-                | Tuple rhs_ls ->
-                    let rec aux a b = match a, b with
-                        | [], [] -> ()
-                        | ((SinglePat lv)::l), (rv::r) ->
-                            Hashtbl.add !state lv rv;
-                            aux l r
-                        | _ -> assert false
-                    in 
-                    aux lhs_ls rhs_ls;
+            match rhs with
+                | TupleExpr rhs_ls ->
+                    printf "lhs: %s, rhs: %s\n" (Base.String.concat ~sep:" " (List.map string_of_pat lhs_ls)) 
+                                                (Base.String.concat ~sep:" " (List.map string_of_expr rhs_ls));
+                    let zipped = List.combine lhs_ls rhs_ls in
+                    List.iter (fun (k, v) -> let _ = (eval_let k v) state in ()) zipped;
+                    (* printf "lhs: %s, rhs: %s\n" (string_of_pat lhs) (string_of_val rhs_evaled); *)
+                    (* let rec aux a b = match a, b with *)
+                    (*     | [], [] -> () *)
+                    (*     | ((SinglePat lv)::l), (rv::r) -> *)
+                    (*         Hashtbl.add !state lv rv; *)
+                    (*         aux l r *)
+                    (*     | _ -> assert false *)
+                    (* in *) 
+                    (* aux lhs_ls rhs_ls; *)
                     Unit
                 | _ -> assert false
 
