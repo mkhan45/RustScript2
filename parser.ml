@@ -1,5 +1,6 @@
 open Core
 open Scanner
+open Printf
 
 let op_bp = function
     | Add | Sub -> (4, 5)
@@ -31,25 +32,52 @@ let rec parse_pat ls = match ls with
     | LParen::xs ->
             let rec aux toks acc = match toks with
                 | RParen::rest -> (acc, rest)
-                | _ -> let (nx, rest) = parse_pat toks in
-                        aux rest (nx::acc)
+                | _ ->  let (nx, rest) = parse_pat toks in
+                        match rest with
+                            | (Comma::rest) -> aux rest (nx::acc)
+                            | (RParen::rest) -> (nx::acc, rest)
+                            | _ -> assert false
             in 
             let (parsed, remaining) = aux xs [] 
             in (TuplePat (List.rev parsed), remaining)
     | (Ident s)::xs -> (SinglePat s, xs)
-    | _ -> assert false
+    | _ ->
+            print_toks ls;
+            assert false
 
 and parse_let ls =
     let (pat, xs) = parse_pat ls in
     match xs with
-        | Equal::xs -> let (rhs, rest) = parse xs in
-                       let let_expr: expr = Let {assignee = pat; assigned_expr = rhs}
-                        in (let_expr, rest)
+        | Equal::xs ->
+                let (rhs, rest) = parse xs in
+                let let_expr: expr = Let {assignee = pat; assigned_expr = rhs}
+                in (let_expr, rest)
         | _ -> assert false
 
-and parse: token list -> expr * (token list) = fun s -> match s with
+and parse_tup ls = 
+    match ls with
+    | LParen::xs ->
+            let rec aux toks acc = match toks with
+                | RParen::rest -> (acc, rest)
+                | _ -> let (nx, rest) = parse toks in
+                       match rest with
+                           | (Comma::rest) -> aux rest (nx::acc)
+                           | (RParen::rest) -> (nx::acc, rest)
+                           | _ -> assert false
+            in
+            let (parsed, remaining) = aux xs []
+            in 
+            (TupleExpr (List.rev parsed), remaining)
+    | _ -> 
+            printf "Error parsing as tuple: ";
+            print_toks ls;
+            assert false
+
+and parse: token list -> expr * (token list) = fun s -> 
+    match s with
     | Let::xs -> parse_let xs
     | (Number _ | Ident _)::_ -> expr_bp s 0
-    | _ -> assert false (* TODO *);;
+    | LParen::_ ->  parse_tup s
+        | _ -> assert false (* TODO *);;
 
 let parse_str s = s |> Scanner.scan |> parse

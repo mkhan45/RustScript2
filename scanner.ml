@@ -7,7 +7,8 @@ type token =
     | Let
     | Equal
     | LParen
-    | RParen;;
+    | RParen
+    | Comma;;
 
 let is_numeric d = Base.Char.is_digit d || d == '.';;
 let is_identic c = Base.Char.is_alphanum c;;
@@ -43,6 +44,7 @@ and scan_ls = function
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
     | '='::xs -> Equal :: scan_ls xs
+    | ','::xs -> Comma :: scan_ls xs
     | 'l'::'e'::'t'::xs -> Let :: scan_ls xs
     | d::_ as ls when Base.Char.is_digit d -> scan_digit ls
     | i::_ as ls when not (Base.Char.is_digit i) -> scan_ident ls
@@ -51,3 +53,17 @@ and scan_ls = function
             assert false;;
 
 let scan s = s |> chars_of_string |> scan_ls;;
+
+let string_of_tok = function
+    | Number f -> string_of_float f
+    | Ident s -> "(Ident " ^ s ^ ")"
+    | Operator _ -> "Operator"
+    | Let -> "Let"
+    | Equal -> "Equal"
+    | LParen -> "LParen"
+    | RParen -> "RParen"
+    | Comma -> "Comma"
+
+let print_toks ls =
+    List.iter (fun t -> printf "%s " (string_of_tok t)) ls;
+    printf "\n";;
