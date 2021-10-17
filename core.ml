@@ -14,6 +14,8 @@ type pattern =
 type lambda = {lambda_expr: expr; lambda_args: string list}
 and lambda_call = {callee: string; call_args: expr list}
 
+and if_expr = {cond: expr; then_expr: expr; else_expr: expr}
+
 and value =
     | Number of float
     | Boolean of bool
@@ -27,6 +29,7 @@ and expr =
     | Binary of {lhs: expr; op: operator; rhs: expr}
     | Let of {assignee: pattern; assigned_expr: expr}
     | LambdaCall of lambda_call
+    | IfExpr of  if_expr
     | TupleExpr of expr list;;
 
 let rec string_of_val = function
@@ -43,3 +46,4 @@ let rec string_of_expr = function
     | Let _ -> "LetExpr"
     | LambdaCall _ -> "LambdaCall"
     | TupleExpr ls -> "(" ^ (Base.String.concat ~sep:", " (List.map string_of_expr ls)) ^ ")"
+    | IfExpr _ -> "IfExpr"

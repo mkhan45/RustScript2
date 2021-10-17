@@ -11,6 +11,9 @@ type token =
     | LParen
     | RParen
     | Fn
+    | If
+    | Then
+    | Else
     | Arrow
     | Comma;;
 
@@ -55,6 +58,9 @@ and scan_ls = function
     | ','::xs -> Comma :: scan_ls xs
     | 'l'::'e'::'t'::xs -> Let :: scan_ls xs
     | 'f'::'n'::xs -> Fn :: scan_ls xs
+    | 'i'::'f'::xs -> If :: scan_ls xs
+    | 't'::'h'::'e'::'n'::xs -> Then :: scan_ls xs
+    | 'e'::'l'::'s'::'e'::xs -> Else :: scan_ls xs
     | 'T'::xs -> True :: scan_ls xs
     | 'F'::xs -> False :: scan_ls xs
     | d::_ as ls when Base.Char.is_digit d -> scan_digit ls
@@ -78,6 +84,9 @@ let string_of_tok = function
     | Arrow -> "Arrow"
     | True -> "True"
     | False -> "False"
+    | If -> "If"
+    | Then -> "Then"
+    | Else -> "Else"
 
 let print_toks ls =
     List.iter (fun t -> printf "%s " (string_of_tok t)) ls;

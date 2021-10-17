@@ -14,14 +14,14 @@ let rec complete_expr lhs ls min_bp = match ls with
             in
             if l_bp < min_bp 
                 then (lhs, ls)
-                else let (rhs, rem) = expr_bp xs r_bp in 
+                else let (rhs, rem) = parse xs r_bp in 
                      let complete = Binary {op = op; lhs = lhs; rhs = rhs}
                       in complete_expr complete rem min_bp
     | _ -> (lhs, ls)
 
 and expr_bp ls min_bp = match ls with
     | (LParen::xs) ->
-            let (paren_expr, temp) = expr_bp xs 0
+            let (paren_expr, temp) = parse xs 0
             in
             if temp == [] || List.hd temp != RParen
                 then assert false
@@ -30,9 +30,9 @@ and expr_bp ls min_bp = match ls with
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
     | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp
     | False::xs -> complete_expr (Atomic (Boolean false)) xs min_bp
-    | _ -> assert false;;
+    | _ -> assert false
 
-let rec parse_pat ls = match ls with
+and parse_pat ls = match ls with
     | LParen::xs ->
             let rec aux toks acc = match toks with
                 | RParen::rest -> (acc, rest)
@@ -53,7 +53,7 @@ and parse_let ls =
     let (pat, xs) = parse_pat ls in
     match xs with
         | Equal::xs ->
-                let (rhs, rest) = parse xs in
+                let (rhs, rest) = parse xs 0 in
                 let let_expr: expr = Let {assignee = pat; assigned_expr = rhs}
                 in (let_expr, rest)
         | _ -> assert false
@@ -63,7 +63,7 @@ and parse_tup ls =
     | LParen::xs ->
             let rec aux toks acc = match toks with
                 | RParen::rest -> (acc, rest)
-                | _ -> let (nx, rest) = parse toks in
+                | _ -> let (nx, rest) = parse toks 0 in
                        match rest with
                            | (Comma::rest) -> aux rest (nx::acc)
                            | (RParen::rest) -> (nx::acc, rest)
@@ -102,7 +102,7 @@ and parse_lambda = function
                 let (args, rest) = parse_args xs in
                 match rest with
                     | Arrow::xs ->
-                            let (lambda_expr, rest) = parse xs in
+                            let (lambda_expr, rest) = parse xs 0 in
                             let lambda = Lambda {lambda_expr = lambda_expr; lambda_args = args} 
                             in (Atomic lambda, rest)
                     | _ -> assert false
@@ -110,22 +110,44 @@ and parse_lambda = function
     | _ -> assert false
 
 and parse_lambda_call = function
-    | (Ident lambda_name)::xs ->
-            begin
-                match parse_tup xs with
-                    | TupleExpr (call_args), rest ->
-                            (LambdaCall {callee = lambda_name; call_args = call_args}, rest)
-                    | _ -> assert false
-            end
+    | (Ident lambda_name)::xs -> begin
+            match parse_tup xs with
+                | TupleExpr (call_args), rest ->
+                        (LambdaCall {callee = lambda_name; call_args = call_args}, rest)
+                | _ -> assert false
+    end
     | _ -> assert false
 
-and parse: token list -> expr * (token list) = fun s -> 
-    match s with
-    | (Ident _)::LParen::_ -> parse_lambda_call s
-    | (True|False|Number _| Ident _)::_ -> expr_bp s 0
-    | Let::xs -> parse_let xs
-    | LParen::_ ->  parse_tup s
-    | Fn::_ ->  parse_lambda s
-    | _ -> assert false (* TODO *);;
+and parse_if_expr = function
+    | If::xs -> begin
+        let (cond, xs) = parse xs 0 in
+        match xs with
+            | Then::xs -> begin
+                let (then_expr, xs) = parse xs 0 in
+                match xs with
+                    | Else::xs ->
+                            let (else_expr, rest) = parse xs 0 in
+                            (IfExpr {cond = cond; then_expr = then_expr; else_expr = else_expr}, rest)
+                    | _ -> 
+                            printf "Error parsing as else: ";
+                            print_toks xs;
+                            assert false
+                end
+            | _ -> assert false
+    end
+    | _ -> assert false
 
-let parse_str s = s |> Scanner.scan |> parse
+(* TODO: Fix tuple parsing *)
+and parse: token list -> int -> expr * (token list) = fun s min_bp -> 
+    match s with
+    | (Ident _)::LParen::_ -> 
+            let (call, xs) = parse_lambda_call s in
+            complete_expr call xs min_bp
+    | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
+    | Let::xs -> parse_let xs
+    (* | LParen::_ ->  parse_tup s *)
+    | Fn::_ ->  parse_lambda s
+    | If::_ ->  parse_if_expr s
+    | _ -> assert false;;
+
+let parse_str s = parse (Scanner.scan s) 0
