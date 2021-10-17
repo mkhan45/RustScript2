@@ -17,15 +17,24 @@ let rec complete_expr lhs ls min_bp = match ls with
                 else let (rhs, rem) = parse xs r_bp in 
                      let complete = Binary {op = op; lhs = lhs; rhs = rhs}
                       in complete_expr complete rem min_bp
+    | Comma::xs ->
+            let rec aux toks acc = match toks with
+                | RParen::rest -> (acc, rest)
+                | _ -> let (nx, rest) = parse toks 0 in
+                       match rest with
+                           | (Comma::rest) -> aux rest (nx::acc)
+                           | (RParen::rest) -> (nx::acc, rest)
+                           | _ -> assert false
+                in
+                let (parsed, remaining) = aux xs [lhs]
+                in (TupleExpr (List.rev parsed), remaining)
     | _ -> (lhs, ls)
 
 and expr_bp ls min_bp = match ls with
     | (LParen::xs) ->
             let (paren_expr, temp) = parse xs 0
             in
-            if temp == [] || List.hd temp != RParen
-                then assert false
-                else complete_expr paren_expr (List.tl temp) min_bp
+            complete_expr paren_expr temp min_bp
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
     | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp
@@ -137,15 +146,13 @@ and parse_if_expr = function
     end
     | _ -> assert false
 
-(* TODO: Fix tuple parsing *)
 and parse: token list -> int -> expr * (token list) = fun s min_bp -> 
     match s with
     | (Ident _)::LParen::_ -> 
             let (call, xs) = parse_lambda_call s in
             complete_expr call xs min_bp
-    | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
+    | (LParen|True|False|Number _| Ident _)::_ -> expr_bp s min_bp
     | Let::xs -> parse_let xs
-    (* | LParen::_ ->  parse_tup s *)
     | Fn::_ ->  parse_lambda s
     | If::_ ->  parse_if_expr s
     | _ -> assert false;;
