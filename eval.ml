@@ -35,6 +35,18 @@ let rec eval_let lhs rhs = match lhs with
                     Unit
                 | _ -> assert false
 
+and eval_lambda_call call = fun state ->
+    match Hashtbl.find !state call.callee with
+        | Lambda (lambda_val) -> begin
+            let evaled_args = List.map (fun arg -> (eval_expr arg) state) call.call_args in
+            let zipped = List.combine lambda_val.lambda_args evaled_args in
+            List.iter (fun (key, value) -> Hashtbl.add !state key value) zipped;
+            let call_result = (eval_expr lambda_val.lambda_expr) state in
+            List.iter (fun key -> Hashtbl.remove !state key) lambda_val.lambda_args;
+            call_result
+        end
+        | _ -> assert false
+
 and eval_expr: expr -> (string, value) Hashtbl.t ref -> value = fun expr -> match expr with
     | Atomic n -> fun _ -> n
     | Ident v -> fun state -> Hashtbl.find !state v
@@ -44,4 +56,4 @@ and eval_expr: expr -> (string, value) Hashtbl.t ref -> value = fun expr -> matc
     | Binary ({op = Div; _} as e) -> fun s -> val_div ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
     | Let (_ as l) -> fun s -> (eval_let l.assignee l.assigned_expr) s
     | TupleExpr ls -> fun s -> Tuple (List.map (fun e -> eval_expr e s) ls)
-    | LambdaCall _ -> assert false (* TODO *)
+    | LambdaCall l -> fun s -> (eval_lambda_call l) s

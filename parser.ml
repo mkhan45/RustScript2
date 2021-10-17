@@ -73,11 +73,55 @@ and parse_tup ls =
             print_toks ls;
             assert false
 
+and parse_args ls = 
+    match ls with
+    | LParen::xs ->
+            let rec aux toks acc = match toks with
+                | RParen::rest -> (acc, rest)
+                | ((Ident n)::rest)|(Comma::(Ident n)::rest) -> aux rest (n::acc)
+                | _ -> 
+                        printf "Error parsing args: ";
+                        print_toks toks;
+                        assert false
+            in
+            let (parsed, remaining) = aux xs []
+            in 
+            (List.rev parsed, remaining)
+    | _ -> 
+            printf "Error parsing as tuple: ";
+            print_toks ls;
+            assert false
+
+and parse_lambda = function
+    | Fn::xs -> 
+            begin
+                let (args, rest) = parse_args xs in
+                match rest with
+                    | Arrow::xs ->
+                            let (lambda_expr, rest) = parse xs in
+                            let lambda = Lambda {lambda_expr = lambda_expr; lambda_args = args} 
+                            in (Atomic lambda, rest)
+                    | _ -> assert false
+            end
+    | _ -> assert false
+
+and parse_lambda_call = function
+    | (Ident lambda_name)::xs ->
+            begin
+                match parse_tup xs with
+                    | TupleExpr (call_args), rest ->
+                            (LambdaCall {callee = lambda_name; call_args = call_args}, rest)
+                    | _ -> assert false
+            end
+    | _ -> assert false
+
 and parse: token list -> expr * (token list) = fun s -> 
     match s with
     | Let::xs -> parse_let xs
+    | (Ident _)::LParen::_ -> parse_lambda_call s
     | (Number _ | Ident _)::_ -> expr_bp s 0
     | LParen::_ ->  parse_tup s
-        | _ -> assert false (* TODO *);;
+    | Fn::_ ->  parse_lambda s
+    | _ -> assert false (* TODO *);;
 
 let parse_str s = s |> Scanner.scan |> parse

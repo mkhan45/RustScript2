@@ -9,6 +9,7 @@ type pattern =
     | TuplePat of pattern list
 
 type lambda = {lambda_expr: expr; lambda_args: string list}
+and lambda_call = {callee: string; call_args: expr list}
 
 and value =
     | Number of float
@@ -21,7 +22,7 @@ and expr =
     | Ident of string
     | Binary of {lhs: expr; op: operator; rhs: expr}
     | Let of {assignee: pattern; assigned_expr: expr}
-    | LambdaCall of {callee: lambda; call_args: string list}
+    | LambdaCall of lambda_call
     | TupleExpr of expr list;;
 
 let rec string_of_val = function

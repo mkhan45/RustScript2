@@ -8,6 +8,8 @@ type token =
     | Equal
     | LParen
     | RParen
+    | Fn
+    | Arrow
     | Comma;;
 
 let is_numeric d = Base.Char.is_digit d || d == '.';;
@@ -37,6 +39,7 @@ and scan_ls = function
     | [] -> []
     | ' '::xs -> scan_ls xs
     | '\t'::xs -> scan_ls xs
+    | '='::'>'::xs -> Arrow :: scan_ls xs
     | '+'::xs -> Operator Add :: (scan_ls xs)
     | '-'::xs -> Operator Sub :: scan_ls xs
     | '*'::xs -> Operator Mul :: scan_ls xs
@@ -46,6 +49,7 @@ and scan_ls = function
     | '='::xs -> Equal :: scan_ls xs
     | ','::xs -> Comma :: scan_ls xs
     | 'l'::'e'::'t'::xs -> Let :: scan_ls xs
+    | 'f'::'n'::xs -> Fn :: scan_ls xs
     | d::_ as ls when Base.Char.is_digit d -> scan_digit ls
     | i::_ as ls when not (Base.Char.is_digit i) -> scan_ident ls
     | _ as ls -> 
@@ -63,6 +67,8 @@ let string_of_tok = function
     | LParen -> "LParen"
     | RParen -> "RParen"
     | Comma -> "Comma"
+    | Fn -> "Fn"
+    | Arrow -> "Arrow"
 
 let print_toks ls =
     List.iter (fun t -> printf "%s " (string_of_tok t)) ls;
