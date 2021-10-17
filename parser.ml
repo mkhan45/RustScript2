@@ -32,9 +32,12 @@ let rec complete_expr lhs ls min_bp = match ls with
 
 and expr_bp ls min_bp = match ls with
     | (LParen::xs) ->
-            let (paren_expr, temp) = parse xs 0
-            in
-            complete_expr paren_expr temp min_bp
+            let (paren_expr, rest) = parse xs 0
+            in begin
+                match rest with
+                | RParen::xs -> (paren_expr, xs)
+                | _ -> assert false (* Mismatched parens *)
+            end
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
     | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp
@@ -151,7 +154,8 @@ and parse: token list -> int -> expr * (token list) = fun s min_bp ->
     | (Ident _)::LParen::_ -> 
             let (call, xs) = parse_lambda_call s in
             complete_expr call xs min_bp
-    | (LParen|True|False|Number _| Ident _)::_ -> expr_bp s min_bp
+    | LParen::_ -> expr_bp s 0
+    | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
     | Let::xs -> parse_let xs
     | Fn::_ ->  parse_lambda s
     | If::_ ->  parse_if_expr s
