@@ -3,7 +3,9 @@ open Printf
 
 let val_add lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Number (lhs +. rhs)
-    | _ -> assert false
+    | _ -> 
+            printf "Invalid Add: lhs = %s, rhs = %s\n" (string_of_val lhs) (string_of_val rhs);
+            assert false
 
 let val_sub lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Number (lhs -. rhs)
@@ -12,7 +14,7 @@ let val_sub lhs rhs = match lhs, rhs with
 let val_mul lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Number (lhs *. rhs)
     | _ -> 
-            printf "lhs: %s, rhs: %s\n" (string_of_val lhs) (string_of_val rhs);
+            printf "Invalid Mul: lhs = %s, rhs = %s\n" (string_of_val lhs) (string_of_val rhs);
             assert false
 
 let val_div lhs rhs = match lhs, rhs with
@@ -22,7 +24,7 @@ let val_div lhs rhs = match lhs, rhs with
 let val_eq lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (lhs = rhs)
     | Boolean lhs, Boolean rhs -> Boolean (lhs = rhs)
-    | Tuple [], Tuple [] -> true
+    | Tuple [], Tuple [] -> Boolean (true)
     | _ -> assert false (* TODO *)
 
 let val_lt lhs rhs = match lhs, rhs with
@@ -38,13 +40,17 @@ let rec bind lhs rhs = match lhs, rhs with
             Hashtbl.add !state s rhs;
     | (TuplePat lhs_ls), (Tuple rhs_ls) -> fun state ->
             if List.length lhs_ls == List.length rhs_ls
-                then 
+                then begin
                     let zipped = List.combine lhs_ls rhs_ls in
                     List.iter (fun (k, v) -> (bind k v) state) zipped;
-                else
-                    printf "Tried to bind %s to %s" 
-                        (string_of_pat (TuplePat lhs_ls)) (string_of_val (Tuple rhs_ls));
-                    assert false;
+                end
+                else begin
+                    printf "\n";
+                    printf "Tried to bind %s of len %d to %s of len %d\n"
+                        (string_of_pat (TuplePat lhs_ls)) (List.length lhs_ls)
+                        (string_of_val (Tuple rhs_ls)) (List.length rhs_ls);
+                    assert false
+                end
     | _ -> assert false
 
 let rec eval_let lhs rhs = fun state ->
@@ -52,8 +58,8 @@ let rec eval_let lhs rhs = fun state ->
     Unit
 
 (* TODO: Instead of copying state, only copy the overlapping assignments*)
-and eval_lambda_call call = fun state ->
-    match Hashtbl.find_opt !state call.callee with
+and eval_lambda_call call = 
+    fun state -> match Hashtbl.find_opt !state call.callee with
         | Some(Lambda (lambda_val)) -> begin
             let inner_state = ref (Hashtbl.copy !state) in
             bind lambda_val.lambda_args ((eval_expr call.call_args) state) inner_state;

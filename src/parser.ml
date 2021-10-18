@@ -66,42 +66,24 @@ and parse_let ls =
                 in (let_expr, rest)
         | _ -> assert false
 
-and parse_tup ls = 
-    match ls with
+and parse_args toks = 
+    match toks with
     | LParen::xs ->
             let rec aux toks acc = match toks with
                 | RParen::rest -> (acc, rest)
-                | _ -> let (nx, rest) = parse toks 0 in
-                       match rest with
-                           | (Comma::rest) -> aux rest (nx::acc)
-                           | (RParen::rest) -> (nx::acc, rest)
-                           | _ -> assert false
-            in
-            let (parsed, remaining) = aux xs []
-            in 
-            (TupleExpr (List.rev parsed), remaining)
-    | _ -> 
-            printf "Error parsing as tuple: ";
-            print_toks ls;
-            assert false
-
-and parse_args ls = 
-    match ls with
-    | LParen::xs ->
-            let rec aux toks acc = match toks with
-                | RParen::rest -> (acc, rest)
-                | ((Ident n)::rest)|(Comma::(Ident n)::rest) -> aux rest (n::acc)
-                | _ -> 
-                        printf "Error parsing args: ";
-                        print_toks toks;
-                        assert false
+                | _ -> let (nx, rest) = parse toks 0 in begin
+                    match rest with
+                        | Comma::rest -> aux rest (nx::acc)
+                        | RParen::rest -> (nx::acc), rest
+                        | _ -> assert false
+                end
             in
             let (parsed, remaining) = aux xs []
             in 
             (List.rev parsed, remaining)
     | _ -> 
-            printf "Error parsing as tuple: ";
-            print_toks ls;
+            printf "Error parsing args: ";
+            print_toks toks;
             assert false
 
 and parse_lambda = function
@@ -119,11 +101,9 @@ and parse_lambda = function
 
 and parse_lambda_call = function
     | (Ident lambda_name)::xs -> begin
-            match parse xs 0 with
-                | (TupleExpr _) as call_args, rest ->
-                    (LambdaCall {callee = lambda_name; call_args = call_args}, rest)
-                | _ as n, rest ->
-                        let call_args = TupleExpr [n] in
+            match parse_args xs with
+                | args, rest ->
+                        let call_args = TupleExpr args in
                         (LambdaCall {callee = lambda_name; call_args = call_args}, rest)
     end
     | _ -> assert false
@@ -147,7 +127,6 @@ and parse_if_expr = function
     end
     | _ -> assert false
 
-(* TODO: Fix tuple parsing *)
 and parse: token list -> int -> expr * (token list) = fun s min_bp -> 
     match s with
     | (Ident _)::LParen::_ -> 
