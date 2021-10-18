@@ -18,7 +18,7 @@ type token =
     | Comma;;
 
 let is_numeric d = Base.Char.is_digit d || d == '.';;
-let is_identic c = Base.Char.is_alphanum c;;
+let is_identic c = Base.Char.is_alphanum c || c == '_';;
 
 let chars_of_string s = List.init (String.length s) (String.get s);;
 let rec string_of_chars chars = 

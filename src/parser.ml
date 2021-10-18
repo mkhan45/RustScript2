@@ -107,23 +107,34 @@ and parse_args ls =
 and parse_lambda = function
     | Fn::xs -> 
             begin
-                let (args, rest) = parse_args xs in
+                let (args, rest) = parse_pat xs in
                 match rest with
                     | Arrow::xs ->
-                            let (lambda_expr, rest) = parse xs 0 in
+                            let (lambda_expr, rest) = parse xs (-1) in
                             let lambda = Lambda {lambda_expr = lambda_expr; lambda_args = args} 
                             in (Atomic lambda, rest)
                     | _ -> assert false
             end
     | _ -> assert false
 
+(* TODO: Fix parsing args as patterns *)
 and parse_lambda_call = function
     | (Ident lambda_name)::xs -> begin
-            match parse_tup xs with
-                | TupleExpr (call_args), rest ->
+            printf "Parsing as lambda call: ";
+            print_toks ((Ident lambda_name)::xs);
+            match parse xs 0 with
+                | (TupleExpr _) as call_args, rest ->
+                    (LambdaCall {callee = lambda_name; call_args = call_args}, rest)
+                | _ as n, rest ->
+                        let call_args = TupleExpr [n] in
                         (LambdaCall {callee = lambda_name; call_args = call_args}, rest)
-                | _ -> assert false
     end
+    (* | (Ident lambda_name)::xs -> begin *)
+    (*         match parse_tup xs with *)
+    (*             | TupleExpr (call_args), rest -> *)
+    (*                     (LambdaCall {callee = lambda_name; call_args = call_args}, rest) *)
+    (*             | _ -> assert false *)
+    (* end *)
     | _ -> assert false
 
 and parse_if_expr = function
@@ -145,7 +156,10 @@ and parse_if_expr = function
     end
     | _ -> assert false
 
+(* TODO: Fix tuple parsing *)
 and parse: token list -> int -> expr * (token list) = fun s min_bp -> 
+    printf "Parsing: ";
+    print_toks s;
     match s with
     | (Ident _)::LParen::_ -> 
             let (call, xs) = parse_lambda_call s in
@@ -153,8 +167,16 @@ and parse: token list -> int -> expr * (token list) = fun s min_bp ->
     | LParen::_ -> expr_bp s 0
     | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
     | Let::xs -> parse_let xs
-    | Fn::_ ->  parse_lambda s
-    | If::_ ->  parse_if_expr s
+    | Fn::_ -> 
+            printf "Start: ";
+            print_toks s;
+            let (lambda_parsed, xs) = parse_lambda s in
+            printf "Remaining: ";
+            print_toks xs;
+            complete_expr lambda_parsed xs min_bp
+    | If::_ -> 
+            let (if_parsed, xs) = parse_if_expr s in
+            complete_expr if_parsed xs min_bp
     | _ -> assert false;;
 
 let parse_str s = parse (Scanner.scan s) 0

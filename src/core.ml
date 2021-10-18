@@ -11,8 +11,8 @@ type pattern =
     | SinglePat of string
     | TuplePat of pattern list
 
-type lambda = {lambda_expr: expr; lambda_args: string list}
-and lambda_call = {callee: string; call_args: expr list}
+type lambda = {lambda_expr: expr; lambda_args: pattern}
+and lambda_call = {callee: string; call_args: expr}
 
 and if_expr = {cond: expr; then_expr: expr; else_expr: expr}
 
