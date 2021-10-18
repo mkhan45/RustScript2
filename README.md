@@ -1,4 +1,9 @@
-# Rustscript V2
+<div align=center>
+    <img src="assets/logo.png" width="50%">
+    <h1>
+        RustScript V2
+    </h1>
+</div>
 
 V2 of <https://github.com/mkhan45/RustScript>
 
