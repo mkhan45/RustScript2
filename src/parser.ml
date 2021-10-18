@@ -1,6 +1,7 @@
-open Core
+open Types
 open Scanner
 open Printf
+open Base
 
 let op_bp = function
     | EQ -> (1, 2)
@@ -32,7 +33,7 @@ and expr_bp ls min_bp = match ls with
             in let expr_list, rest, saw_comma = aux xs false [] in
                if saw_comma 
                    then complete_expr (TupleExpr (List.rev expr_list)) rest min_bp
-                   else complete_expr (List.hd expr_list) rest min_bp
+                   else complete_expr (List.hd_exn expr_list) rest min_bp
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
     | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp
