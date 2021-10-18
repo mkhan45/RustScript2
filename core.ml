@@ -35,19 +35,19 @@ and expr =
 let rec string_of_val = function
     | Number n -> string_of_float n
     | Boolean b -> string_of_bool b
-    | Tuple ls -> String.concat ", " (List.map string_of_val ls)
+    | Tuple ls -> "(" ^ Base.String.concat ~sep:", " (List.map string_of_val ls) ^ ")"
     | Unit -> "()"
     | Lambda _ -> "Lambda"
 
 let rec string_of_expr = function
     | Atomic v -> string_of_val v
     | Ident s -> s
-    | Binary (_ as b) -> "{lhs: " ^ (string_of_expr b.lhs) ^ ", rhs: " ^ (string_of_expr b.rhs) ^ "}";
-    | Let _ -> "LetExpr"
+    | Binary (_ as b) -> "{lhs: " ^ (string_of_expr b.lhs) ^ ", rhs: " ^ (string_of_expr b.rhs) ^ "}"
+    | Let {assignee = a; assigned_expr = e} -> "Let " ^ (string_of_pat a) ^ " = " ^ (string_of_expr e)
     | LambdaCall _ -> "LambdaCall"
     | TupleExpr ls -> "(" ^ (Base.String.concat ~sep:", " (List.map string_of_expr ls)) ^ ")"
     | IfExpr _ -> "IfExpr"
 
-let rec string_of_pat = function
+and string_of_pat = function
     | SinglePat s -> s
     | TuplePat ls -> "(" ^ (Base.String.concat ~sep:", " (List.map string_of_pat ls)) ^ ")"

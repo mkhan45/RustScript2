@@ -32,28 +32,17 @@ let val_gt lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (lhs > rhs)
     | _ -> assert false
 
-let rec eval_let lhs rhs = match lhs with
-    | SinglePat s -> fun state ->
-            Hashtbl.add !state s ((eval_expr rhs) state);
-            Unit
-    | TuplePat lhs_ls -> fun state ->
-            match rhs with
-                | TupleExpr rhs_ls ->
-                    printf "lhs: %s, rhs: %s\n" (Base.String.concat ~sep:" " (List.map string_of_pat lhs_ls)) 
-                                                (Base.String.concat ~sep:" " (List.map string_of_expr rhs_ls));
-                    let zipped = List.combine lhs_ls rhs_ls in
-                    List.iter (fun (k, v) -> let _ = (eval_let k v) state in ()) zipped;
-                    (* printf "lhs: %s, rhs: %s\n" (string_of_pat lhs) (string_of_val rhs_evaled); *)
-                    (* let rec aux a b = match a, b with *)
-                    (*     | [], [] -> () *)
-                    (*     | ((SinglePat lv)::l), (rv::r) -> *)
-                    (*         Hashtbl.add !state lv rv; *)
-                    (*         aux l r *)
-                    (*     | _ -> assert false *)
-                    (* in *) 
-                    (* aux lhs_ls rhs_ls; *)
-                    Unit
-                | _ -> assert false
+let rec bind lhs rhs = match lhs, rhs with
+    | SinglePat s, _ -> fun state ->
+            Hashtbl.add !state s rhs;
+    | (TuplePat lhs_ls), (Tuple rhs_ls) -> fun state ->
+            let zipped = List.combine lhs_ls rhs_ls in
+            List.iter (fun (k, v) -> (bind k v) state) zipped;
+    | _ -> assert false
+
+let rec eval_let lhs rhs = fun state ->
+    (bind lhs ((eval_expr rhs) state)) state;
+    Unit
 
 (* TODO: Instead of copying state, only copy the overlapping assignments*)
 and eval_lambda_call call = fun state ->
@@ -79,7 +68,9 @@ and eval_if_expr if_expr = fun state ->
                 (eval_expr if_expr.else_expr) state
         | _ -> assert false
 
-and eval_expr: expr -> (string, value) Hashtbl.t ref -> value = fun expr -> match expr with
+and eval_expr: expr -> (string, value) Hashtbl.t ref -> value = fun expr -> 
+    (* printf "Evaluating: %s\n" (string_of_expr expr); *)
+    match expr with
     | Atomic n -> fun _ -> n
     | Ident v -> fun state -> Hashtbl.find !state v
     | Binary ({op = Add; _} as e) -> fun s -> val_add ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)

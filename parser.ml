@@ -18,18 +18,15 @@ let rec complete_expr lhs ls min_bp = match ls with
                 else let (rhs, rem) = parse xs r_bp in 
                      let complete = Binary {op = op; lhs = lhs; rhs = rhs}
                       in complete_expr complete rem min_bp
+    | Comma::_ when min_bp < 0 -> (lhs, ls)
     | Comma::xs ->
             let rec aux toks acc = match toks with
                 | RParen::rest -> (acc, rest)
-                | _ -> let (nx, rest) = parse toks 0 in
+                | _ -> let (nx, rest) = parse toks (-1) in
                        match rest with
                            | (Comma::rest) -> aux rest (nx::acc)
                            | (RParen::rest) -> (nx::acc, rest)
-                           | [] -> (nx::acc, rest)
-                           | _ -> 
-                                   printf "rest: ";
-                                   print_toks rest;
-                                   assert false
+                           | _ -> (nx::acc, rest)
                 in
                 let (parsed, remaining) = aux xs [lhs]
                 in (TupleExpr (List.rev parsed), remaining)

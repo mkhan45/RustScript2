@@ -1,3 +1,7 @@
 (executable
  (name rustscript)
  (libraries base))
+
+(env
+  (release
+    (ocamlopt_flags (:standard -O3))))
