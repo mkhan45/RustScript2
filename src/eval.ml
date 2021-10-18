@@ -1,5 +1,6 @@
 open Core
-open Printf
+open Stdio
+open Base
 
 let val_add lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Number (lhs +. rhs)
@@ -22,28 +23,27 @@ let val_div lhs rhs = match lhs, rhs with
     | _ -> assert false
 
 let val_eq lhs rhs = match lhs, rhs with
-    | Number lhs, Number rhs -> Boolean (lhs = rhs)
-    | Boolean lhs, Boolean rhs -> Boolean (lhs = rhs)
+    | Number lhs, Number rhs -> Boolean (Float.equal lhs rhs)
+    | Boolean lhs, Boolean rhs -> Boolean (Bool.equal lhs rhs)
     | Tuple [], Tuple [] -> Boolean (true)
     | _ -> assert false (* TODO *)
 
 let val_lt lhs rhs = match lhs, rhs with
-    | Number lhs, Number rhs -> Boolean (lhs < rhs)
+    | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs < 0)
     | _ -> assert false
 
 let val_gt lhs rhs = match lhs, rhs with
-    | Number lhs, Number rhs -> Boolean (lhs > rhs)
+    | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs > 0)
     | _ -> assert false
 
 let rec bind lhs rhs = match lhs, rhs with
     | SinglePat s, _ -> fun state ->
-            Hashtbl.add !state s rhs;
+            Map.set state ~key:s ~data:rhs;
     | (TuplePat lhs_ls), (Tuple rhs_ls) -> fun state ->
-            if List.length lhs_ls == List.length rhs_ls
-                then begin
-                    let zipped = List.combine lhs_ls rhs_ls in
-                    List.iter (fun (k, v) -> (bind k v) state) zipped;
-                end
+            if phys_equal (List.length lhs_ls) (List.length rhs_ls)
+                then 
+                    let zipped = List.zip_exn lhs_ls rhs_ls in
+                    List.fold_left ~init:state ~f:(fun state (k, v) -> (bind k v) state) zipped
                 else begin
                     printf "\n";
                     printf "Tried to bind %s of len %d to %s of len %d\n"
@@ -54,20 +54,18 @@ let rec bind lhs rhs = match lhs, rhs with
     | _ -> assert false
 
 let rec eval_let lhs rhs = fun state ->
-    (bind lhs ((eval_expr rhs) state)) state;
-    Unit
+    let (evaled, new_state) = (eval_expr rhs) state in
+    let new_state = (bind lhs evaled) new_state in
+    (Unit, new_state)
 
-(* TODO: Instead of copying state, only copy the overlapping assignments*)
-and eval_lambda_call call = 
-    fun state -> match Hashtbl.find_opt !state call.callee with
-        | Some(Lambda (lambda_val)) -> begin
-            let inner_state = ref (Hashtbl.copy !state) in
-            bind lambda_val.lambda_args ((eval_expr call.call_args) state) inner_state;
-
-            Hashtbl.add !inner_state call.callee (Lambda (lambda_val));
-            let call_result = (eval_expr lambda_val.lambda_expr) inner_state in
-
-            call_result
+and eval_lambda_call call =
+    fun (state: state) -> match Map.find state call.callee with
+        | Some(Lambda (lambda_val) as l) -> begin
+            let (evaled, state) = (eval_expr call.call_args) state in
+            let inner_state = (bind lambda_val.lambda_args evaled) state in
+            let inner_state = Map.set inner_state ~key:call.callee ~data:l in
+            let (result, _) = (eval_expr lambda_val.lambda_expr) inner_state in
+            (result, state)
         end
         | None ->
                 printf "Error: function not found: %s\n" call.callee;
@@ -76,30 +74,58 @@ and eval_lambda_call call =
 
 and eval_if_expr if_expr = fun state ->
     match (eval_expr if_expr.cond) state with
-        | Boolean true -> (eval_expr if_expr.then_expr) state
-        | Boolean false -> 
+        | Boolean true, state -> (eval_expr if_expr.then_expr) state
+        | Boolean false, state -> 
                 (eval_expr if_expr.else_expr) state
         | _ -> assert false
 
-and eval_expr: expr -> (string, value) Hashtbl.t ref -> value = fun expr -> 
+and eval_expr: expr -> state -> value * state = fun expr -> 
     (* printf "Evaluating: %s\n" (string_of_expr expr); *)
     match expr with
-    | Atomic n -> fun _ -> n
+    | Atomic n -> fun s -> n, s
     | Ident n -> fun state -> begin
-        match Hashtbl.find_opt !state n with
-            | Some v -> v
+        match Map.find state n with
+            | Some v -> v, state
             | None -> 
                     printf "Error: variable not found: %s\n" n;
                     assert false
     end
-    | Binary ({op = Add; _} as e) -> fun s -> val_add ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
-    | Binary ({op = Sub; _} as e) -> fun s -> val_sub ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
-    | Binary ({op = Mul; _} as e) -> fun s -> val_mul ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
-    | Binary ({op = Div; _} as e) -> fun s -> val_div ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
-    | Binary ({op = EQ; _} as e) -> fun s -> val_eq ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
-    | Binary ({op = LT; _} as e) -> fun s -> val_lt ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
-    | Binary ({op = GT; _} as e) -> fun s -> val_gt ((eval_expr e.lhs) s) ((eval_expr e.rhs) s)
+    | Binary ({op = Add; _} as e) -> fun s -> 
+            let (lhs, s) = (eval_expr e.lhs) s in
+            let (rhs, s) = (eval_expr e.rhs) s in
+            val_add lhs rhs, s
+    | Binary ({op = Sub; _} as e) -> fun s -> 
+            let (lhs, s) = (eval_expr e.lhs) s in
+            let (rhs, s) = (eval_expr e.rhs) s in
+            val_sub lhs rhs, s
+    | Binary ({op = Mul; _} as e) -> fun s -> 
+            let (lhs, s) = (eval_expr e.lhs) s in
+            let (rhs, s) = (eval_expr e.rhs) s in
+            val_mul lhs rhs, s
+    | Binary ({op = Div; _} as e) -> fun s -> 
+            let (lhs, s) = (eval_expr e.lhs) s in
+            let (rhs, s) = (eval_expr e.rhs) s in
+            val_div lhs rhs, s
+    | Binary ({op = EQ; _} as e) -> fun s -> 
+            let (lhs, s) = (eval_expr e.lhs) s in
+            let (rhs, s) = (eval_expr e.rhs) s in
+            val_eq lhs rhs, s
+    | Binary ({op = LT; _} as e) -> fun s -> 
+            let (lhs, s) = (eval_expr e.lhs) s in
+            let (rhs, s) = (eval_expr e.rhs) s in
+            val_lt lhs rhs, s
+    | Binary ({op = GT; _} as e) -> fun s -> 
+            let (lhs, s) = (eval_expr e.lhs) s in
+            let (rhs, s) = (eval_expr e.rhs) s in
+            val_gt lhs rhs, s
     | Let l -> fun s -> (eval_let l.assignee l.assigned_expr) s
-    | TupleExpr ls -> fun s -> Tuple (List.map (fun e -> eval_expr e s) ls)
+    | TupleExpr ls -> fun s -> 
+            let (eval_ls, state) =
+                List.fold_left 
+                    ~init:([], s) 
+                    ~f:(fun (acc, s) e -> let (ev, s) = eval_expr e s in (ev::acc, s))
+                    ls
+            in
+            Tuple eval_ls, state
     | LambdaCall l -> fun s -> (eval_lambda_call l) s
     | IfExpr i -> fun s -> (eval_if_expr i) s

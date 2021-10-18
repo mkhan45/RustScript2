@@ -1,6 +1,6 @@
 (executable
  (name rustscript)
- (libraries base))
+ (libraries base stdio))
 
 (env
   (release

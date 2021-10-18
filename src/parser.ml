@@ -8,7 +8,6 @@ let op_bp = function
     | Add | Sub -> (4, 5)
     | Mul | Div -> (6, 7);;
 
-(* TODO: Fix parsing tuples more than length 2 *)
 let rec complete_expr lhs ls min_bp = match ls with
     | (Operator op)::xs ->
             let (l_bp, r_bp) = op_bp op

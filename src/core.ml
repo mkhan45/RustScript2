@@ -44,10 +44,12 @@ let rec string_of_expr = function
     | Ident s -> s
     | Binary (_ as b) -> "{lhs: " ^ (string_of_expr b.lhs) ^ ", rhs: " ^ (string_of_expr b.rhs) ^ "}"
     | Let {assignee = a; assigned_expr = e} -> "Let " ^ (string_of_pat a) ^ " = " ^ (string_of_expr e)
-    | LambdaCall _ -> "LambdaCall"
+    | LambdaCall call -> "{Call: " ^ call.callee ^ ", args: " ^ (string_of_expr call.call_args) ^ "}"
     | TupleExpr ls -> "(" ^ (Base.String.concat ~sep:", " (List.map string_of_expr ls)) ^ ")"
     | IfExpr _ -> "IfExpr"
 
 and string_of_pat = function
     | SinglePat s -> s
     | TuplePat ls -> "(" ^ (Base.String.concat ~sep:", " (List.map string_of_pat ls)) ^ ")"
+
+type state = (string, value, Base.String.comparator_witness) Base.Map.t
