@@ -18,22 +18,22 @@ let rec complete_expr lhs ls min_bp = match ls with
                 else let (rhs, rem) = parse xs r_bp in 
                      let complete = Binary {op = op; lhs = lhs; rhs = rhs}
                       in complete_expr complete rem min_bp
-    | Comma::_ when min_bp < 0 -> (lhs, ls)
-    | Comma::xs ->
-            let rec aux toks acc = match toks with
-                | RParen::rest -> (acc, rest)
-                | _ -> let (nx, rest) = parse toks (-1) in
-                       match rest with
-                           | (Comma::rest) -> aux rest (nx::acc)
-                           | (RParen::rest) -> (nx::acc, rest)
-                           | _ -> (nx::acc, rest)
-                in
-                let (parsed, remaining) = aux xs [lhs]
-                in (TupleExpr (List.rev parsed), remaining)
     | _ -> (lhs, ls)
 
 and expr_bp ls min_bp = match ls with
-    | (LParen::xs) -> parse xs 0
+    | (LParen::xs) -> 
+            let rec aux toks saw_comma acc = match toks with
+                | RParen::rest -> acc, rest, saw_comma
+                | _ -> let nx, rest = parse toks 0 in begin
+                    match rest with
+                        | Comma::rest -> aux rest true (nx::acc)
+                        | RParen::rest -> (nx::acc), rest, saw_comma
+                        | _ -> assert false
+                end
+            in let expr_list, rest, saw_comma = aux xs false [] in
+               if saw_comma 
+                   then complete_expr (TupleExpr (List.rev expr_list)) rest min_bp
+                   else complete_expr (List.hd expr_list) rest min_bp
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
     | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp
@@ -117,11 +117,8 @@ and parse_lambda = function
             end
     | _ -> assert false
 
-(* TODO: Fix parsing args as patterns *)
 and parse_lambda_call = function
     | (Ident lambda_name)::xs -> begin
-            printf "Parsing as lambda call: ";
-            print_toks ((Ident lambda_name)::xs);
             match parse xs 0 with
                 | (TupleExpr _) as call_args, rest ->
                     (LambdaCall {callee = lambda_name; call_args = call_args}, rest)
@@ -129,12 +126,6 @@ and parse_lambda_call = function
                         let call_args = TupleExpr [n] in
                         (LambdaCall {callee = lambda_name; call_args = call_args}, rest)
     end
-    (* | (Ident lambda_name)::xs -> begin *)
-    (*         match parse_tup xs with *)
-    (*             | TupleExpr (call_args), rest -> *)
-    (*                     (LambdaCall {callee = lambda_name; call_args = call_args}, rest) *)
-    (*             | _ -> assert false *)
-    (* end *)
     | _ -> assert false
 
 and parse_if_expr = function
@@ -158,8 +149,6 @@ and parse_if_expr = function
 
 (* TODO: Fix tuple parsing *)
 and parse: token list -> int -> expr * (token list) = fun s min_bp -> 
-    printf "Parsing: ";
-    print_toks s;
     match s with
     | (Ident _)::LParen::_ -> 
             let (call, xs) = parse_lambda_call s in
@@ -168,11 +157,7 @@ and parse: token list -> int -> expr * (token list) = fun s min_bp ->
     | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
     | Let::xs -> parse_let xs
     | Fn::_ -> 
-            printf "Start: ";
-            print_toks s;
             let (lambda_parsed, xs) = parse_lambda s in
-            printf "Remaining: ";
-            print_toks xs;
             complete_expr lambda_parsed xs min_bp
     | If::_ -> 
             let (if_parsed, xs) = parse_if_expr s in

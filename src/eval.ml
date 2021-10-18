@@ -22,7 +22,8 @@ let val_div lhs rhs = match lhs, rhs with
 let val_eq lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (lhs = rhs)
     | Boolean lhs, Boolean rhs -> Boolean (lhs = rhs)
-    | _ -> assert false
+    | Tuple [], Tuple [] -> true
+    | _ -> assert false (* TODO *)
 
 let val_lt lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (lhs < rhs)
@@ -36,9 +37,14 @@ let rec bind lhs rhs = match lhs, rhs with
     | SinglePat s, _ -> fun state ->
             Hashtbl.add !state s rhs;
     | (TuplePat lhs_ls), (Tuple rhs_ls) -> fun state ->
-            printf "lhs: %s, rhs: %s\n" (string_of_pat (TuplePat lhs_ls)) (string_of_val (Tuple rhs_ls));
-            let zipped = List.combine lhs_ls rhs_ls in
-            List.iter (fun (k, v) -> (bind k v) state) zipped;
+            if List.length lhs_ls == List.length rhs_ls
+                then 
+                    let zipped = List.combine lhs_ls rhs_ls in
+                    List.iter (fun (k, v) -> (bind k v) state) zipped;
+                else
+                    printf "Tried to bind %s to %s" 
+                        (string_of_pat (TuplePat lhs_ls)) (string_of_val (Tuple rhs_ls));
+                    assert false;
     | _ -> assert false
 
 let rec eval_let lhs rhs = fun state ->
