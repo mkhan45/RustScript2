@@ -17,25 +17,16 @@ written to learn OCaml. Still WIP
 
 ### Examples:
 
-Right now it just executes each stdin argument as an expression
-in order and prints the return value of the expression.
-
 ```
- ~/p/rustscript2 (main) Δ dune exec ./rustscript.exe \
-                              "let fib = fn (n) => if n < 2 then 1 else fib(n - 1) + fib(n - 2)"\
-                              "fib(25)"\
-                              \
-                              "let (a, b) = (4, 2)"\
-                              "(b, a)"\
-                              "let (a, (b, c)) = (4, (5, 10))"\
-                              "a * c + b"
-()
+> let fib = fn(n) => if n < 2 then 1 else fib(n - 1) + fib(n - 2)
+> fib(25)
 121393.
-lhs: a b, rhs: 4. 2.
-()
-2., 4.
-lhs: a (b, c), rhs: 4. (5., 10.)
-lhs: b c, rhs: 5. 10.
-()
-45.
+> let (a, b) = (4, 2)
+> (b, a)
+(2., 4.)
+> let (a, (b, c), d) = (4, (5, 6), 10)
+> a * c + b / d
+24.5
+> (a, b, c, d)
+(4., 5., 6., 10.)
 ```
