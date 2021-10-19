@@ -1,0 +1,3 @@
+(tests
+ (names fib tuple)
+ (libraries base stdio rustscript))

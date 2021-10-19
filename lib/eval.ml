@@ -22,11 +22,22 @@ let val_div lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Number (lhs /. rhs)
     | _ -> assert false
 
-let val_eq lhs rhs = match lhs, rhs with
+let val_is_true = function
+    | Boolean true -> true
+    | _ -> false
+
+let rec val_eq lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.equal lhs rhs)
     | Boolean lhs, Boolean rhs -> Boolean (Bool.equal lhs rhs)
-    | Tuple [], Tuple [] -> Boolean (true)
-    | _ -> assert false (* TODO *)
+    | Tuple lhs, Tuple rhs ->
+            if phys_equal (List.length lhs) (List.length rhs)
+                then
+                    let zipped = List.zip_exn lhs rhs in
+                    let res = List.for_all zipped ~f:(fun (a, b) -> val_is_true (val_eq a b))
+                    in Boolean res
+                else
+                    Boolean false
+    | _ -> assert false
 
 let val_lt lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs < 0)

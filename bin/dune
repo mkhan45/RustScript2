@@ -1,0 +1,3 @@
+(executable
+  (name rustscript_cli)
+  (libraries rustscript))

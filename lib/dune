@@ -1,0 +1,8 @@
+(library
+ (public_name rustscript)
+ (libraries base stdio)
+ (modules run types parser scanner eval))
+
+(env
+  (release
+    (ocamlopt_flags (:standard -O3))))

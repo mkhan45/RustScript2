@@ -1,0 +1,11 @@
+opam-version: "2.0"
+version: "0.1.0"
+maintainer: "mikail@mikail-khan.com"
+authors: ["Mikail Khan" "William Ragstad"]
+homepage: "https://github.com/mkhan45/RustScript2"
+bug-reports: "https://github.com/mkhan45/RustScript2/issues"
+dev-repo: "git+https://github.com/mkhan45/RustScript2.git"
+license: "MIT + Apache"
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+]
