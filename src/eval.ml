@@ -36,7 +36,9 @@ let val_gt lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs > 0)
     | _ -> assert false
 
-let rec bind lhs rhs = match lhs, rhs with
+let rec bind lhs rhs = 
+    (* printf "Binding %s to %s\n" (string_of_pat lhs) (string_of_val rhs); *)
+    match lhs, rhs with
     | SinglePat s, _ -> fun state ->
             Map.set state ~key:s ~data:rhs;
     | (TuplePat lhs_ls), (Tuple rhs_ls) -> fun state ->
@@ -61,7 +63,7 @@ let rec eval_let lhs rhs = fun state ->
 and eval_lambda_call call =
     fun (state: state) -> match Map.find state call.callee with
         | Some(Lambda (lambda_val) as l) -> begin
-            let (evaled, state) = (eval_expr call.call_args) state in
+            let (evaled, _) = (eval_expr call.call_args) state in
             let inner_state = (bind lambda_val.lambda_args evaled) state in
             let inner_state = Map.set inner_state ~key:call.callee ~data:l in
             let (result, _) = (eval_expr lambda_val.lambda_expr) inner_state in
@@ -126,6 +128,6 @@ and eval_expr: expr -> state -> value * state = fun expr ->
                     ~f:(fun (acc, s) e -> let (ev, s) = eval_expr e s in (ev::acc, s))
                     ls
             in
-            Tuple eval_ls, state
+            Tuple (List.rev eval_ls), state
     | LambdaCall l -> fun s -> (eval_lambda_call l) s
     | IfExpr i -> fun s -> (eval_if_expr i) s
