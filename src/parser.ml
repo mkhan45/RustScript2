@@ -1,6 +1,7 @@
-open Core
+open Types
 open Scanner
 open Printf
+open Base
 
 let op_bp = function
     | EQ -> (1, 2)
@@ -8,7 +9,6 @@ let op_bp = function
     | Add | Sub -> (4, 5)
     | Mul | Div -> (6, 7);;
 
-(* TODO: Fix parsing tuples more than length 2 *)
 let rec complete_expr lhs ls min_bp = match ls with
     | (Operator op)::xs ->
             let (l_bp, r_bp) = op_bp op
@@ -30,10 +30,12 @@ and expr_bp ls min_bp = match ls with
                         | RParen::rest -> (nx::acc), rest, saw_comma
                         | _ -> assert false
                 end
-            in let expr_list, rest, saw_comma = aux xs false [] in
-               if saw_comma 
-                   then complete_expr (TupleExpr (List.rev expr_list)) rest min_bp
-                   else complete_expr (List.hd expr_list) rest min_bp
+            in let expr_list, rest, saw_comma = aux xs false [] in begin
+               match expr_list, saw_comma with
+                   | _, true -> complete_expr (TupleExpr (List.rev expr_list)) rest min_bp
+                   | [], false -> complete_expr (TupleExpr []) rest min_bp
+                   | _, false -> complete_expr (List.hd_exn expr_list) rest min_bp
+            end
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
     | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp

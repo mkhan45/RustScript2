@@ -1,11 +1,12 @@
-open Printf
+open Base
+open Stdio
 
 type token =
     | True
     | False
     | Number of float
     | Ident of string
-    | Operator of Core.operator
+    | Operator of Types.operator
     | Let
     | Equal
     | LParen
@@ -17,26 +18,20 @@ type token =
     | Arrow
     | Comma;;
 
-let is_numeric d = Base.Char.is_digit d || d == '.';;
-let is_identic c = Base.Char.is_alphanum c || c == '_';;
+let is_numeric d = Base.Char.is_digit d || phys_equal d '.';;
+let is_identic c = Base.Char.is_alphanum c || phys_equal c '_';;
 
-let chars_of_string s = List.init (String.length s) (String.get s);;
-let rec string_of_chars chars = 
-    let buf = Buffer.create 16 
-        in List.iter (Buffer.add_char buf) chars;
-    Buffer.contents buf
-
-and scan_digit ls =
+let rec scan_digit ls =
     let rec aux ls acc = match ls with
         | d::xs when is_numeric d -> aux xs (d::acc)
-        | _ -> let f = (acc |> List.rev |> string_of_chars |> float_of_string)
+        | _ -> let f = (acc |> List.rev |> String.of_char_list |> Float.of_string)
                 in (Number f)::(scan_ls ls)
     in aux ls []
 
 and scan_ident ls =
     let rec aux ls acc = match ls with
         | c::xs when is_identic c -> aux xs (c::acc)
-        | _ -> let n = (acc |> List.rev |> string_of_chars)
+        | _ -> let n = (acc |> List.rev |> String.of_char_list)
                 in (Ident n)::(scan_ls ls)
     in aux ls []
 
@@ -66,13 +61,13 @@ and scan_ls = function
     | d::_ as ls when Base.Char.is_digit d -> scan_digit ls
     | i::_ as ls when not (Base.Char.is_digit i) -> scan_ident ls
     | _ as ls -> 
-            printf "Scan Error: %s\n" (string_of_chars ls); 
+            printf "Scan Error: %s\n" (String.of_char_list ls); 
             assert false;;
 
-let scan s = s |> chars_of_string |> scan_ls;;
+let scan s = s |> String.to_list |> scan_ls;;
 
 let string_of_tok = function
-    | Number f -> string_of_float f
+    | Number f -> Float.to_string f
     | Ident s -> "(Ident " ^ s ^ ")"
     | Operator _ -> "Operator"
     | Let -> "Let"
@@ -89,5 +84,5 @@ let string_of_tok = function
     | Else -> "Else"
 
 let print_toks ls =
-    List.iter (fun t -> printf "%s " (string_of_tok t)) ls;
+    List.iter ~f:(fun t -> printf "%s " (string_of_tok t)) ls;
     printf "\n";;
