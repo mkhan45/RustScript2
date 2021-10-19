@@ -1,3 +1,5 @@
+open Base
+
 type operator =
     | Add
     | Sub
@@ -33,9 +35,9 @@ and expr =
     | TupleExpr of expr list;;
 
 let rec string_of_val = function
-    | Number n -> string_of_float n
-    | Boolean b -> string_of_bool b
-    | Tuple ls -> "(" ^ Base.String.concat ~sep:", " (List.map string_of_val ls) ^ ")"
+    | Number n -> Float.to_string n
+    | Boolean b -> Bool.to_string b
+    | Tuple ls -> "(" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ ")"
     | Unit -> "()"
     | Lambda _ -> "Lambda"
 
@@ -44,10 +46,12 @@ let rec string_of_expr = function
     | Ident s -> s
     | Binary (_ as b) -> "{lhs: " ^ (string_of_expr b.lhs) ^ ", rhs: " ^ (string_of_expr b.rhs) ^ "}"
     | Let {assignee = a; assigned_expr = e} -> "Let " ^ (string_of_pat a) ^ " = " ^ (string_of_expr e)
-    | LambdaCall _ -> "LambdaCall"
-    | TupleExpr ls -> "(" ^ (Base.String.concat ~sep:", " (List.map string_of_expr ls)) ^ ")"
+    | LambdaCall call -> "{Call: " ^ call.callee ^ ", args: " ^ (string_of_expr call.call_args) ^ "}"
+    | TupleExpr ls -> "(" ^ (String.concat ~sep:", " (List.map ~f:string_of_expr ls)) ^ ")"
     | IfExpr _ -> "IfExpr"
 
 and string_of_pat = function
     | SinglePat s -> s
-    | TuplePat ls -> "(" ^ (Base.String.concat ~sep:", " (List.map string_of_pat ls)) ^ ")"
+    | TuplePat ls -> "(" ^ (String.concat ~sep:", " (List.map ~f:string_of_pat ls)) ^ ")"
+
+type state = (string, value, String.comparator_witness) Map.t
