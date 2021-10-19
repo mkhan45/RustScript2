@@ -14,6 +14,24 @@ This is an improved version of RustScript with improved performance and more fea
 written to learn OCaml. Still WIP
 
 
+
+### Build
+
+Enter the `src` directory and run:
+
+```bash
+dune build rustscript.exe
+```
+
+Run the program using:
+
+```bash
+dune exec ./rustscript.exe <expr>
+```
+
+
+
+
 ### Examples:
 
 Right now it just executes each stdin argument as an expression
