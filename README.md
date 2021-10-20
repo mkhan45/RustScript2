@@ -45,4 +45,20 @@ let f = fn(a, b, c) => {
 
 f(10, 5, 3)
 ```
-Prints 28
+Result: `28`
+
+```
+let fmap = fn (f, ls) => {
+    if ls == () then {
+        ()
+    } else {
+        let (hd, tl) = ls
+        (f(hd), fmap(f, tl))
+    }
+}
+
+let f = fn(x) => x * 2
+
+fmap(f, (5, (10, (20, (30, (1, ()))))))
+```
+Result: `(10, (20, (40, (60, (2, ())))))`
