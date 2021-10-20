@@ -92,6 +92,11 @@ and eval_if_expr if_expr = fun state ->
                 (eval_expr if_expr.else_expr) state
         | _ -> assert false
 
+and eval_block_expr ls state =
+    let (res, _) =
+        List.fold_left ~init:(Unit, state) ~f:(fun (_, state) e -> (eval_expr e) state) ls
+    in (res, state)
+
 and eval_expr: expr -> state -> value * state = fun expr -> 
     (* printf "Evaluating: %s\n" (string_of_expr expr); *)
     match expr with
@@ -142,3 +147,4 @@ and eval_expr: expr -> state -> value * state = fun expr ->
             Tuple (List.rev eval_ls), state
     | LambdaCall l -> fun s -> (eval_lambda_call l) s
     | IfExpr i -> fun s -> (eval_if_expr i) s
+    | BlockExpr ls -> fun s -> eval_block_expr ls s

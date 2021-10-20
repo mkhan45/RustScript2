@@ -4,6 +4,8 @@ open Rustscript.Run
 open Rustscript.Eval
 open Rustscript.Types
 
+let test_file filename = Printf.sprintf "../../../examples/%s" filename
+
 let assert_equal_expressions lhs rhs state =
     let (lhs_res, _) = eval state lhs in
     let (rhs_res, _) = eval state rhs in

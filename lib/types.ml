@@ -1,4 +1,5 @@
 open Base
+open Printf
 
 type operator =
     | Add
@@ -32,7 +33,8 @@ and expr =
     | Let of {assignee: pattern; assigned_expr: expr}
     | LambdaCall of lambda_call
     | IfExpr of  if_expr
-    | TupleExpr of expr list;;
+    | TupleExpr of expr list
+    | BlockExpr of expr list;;
 
 let rec string_of_val = function
     | Number n -> Float.to_string n
@@ -44,11 +46,12 @@ let rec string_of_val = function
 let rec string_of_expr = function
     | Atomic v -> string_of_val v
     | Ident s -> s
-    | Binary (_ as b) -> "{lhs: " ^ (string_of_expr b.lhs) ^ ", rhs: " ^ (string_of_expr b.rhs) ^ "}"
-    | Let {assignee = a; assigned_expr = e} -> "Let " ^ (string_of_pat a) ^ " = " ^ (string_of_expr e)
-    | LambdaCall call -> "{Call: " ^ call.callee ^ ", args: " ^ (string_of_expr call.call_args) ^ "}"
-    | TupleExpr ls -> "(" ^ (String.concat ~sep:", " (List.map ~f:string_of_expr ls)) ^ ")"
+    | Binary (_ as b) -> sprintf "{lhs: %s, rhs: %s}" (string_of_expr b.lhs) (string_of_expr b.rhs)
+    | Let (_ as l) -> sprintf "Let %s = %s" (string_of_pat l.assignee) (string_of_expr l.assigned_expr)
+    | LambdaCall call -> sprintf "{Call: %s, args: %s}" call.callee (string_of_expr call.call_args)
+    | TupleExpr ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_expr ls))
     | IfExpr _ -> "IfExpr"
+    | BlockExpr ls -> sprintf "{\n\t%s\n}" (String.concat ~sep:"\n\t" (List.map ~f:string_of_expr ls))
 
 and string_of_pat = function
     | SinglePat s -> s

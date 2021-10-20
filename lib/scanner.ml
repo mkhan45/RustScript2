@@ -11,11 +11,14 @@ type token =
     | Equal
     | LParen
     | RParen
+    | LBrace
+    | RBrace
     | Fn
     | If
     | Then
     | Else
     | Arrow
+    | Newline
     | Comma;;
 
 let is_numeric d = Base.Char.is_digit d || phys_equal d '.';;
@@ -37,8 +40,8 @@ and scan_ident ls =
 
 and scan_ls = function
     | [] -> []
-    | ' '::xs -> scan_ls xs
-    | '\t'::xs -> scan_ls xs
+    | (' '|'\t')::xs -> scan_ls xs
+    | '\n'::xs -> Newline :: scan_ls xs
     | '='::'>'::xs -> Arrow :: scan_ls xs
     | '+'::xs -> Operator Add :: (scan_ls xs)
     | '-'::xs -> Operator Sub :: scan_ls xs
@@ -49,6 +52,8 @@ and scan_ls = function
     | '='::'='::xs -> Operator EQ :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
+    | '{'::xs -> LBrace :: scan_ls xs
+    | '}'::xs -> RBrace :: scan_ls xs
     | '='::xs -> Equal :: scan_ls xs
     | ','::xs -> Comma :: scan_ls xs
     | 'l'::'e'::'t'::xs -> Let :: scan_ls xs
@@ -74,6 +79,8 @@ let string_of_tok = function
     | Equal -> "Equal"
     | LParen -> "LParen"
     | RParen -> "RParen"
+    | LBrace -> "LBrace"
+    | RBrace -> "RBrace"
     | Comma -> "Comma"
     | Fn -> "Fn"
     | Arrow -> "Arrow"
@@ -82,7 +89,7 @@ let string_of_tok = function
     | If -> "If"
     | Then -> "Then"
     | Else -> "Else"
+    | Newline -> "Newline"
 
-let print_toks ls =
-    List.iter ~f:(fun t -> printf "%s " (string_of_tok t)) ls;
-    printf "\n";;
+let string_of_toks ls = String.concat ~sep:" " (List.map ~f:string_of_tok ls)
+let print_toks ls = ls |> string_of_toks |> printf "%s\n"
