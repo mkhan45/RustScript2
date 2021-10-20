@@ -19,14 +19,15 @@ let run_line state line =
 let run_file ?print_exprs:(print_exprs=true) filename state = 
     let in_stream = In_channel.create filename in
     let in_string = In_channel.input_all in_stream in
-    let tokens = Scanner.scan in_string in
+    let tokens = in_string |> Scanner.scan |> skip_newlines in
     let rec aux (parsed, remaining) state =
-        match (Eval.eval_expr parsed state), remaining with
-            | (res, _), ([]|[Newline]) ->
+        match (Eval.eval_expr parsed state), (skip_newlines remaining) with
+            | (res, _), [] ->
                     if print_exprs then
                         printf "%s\n" (string_of_val res);
                     state
-            | (Unit, new_state), remaining -> aux (Parser.parse remaining 0) new_state
+            | (Unit, new_state), remaining -> 
+                    aux (Parser.parse remaining 0) new_state
             | (res, new_state), remaining ->
                     if print_exprs then
                         printf "%s\n" (string_of_val res);

@@ -115,11 +115,11 @@ and parse_lambda_call = function
 and parse_if_expr = function
     | If::xs -> begin
         let (cond, xs) = parse xs 0 in
-        match xs with
-            | (Newline::Then::xs)|(Then::xs) -> begin
+        match skip_newlines xs with
+            | Then::xs -> begin
                 let (then_expr, xs) = parse xs 0 in
                 match xs with
-                    | (Newline::Else::xs)|Else::xs ->
+                    | Else::xs ->
                             let (else_expr, rest) = parse xs 0 in
                             (IfExpr {cond = cond; then_expr = then_expr; else_expr = else_expr}, rest)
                     | _ -> 
@@ -155,7 +155,6 @@ and parse: token list -> int -> expr * (token list) = fun s min_bp ->
     | If::_ -> 
             let (if_parsed, xs) = parse_if_expr s in
             complete_expr if_parsed xs min_bp
-    | Newline::xs -> parse xs 0
     | _ -> 
             printf "Expected expression, got (%s)\n" (string_of_toks s);
             assert false

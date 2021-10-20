@@ -93,3 +93,8 @@ let string_of_tok = function
 
 let string_of_toks ls = String.concat ~sep:" " (List.map ~f:string_of_tok ls)
 let print_toks ls = ls |> string_of_toks |> printf "%s\n"
+
+let toks_empty toks = List.for_all toks ~f:(fun tok -> phys_equal tok Newline)
+let rec skip_newlines = function
+    | Newline :: xs -> skip_newlines xs
+    | ls -> ls
