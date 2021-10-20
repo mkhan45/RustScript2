@@ -116,10 +116,10 @@ and parse_if_expr = function
     | If::xs -> begin
         let (cond, xs) = parse xs 0 in
         match xs with
-            | Then::xs -> begin
+            | (Newline::Then::xs)|(Then::xs) -> begin
                 let (then_expr, xs) = parse xs 0 in
                 match xs with
-                    | Else::xs ->
+                    | (Newline::Else::xs)|Else::xs ->
                             let (else_expr, rest) = parse xs 0 in
                             (IfExpr {cond = cond; then_expr = then_expr; else_expr = else_expr}, rest)
                     | _ -> 
