@@ -30,3 +30,35 @@ written to learn OCaml. Still WIP
 > (a, b, c, d)
 (4., 5., 6., 10.)
 ```
+
+```
+let (a, b) = {
+    let a = (4, 2)
+    let (a, b) = a
+    (a * b, 12)
+}
+
+let f = fn(a, b, c) => {
+    let g = fn(a, b) => a * b + c
+    g(b, c) + a
+}
+
+f(10, 5, 3)
+```
+Result: `28`
+
+```
+let fmap = fn (f, ls) => {
+    if ls == () then {
+        ()
+    } else {
+        let (hd, tl) = ls
+        (f(hd), fmap(f, tl))
+    }
+}
+
+let f = fn(x) => x * 2
+
+fmap(f, (5, (10, (20, (30, (1, ()))))))
+```
+Result: `(10, (20, (40, (60, (2, ())))))`

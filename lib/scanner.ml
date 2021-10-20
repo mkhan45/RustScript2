@@ -11,11 +11,15 @@ type token =
     | Equal
     | LParen
     | RParen
+    | LBrace
+    | RBrace
     | Fn
     | If
     | Then
     | Else
     | Arrow
+    | Newline
+    | Hashtag
     | Comma;;
 
 let is_numeric d = Base.Char.is_digit d || phys_equal d '.';;
@@ -37,8 +41,8 @@ and scan_ident ls =
 
 and scan_ls = function
     | [] -> []
-    | ' '::xs -> scan_ls xs
-    | '\t'::xs -> scan_ls xs
+    | (' '|'\t')::xs -> scan_ls xs
+    | '\n'::xs -> Newline :: scan_ls xs
     | '='::'>'::xs -> Arrow :: scan_ls xs
     | '+'::xs -> Operator Add :: (scan_ls xs)
     | '-'::xs -> Operator Sub :: scan_ls xs
@@ -49,8 +53,11 @@ and scan_ls = function
     | '='::'='::xs -> Operator EQ :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
+    | '{'::xs -> LBrace :: scan_ls xs
+    | '}'::xs -> RBrace :: scan_ls xs
     | '='::xs -> Equal :: scan_ls xs
     | ','::xs -> Comma :: scan_ls xs
+    | '#'::xs -> Hashtag :: scan_ls xs
     | 'l'::'e'::'t'::xs -> Let :: scan_ls xs
     | 'f'::'n'::xs -> Fn :: scan_ls xs
     | 'i'::'f'::xs -> If :: scan_ls xs
@@ -62,9 +69,19 @@ and scan_ls = function
     | i::_ as ls when not (Base.Char.is_digit i) -> scan_ident ls
     | _ as ls -> 
             printf "Scan Error: %s\n" (String.of_char_list ls); 
-            assert false;;
+            assert false
 
-let scan s = s |> String.to_list |> scan_ls;;
+and remove_comments ls =
+    let rec skip_until_endline = function
+        | [] -> []
+        | Newline::xs -> remove_comments xs
+        | _::xs -> skip_until_endline xs
+    in match ls with
+        | [] -> []
+        | Hashtag::xs -> skip_until_endline xs
+        | t::xs -> t :: (remove_comments xs)
+
+let scan s = s |> String.to_list |> scan_ls |> remove_comments;;
 
 let string_of_tok = function
     | Number f -> Float.to_string f
@@ -74,6 +91,8 @@ let string_of_tok = function
     | Equal -> "Equal"
     | LParen -> "LParen"
     | RParen -> "RParen"
+    | LBrace -> "LBrace"
+    | RBrace -> "RBrace"
     | Comma -> "Comma"
     | Fn -> "Fn"
     | Arrow -> "Arrow"
@@ -82,7 +101,13 @@ let string_of_tok = function
     | If -> "If"
     | Then -> "Then"
     | Else -> "Else"
+    | Newline -> "Newline"
+    | Hashtag -> "Hashtag"
 
-let print_toks ls =
-    List.iter ~f:(fun t -> printf "%s " (string_of_tok t)) ls;
-    printf "\n";;
+let string_of_toks ls = String.concat ~sep:" " (List.map ~f:string_of_tok ls)
+let print_toks ls = ls |> string_of_toks |> printf "%s\n"
+
+let toks_empty toks = List.for_all toks ~f:(fun tok -> phys_equal tok Newline)
+let rec skip_newlines = function
+    | Newline :: xs -> skip_newlines xs
+    | ls -> ls

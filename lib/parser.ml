@@ -97,7 +97,9 @@ and parse_lambda = function
                             let (lambda_expr, rest) = parse xs (-1) in
                             let lambda = Lambda {lambda_expr = lambda_expr; lambda_args = args} 
                             in (Atomic lambda, rest)
-                    | _ -> assert false
+                    | _ ->
+                            printf "Expected an arrow, got (%s)\n" (string_of_toks rest);
+                            assert false
             end
     | _ -> assert false
 
@@ -113,7 +115,7 @@ and parse_lambda_call = function
 and parse_if_expr = function
     | If::xs -> begin
         let (cond, xs) = parse xs 0 in
-        match xs with
+        match skip_newlines xs with
             | Then::xs -> begin
                 let (then_expr, xs) = parse xs 0 in
                 match xs with
@@ -129,8 +131,18 @@ and parse_if_expr = function
     end
     | _ -> assert false
 
-and parse: token list -> int -> expr * (token list) = fun s min_bp -> 
+and parse_block_expr ls =
+    let rec aux ls acc = match ls with
+        | (RBrace::rest)|(Newline::RBrace::rest) -> (BlockExpr (List.rev acc), rest)
+        | Newline::rest ->
+                let (next_expr, rest) = parse rest 0 in
+                aux rest (next_expr::acc)
+        | _ -> assert false
+    in aux ls []
+
+and parse: token list -> int -> expr * (token list) = fun s min_bp ->
     match s with
+    | LBrace::xs -> parse_block_expr xs
     | (Ident _)::LParen::_ -> 
             let (call, xs) = parse_lambda_call s in
             complete_expr call xs min_bp
@@ -143,6 +155,8 @@ and parse: token list -> int -> expr * (token list) = fun s min_bp ->
     | If::_ -> 
             let (if_parsed, xs) = parse_if_expr s in
             complete_expr if_parsed xs min_bp
-    | _ -> assert false;;
+    | _ -> 
+            printf "Expected expression, got (%s)\n" (string_of_toks s);
+            assert false
 
 let parse_str s = parse (Scanner.scan s) 0

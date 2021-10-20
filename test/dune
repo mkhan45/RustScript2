@@ -1,0 +1,3 @@
+(tests
+ (names fib tuple block comments)
+ (libraries base stdio rustscript))
