@@ -140,7 +140,7 @@ and parse_block_expr ls =
         | _ -> assert false
     in aux ls []
 
-and parse: token list -> int -> expr * (token list) = fun s min_bp -> 
+and parse: token list -> int -> expr * (token list) = fun s min_bp ->
     match s with
     | LBrace::xs -> parse_block_expr xs
     | (Ident _)::LParen::_ -> 
