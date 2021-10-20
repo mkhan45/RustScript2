@@ -14,6 +14,24 @@ ignoring performance/code quality because I only had one night to do it.
 This is an improved version of RustScript with improved performance and more features
 written to learn OCaml. Still WIP
 
+### Build
+
+```bash
+dune build
+```
+
+Run a file using:
+
+```bash
+dune exec ./bin/rustscript_cli.exe <file>
+```
+
+Start a REPL using:
+
+```bash
+dune exec ./bin/rustscript_cli.exe
+```
+
 
 ### Examples:
 
