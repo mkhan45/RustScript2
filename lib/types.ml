@@ -8,7 +8,7 @@ type operator =
     | Div
     | LT
     | GT
-    | EQ;;
+    | EQ
 
 type pattern =
     | SinglePat of string
@@ -34,7 +34,7 @@ and expr =
     | LambdaCall of lambda_call
     | IfExpr of  if_expr
     | TupleExpr of expr list
-    | BlockExpr of expr list;;
+    | BlockExpr of expr list
 
 let rec string_of_val = function
     | Number n -> Float.to_string n

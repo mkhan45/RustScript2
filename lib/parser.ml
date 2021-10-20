@@ -7,7 +7,7 @@ let op_bp = function
     | EQ -> (1, 2)
     | LT | GT -> (3, 4)
     | Add | Sub -> (4, 5)
-    | Mul | Div -> (6, 7);;
+    | Mul | Div -> (6, 7)
 
 let rec complete_expr lhs ls min_bp = match ls with
     | (Operator op)::xs ->
@@ -132,12 +132,11 @@ and parse_if_expr = function
     | _ -> assert false
 
 and parse_block_expr ls =
-    let rec aux ls acc = match ls with
-        | (RBrace::rest)|(Newline::RBrace::rest) -> (BlockExpr (List.rev acc), rest)
-        | Newline::rest ->
+    let rec aux ls acc = match skip_newlines ls with
+        | RBrace::rest -> (BlockExpr (List.rev acc), rest)
+        | rest ->
                 let (next_expr, rest) = parse rest 0 in
                 aux rest (next_expr::acc)
-        | _ -> assert false
     in aux ls []
 
 and parse: token list -> int -> expr * (token list) = fun s min_bp ->
