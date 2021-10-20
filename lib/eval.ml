@@ -80,9 +80,22 @@ and eval_lambda_call call =
             let (result, _) = (eval_expr lambda_val.lambda_expr) inner_state in
             (result, state)
         end
-        | None ->
-                printf "Error: function not found: %s\n" call.callee;
-                assert false
+        | None -> begin
+            match call.callee with
+                | "inspect" ->
+                    let (result, _) = (eval_expr call.call_args) state in begin
+                    match result with
+                        | Tuple [v] -> 
+                            printf "%s\n" (string_of_val v);
+                            (v, state)
+                        | _ -> 
+                            printf "Expected only one argument to inspect";
+                            assert false
+                    end
+                | _ -> 
+                    printf "Error: function not found: %s\n" call.callee;
+                    assert false
+        end
         | _ -> assert false
 
 and eval_if_expr if_expr = fun state ->

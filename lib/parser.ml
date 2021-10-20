@@ -118,14 +118,14 @@ and parse_if_expr = function
         match skip_newlines xs with
             | Then::xs -> begin
                 let (then_expr, xs) = parse xs 0 in
-                match xs with
+                match (skip_newlines xs) with
                     | Else::xs ->
-                            let (else_expr, rest) = parse xs 0 in
-                            (IfExpr {cond = cond; then_expr = then_expr; else_expr = else_expr}, rest)
+                        let (else_expr, rest) = parse xs 0 in
+                        (IfExpr {cond = cond; then_expr = then_expr; else_expr = else_expr}, rest)
                     | _ -> 
-                            printf "Error parsing as else: ";
-                            print_toks xs;
-                            assert false
+                        printf "Error parsing as else: ";
+                        print_toks xs;
+                        assert false
                 end
             | _ -> assert false
     end
