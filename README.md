@@ -61,9 +61,8 @@ let f = fn(a, b, c) => {
     g(b, c) + a
 }
 
-f(10, 5, 3)
+inspect(f(10, 5, 3)) # 28
 ```
-Result: `28`
 
 ```
 let fmap = fn (f, ls) => {
@@ -77,6 +76,6 @@ let fmap = fn (f, ls) => {
 
 let f = fn(x) => x * 2
 
-fmap(f, (5, (10, (20, (30, (1, ()))))))
+let result = fmap(f, (5, (10, (20, (30, (1, ()))))))
+inspect(result) #(10, (20, (40, (60, (2, ())))))
 ```
-Result: `(10, (20, (40, (60, (2, ())))))`
