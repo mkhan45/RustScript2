@@ -8,6 +8,8 @@ let rec bind lhs rhs =
     match lhs, rhs with
     | SinglePat s, _ -> fun state ->
             Map.set state ~key:s ~data:rhs;
+    | NumberPat lhs, Number rhs when Float.equal lhs rhs -> 
+            fun state -> state
     | (TuplePat lhs_ls), (Tuple rhs_ls) -> fun state ->
             if phys_equal (List.length lhs_ls) (List.length rhs_ls)
                 then 
@@ -21,6 +23,18 @@ let rec bind lhs rhs =
                     assert false
                 end
     | _ -> assert false
+
+let rec pattern_matches pat value =
+    match pat, value with
+        | SinglePat _, _ -> true
+        | NumberPat lhs, Number rhs -> 
+                Float.equal lhs rhs
+        | (TuplePat lhs_ls), (Tuple rhs_ls) ->
+            if phys_equal (List.length lhs_ls) (List.length rhs_ls) then
+                let zipped = List.zip_exn lhs_ls rhs_ls in
+                List.for_all ~f:(fun (p, v) -> pattern_matches p v) zipped
+            else false
+        | _ -> false
 
 let rec eval_op op lhs rhs = fun s ->
     let (lhs, s) = (eval_expr lhs) s in
@@ -110,6 +124,18 @@ and eval_block_expr ?tc:(tail_call=false) ls state =
             | _ -> assert false
     in (res, state)
 
+and eval_match_expr ?tc:(tail_call=false) match_val match_arms state =
+    let (match_val, state) = (eval_expr match_val) state in
+    let match_arm = List.find ~f:(fun (pat, _) -> pattern_matches pat match_val) match_arms in
+    match match_arm with
+        | Some (matched_pat, match_expr) ->
+            let inner_state = (bind matched_pat match_val) state in
+            let (result, _) = (eval_expr ~tc:tail_call match_expr) inner_state in
+            result, state
+        | None -> 
+            printf "No patterns matched in match expression\n";
+            assert false
+
 and eval_expr: expr -> ?tc:bool -> state -> value * state = 
     fun expr ?tc:(tail_call=false) -> 
         (* printf "Evaluating: %s\n" (string_of_expr expr); *)
@@ -132,3 +158,4 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | LambdaCall l -> fun s -> (eval_lambda_call ~tc:tail_call l) s
         | IfExpr i -> fun s -> (eval_if_expr ~tc:tail_call i) s
         | BlockExpr ls -> fun s -> eval_block_expr ~tc:tail_call ls s
+        | MatchExpr m -> fun s -> eval_match_expr ~tc:tail_call m.match_val m.match_arms s

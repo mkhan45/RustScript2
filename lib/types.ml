@@ -15,6 +15,7 @@ type operator =
 
 type pattern =
     | SinglePat of string
+    | NumberPat of float
     | TuplePat of pattern list
 
 and state = (string, value, String.comparator_witness) Map.t
@@ -41,6 +42,7 @@ and expr =
     | IfExpr of  if_expr
     | TupleExpr of expr list
     | BlockExpr of expr list
+    | MatchExpr of {match_val: expr; match_arms: (pattern * expr) list}
 
 let rec string_of_val = function
     | Number n -> Float.to_string n
@@ -60,7 +62,9 @@ let rec string_of_expr = function
     | TupleExpr ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_expr ls))
     | IfExpr _ -> "IfExpr"
     | BlockExpr ls -> sprintf "{\n\t%s\n}" (String.concat ~sep:"\n\t" (List.map ~f:string_of_expr ls))
+    | MatchExpr _ -> "MatchExpr"
 
 and string_of_pat = function
     | SinglePat s -> s
+    | NumberPat f -> Float.to_string f
     | TuplePat ls -> "(" ^ (String.concat ~sep:", " (List.map ~f:string_of_pat ls)) ^ ")"

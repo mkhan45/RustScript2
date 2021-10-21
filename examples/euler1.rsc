@@ -6,21 +6,20 @@ let range = {
 }
 
 let filter = {
-    let helper = fn(f, (hd, tl), acc) => {
-        if tl == () then 
-            acc 
-        else if f(hd) then 
-            helper(f, tl, (hd, acc))
-        else 
-            helper(f, tl, acc)
-    }
+    let helper = fn(f, ls, acc) => match ls
+        | (hd, ()) -> acc
+        | (hd, tl) ->
+            if f(hd) 
+                then helper(f, tl, (hd, acc))
+                else helper(f, tl, acc)
 
     fn(f, ls) => helper(f, ls, ())
 }
 
 let sum = {
-    let helper = fn((hd, tl), acc) =>
-        if tl == () then (hd + acc) else helper(tl, hd + acc)
+    let helper = fn(ls, acc) => match ls
+        | (hd, ()) -> hd + acc
+        | (hd, tl) -> helper(tl, hd + acc)
     
     fn (ls) => helper(ls, 0)
 }

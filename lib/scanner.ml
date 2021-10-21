@@ -7,6 +7,7 @@ type token =
     | Number of float
     | Ident of string
     | Operator of Types.operator
+    | Match
     | Let
     | Equal
     | LParen
@@ -18,6 +19,7 @@ type token =
     | Then
     | Else
     | Arrow
+    | MatchArrow
     | Newline
     | Hashtag
     | Comma
@@ -43,6 +45,7 @@ and scan_ident ls =
                    | "if" -> If
                    | "then" -> Then
                    | "else" -> Else
+                   | "match" -> Match
                    | _ -> Ident n
                 in
                 tok::(scan_ls ls)
@@ -53,6 +56,7 @@ and scan_ls = function
     | (' '|'\t')::xs -> scan_ls xs
     | '\n'::xs -> Newline :: scan_ls xs
     | '='::'>'::xs -> Arrow :: scan_ls xs
+    | '-'::'>'::xs -> MatchArrow :: scan_ls xs
     | '+'::xs -> Operator Add :: (scan_ls xs)
     | '-'::xs -> Operator Sub :: scan_ls xs
     | '*'::xs -> Operator Mul :: scan_ls xs
@@ -70,7 +74,7 @@ and scan_ls = function
     | '='::xs -> Equal :: scan_ls xs
     | ','::xs -> Comma :: scan_ls xs
     | '#'::xs -> Hashtag :: scan_ls xs
-    | '|'::'>'::xs -> Pipe :: scan_ls xs
+    | '|'::xs -> Pipe :: scan_ls xs
     | 'T'::xs -> True :: scan_ls xs
     | 'F'::xs -> False :: scan_ls xs
     | d::_ as ls when Base.Char.is_digit d -> scan_digit ls
@@ -112,6 +116,8 @@ let string_of_tok = function
     | Newline -> "Newline"
     | Hashtag -> "Hashtag"
     | Pipe -> "Pipe"
+    | Match -> "Match"
+    | MatchArrow -> "MatchArrow"
 
 let string_of_toks ls = String.concat ~sep:" " (List.map ~f:string_of_tok ls)
 let print_toks ls = ls |> string_of_toks |> printf "%s\n"
