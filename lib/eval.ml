@@ -72,17 +72,18 @@ let rec eval_let lhs rhs = fun state ->
     (Unit, new_state)
 
 and unwrap_thunk thunk state = match thunk with
-    | Thunk {thunk_fn = thunk_fn; thunk_args = thunk_args} ->
-            let inner_state = (bind thunk_fn.lambda_args thunk_args) state in
+    | Thunk {thunk_fn = thunk_fn; thunk_args = thunk_args; thunk_fn_name = thunk_fn_name} ->
+            let inner_state = (bind thunk_fn.lambda_args thunk_args) thunk_fn.enclosed_state in
+            let inner_state = Map.set inner_state ~key:thunk_fn_name ~data:(Lambda thunk_fn) in
             let (new_thunk, _) = (eval_expr ~tc:true thunk_fn.lambda_expr) inner_state in
-            unwrap_thunk new_thunk inner_state
+            unwrap_thunk new_thunk state
     | value -> value, state
 
 and eval_lambda_call ?tc:(tail_call=false) call =
     fun (state: state) -> match Map.find state call.callee with
         | Some(Lambda lambda_val) -> begin
             let (evaled, _) = (eval_expr call.call_args) state in
-            let thunk = Thunk {thunk_fn = lambda_val; thunk_args = evaled} in
+            let thunk = Thunk {thunk_fn = lambda_val; thunk_args = evaled; thunk_fn_name = call.callee} in
             if tail_call 
                 then (thunk, state)
                 else 
@@ -119,13 +120,13 @@ and eval_block_expr ?tc:(tail_call=false) ls state =
         let len = List.length ls in
         match List.split_n ls (len - 1) with
             | exprs, [last_expr] ->
-                let state =
+                let block_state =
                     List.fold_left 
                         ~init:state 
-                        ~f:(fun state e -> let _, s = (eval_expr e) state in s) 
+                        ~f:(fun line_state e -> let _, s = (eval_expr e) line_state in s) 
                         exprs
                 in
-                (eval_expr ~tc:tail_call last_expr) state
+                (eval_expr ~tc:tail_call last_expr) block_state
             | _ -> assert false
     in (res, state)
 
@@ -141,6 +142,8 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
                         printf "Error: variable not found: %s\n" n;
                         assert false
         end
+        | LambdaDef {lambda_def_expr = e; lambda_def_args = args} -> fun s ->
+                (Lambda {lambda_expr = e; lambda_args = args; enclosed_state = s}), s
         | Binary ({op = Add; _} as e) -> fun s -> 
                 let (lhs, s) = (eval_expr e.lhs) s in
                 let (rhs, s) = (eval_expr e.rhs) s in

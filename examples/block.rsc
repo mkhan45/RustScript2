@@ -12,6 +12,3 @@ let f = fn(a, b, c) => {
 f(10, 5, 3)
 
 let c = 5 + { 5 + 10 * 2 }
-
-inspect(a)
-inspect(b)

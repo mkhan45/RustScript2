@@ -14,7 +14,9 @@ type pattern =
     | SinglePat of string
     | TuplePat of pattern list
 
-type lambda = {lambda_expr: expr; lambda_args: pattern}
+and state = (string, value, String.comparator_witness) Map.t
+
+and lambda = {lambda_expr: expr; lambda_args: pattern; enclosed_state: state}
 and lambda_call = {callee: string; call_args: expr}
 and if_expr = {cond: expr; then_expr: expr; else_expr: expr}
 
@@ -24,12 +26,14 @@ and value =
     | Tuple of value list
     | Unit
     | Lambda of lambda
-    | Thunk of {thunk_fn: lambda; thunk_args: value}
+    | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
+
 and expr =
     | Atomic of value
     | Ident of string
     | Binary of {lhs: expr; op: operator; rhs: expr}
     | Let of {assignee: pattern; assigned_expr: expr}
+    | LambdaDef of {lambda_def_expr: expr; lambda_def_args: pattern}
     | LambdaCall of lambda_call
     | IfExpr of  if_expr
     | TupleExpr of expr list
@@ -48,6 +52,7 @@ let rec string_of_expr = function
     | Ident s -> s
     | Binary (_ as b) -> sprintf "{lhs: %s, rhs: %s}" (string_of_expr b.lhs) (string_of_expr b.rhs)
     | Let (_ as l) -> sprintf "Let %s = %s" (string_of_pat l.assignee) (string_of_expr l.assigned_expr)
+    | LambdaDef _ -> "Lambda"
     | LambdaCall call -> sprintf "{Call: %s, args: %s}" call.callee (string_of_expr call.call_args)
     | TupleExpr ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_expr ls))
     | IfExpr _ -> "IfExpr"
@@ -56,5 +61,3 @@ let rec string_of_expr = function
 and string_of_pat = function
     | SinglePat s -> s
     | TuplePat ls -> "(" ^ (String.concat ~sep:", " (List.map ~f:string_of_pat ls)) ^ ")"
-
-type state = (string, value, String.comparator_witness) Map.t
