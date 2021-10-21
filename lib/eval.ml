@@ -66,7 +66,19 @@ let rec bind lhs rhs =
                 end
     | _ -> assert false
 
-let rec eval_let lhs rhs = fun state ->
+let rec eval_op op lhs rhs = fun s ->
+    let (lhs, s) = (eval_expr lhs) s in
+    let (rhs, s) = (eval_expr rhs) s in
+    op lhs rhs, s
+
+and eval_ident name = fun state ->
+    match Map.find state name with
+        | Some value -> value, state
+        | None ->
+            printf "Error: variable not found: %s\n" name;
+            assert false
+
+and eval_let lhs rhs = fun state ->
     let (evaled, new_state) = (eval_expr rhs) state in
     let new_state = (bind lhs evaled) new_state in
     (Unit, new_state)
@@ -107,6 +119,15 @@ and eval_lambda_call ?tc:(tail_call=false) call =
         end
         | _ -> assert false
 
+and eval_tuple_expr ls state =
+    let (eval_ls, state) =
+        List.fold_left 
+            ~init:([], state) 
+            ~f:(fun (acc, s) e -> let (ev, s) = eval_expr e s in (ev::acc, s))
+            ls
+    in
+    Tuple (List.rev eval_ls), state
+
 and eval_if_expr ?tc:(tail_call=false) if_expr = fun state ->
     match (eval_expr if_expr.cond) state with
         | Boolean true, state -> (eval_expr ~tc:tail_call if_expr.then_expr) state
@@ -133,51 +154,17 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
     fun expr ?tc:(tail_call=false) -> 
         (* printf "Evaluating: %s\n" (string_of_expr expr); *)
         match expr with
-        | Atomic n -> fun s -> n, s
-        | Ident n -> fun state -> begin
-            match Map.find state n with
-                | Some v -> v, state
-                | None -> 
-                        printf "Error: variable not found: %s\n" n;
-                        assert false
-        end
-        | Binary ({op = Add; _} as e) -> fun s -> 
-                let (lhs, s) = (eval_expr e.lhs) s in
-                let (rhs, s) = (eval_expr e.rhs) s in
-                val_add lhs rhs, s
-        | Binary ({op = Sub; _} as e) -> fun s -> 
-                let (lhs, s) = (eval_expr e.lhs) s in
-                let (rhs, s) = (eval_expr e.rhs) s in
-                val_sub lhs rhs, s
-        | Binary ({op = Mul; _} as e) -> fun s -> 
-                let (lhs, s) = (eval_expr e.lhs) s in
-                let (rhs, s) = (eval_expr e.rhs) s in
-                val_mul lhs rhs, s
-        | Binary ({op = Div; _} as e) -> fun s -> 
-                let (lhs, s) = (eval_expr e.lhs) s in
-                let (rhs, s) = (eval_expr e.rhs) s in
-                val_div lhs rhs, s
-        | Binary ({op = EQ; _} as e) -> fun s -> 
-                let (lhs, s) = (eval_expr e.lhs) s in
-                let (rhs, s) = (eval_expr e.rhs) s in
-                val_eq lhs rhs, s
-        | Binary ({op = LT; _} as e) -> fun s -> 
-                let (lhs, s) = (eval_expr e.lhs) s in
-                let (rhs, s) = (eval_expr e.rhs) s in
-                val_lt lhs rhs, s
-        | Binary ({op = GT; _} as e) -> fun s -> 
-                let (lhs, s) = (eval_expr e.lhs) s in
-                let (rhs, s) = (eval_expr e.rhs) s in
-                val_gt lhs rhs, s
+        | Atomic v -> fun s -> v, s
+        | Ident name -> fun state -> eval_ident name state
+        | Binary ({op = Add; _} as e) -> eval_op val_add e.lhs e.rhs
+        | Binary ({op = Sub; _} as e) -> eval_op val_sub e.lhs e.rhs
+        | Binary ({op = Mul; _} as e) -> eval_op val_mul e.lhs e.rhs
+        | Binary ({op = Div; _} as e) -> eval_op val_div e.lhs e.rhs
+        | Binary ({op = EQ; _} as e) -> eval_op val_eq e.lhs e.rhs
+        | Binary ({op = LT; _} as e) -> eval_op val_lt e.lhs e.rhs
+        | Binary ({op = GT; _} as e) -> eval_op val_gt e.lhs e.rhs
         | Let l -> fun s -> (eval_let l.assignee l.assigned_expr) s
-        | TupleExpr ls -> fun s -> 
-                let (eval_ls, state) =
-                    List.fold_left 
-                        ~init:([], s) 
-                        ~f:(fun (acc, s) e -> let (ev, s) = eval_expr e s in (ev::acc, s))
-                        ls
-                in
-                Tuple (List.rev eval_ls), state
+        | TupleExpr ls -> fun s -> eval_tuple_expr ls s
         | LambdaCall l -> fun s -> (eval_lambda_call ~tc:tail_call l) s
         | IfExpr i -> fun s -> (eval_if_expr ~tc:tail_call i) s
         | BlockExpr ls -> fun s -> eval_block_expr ~tc:tail_call ls s
