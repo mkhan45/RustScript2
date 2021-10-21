@@ -35,6 +35,7 @@ dune exec ./bin/rustscript_cli.exe
 
 ### Examples:
 
+##### REPL
 ```
 > let fib = fn(n) => if n < 2 then 1 else fib(n - 1) + fib(n - 2)
 > fib(25)
@@ -49,6 +50,7 @@ dune exec ./bin/rustscript_cli.exe
 (4., 5., 6., 10.)
 ```
 
+##### Tuple Assignment/Matching
 ```
 let (a, b) = {
     let a = (4, 2)
@@ -64,6 +66,8 @@ let f = fn(a, b, c) => {
 inspect(f(10, 5, 3)) # 28
 ```
 
+##### Fmap
+Soon, proper linkedlists will be added instead of leveraging tuples
 ```
 let fmap = fn (f, ls) => {
     if ls == () then {
@@ -78,4 +82,37 @@ let f = fn(x) => x * 2
 
 let result = fmap(f, (5, (10, (20, (30, (1, ()))))))
 inspect(result) #(10, (20, (40, (60, (2, ())))))
+```
+
+##### Project Euler #1
+```
+let range = {
+    let helper = fn (l, r, acc) => 
+        if l == r then acc else helper(l, r - 1, (r, acc))
+    
+    fn (l, r) => helper(l - 1, r, ())
+}
+
+let filter = {
+    let helper = fn(f, (hd, tl), acc) => {
+        if tl == () then 
+            acc 
+        else if f(hd) then 
+            helper(f, tl, (hd, acc))
+        else 
+            helper(f, tl, acc)
+    }
+
+    fn(f, ls) => helper(f, ls, ())
+}
+
+let sum = {
+    let helper = fn((hd, tl), acc) =>
+        if tl == () then (hd + acc) else helper(tl, hd + acc)
+    
+    fn (ls) => helper(ls, 0)
+}
+
+let predicate = fn(n) => (n % 3 == 0) || (n % 5 == 0)
+inspect(sum(filter(predicate, range(1, 1000)))) # 233168
 ```

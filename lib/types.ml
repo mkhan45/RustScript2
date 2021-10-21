@@ -9,6 +9,9 @@ type operator =
     | LT
     | GT
     | EQ
+    | And
+    | Or
+    | Mod
 
 type pattern =
     | SinglePat of string

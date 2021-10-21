@@ -5,9 +5,10 @@ open Base
 
 let op_bp = function
     | EQ -> (1, 2)
-    | LT | GT -> (3, 4)
-    | Add | Sub -> (4, 5)
-    | Mul | Div -> (6, 7)
+    | And | Or -> (3, 4)
+    | LT  | GT -> (5, 6)
+    | Add | Sub -> (7, 8)
+    | Mul | Div | Mod -> (9, 10)
 
 let rec complete_expr lhs ls min_bp = match ls with
     | (Operator op)::xs ->
@@ -141,6 +142,7 @@ and parse_block_expr ls =
     in aux ls []
 
 and parse: token list -> int -> expr * (token list) = fun s min_bp ->
+    let s = skip_newlines s in
     match s with
     | LBrace::xs -> parse_block_expr xs
     | (Ident _)::LParen::_ -> 

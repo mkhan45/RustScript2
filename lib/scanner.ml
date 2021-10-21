@@ -59,7 +59,10 @@ and scan_ls = function
     | '/'::xs -> Operator Div :: scan_ls xs
     | '<'::xs -> Operator LT :: scan_ls xs
     | '>'::xs -> Operator GT :: scan_ls xs
+    | '&'::'&'::xs -> Operator And :: scan_ls xs
+    | '|'::'|'::xs -> Operator Or :: scan_ls xs
     | '='::'='::xs -> Operator EQ :: scan_ls xs
+    | '%'::xs -> Operator Mod :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
     | '{'::xs -> LBrace :: scan_ls xs

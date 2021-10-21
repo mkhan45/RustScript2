@@ -1,51 +1,7 @@
 open Types
 open Stdio
 open Base
-
-let val_add lhs rhs = match lhs, rhs with
-    | Number lhs, Number rhs -> Number (lhs +. rhs)
-    | _ -> 
-            printf "Invalid Add: lhs = %s, rhs = %s\n" (string_of_val lhs) (string_of_val rhs);
-            assert false
-
-let val_sub lhs rhs = match lhs, rhs with
-    | Number lhs, Number rhs -> Number (lhs -. rhs)
-    | _ -> assert false
-
-let val_mul lhs rhs = match lhs, rhs with
-    | Number lhs, Number rhs -> Number (lhs *. rhs)
-    | _ -> 
-            printf "Invalid Mul: lhs = %s, rhs = %s\n" (string_of_val lhs) (string_of_val rhs);
-            assert false
-
-let val_div lhs rhs = match lhs, rhs with
-    | Number lhs, Number rhs -> Number (lhs /. rhs)
-    | _ -> assert false
-
-let val_is_true = function
-    | Boolean true -> true
-    | _ -> false
-
-let rec val_eq lhs rhs = match lhs, rhs with
-    | Number lhs, Number rhs -> Boolean (Float.equal lhs rhs)
-    | Boolean lhs, Boolean rhs -> Boolean (Bool.equal lhs rhs)
-    | Tuple lhs, Tuple rhs ->
-            if phys_equal (List.length lhs) (List.length rhs)
-                then
-                    let zipped = List.zip_exn lhs rhs in
-                    let res = List.for_all zipped ~f:(fun (a, b) -> val_is_true (val_eq a b))
-                    in Boolean res
-                else
-                    Boolean false
-    | _ -> assert false
-
-let val_lt lhs rhs = match lhs, rhs with
-    | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs < 0)
-    | _ -> assert false
-
-let val_gt lhs rhs = match lhs, rhs with
-    | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs > 0)
-    | _ -> assert false
+open Operators
 
 let rec bind lhs rhs = 
     (* printf "Binding %s to %s\n" (string_of_pat lhs) (string_of_val rhs); *)
@@ -167,6 +123,9 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | Binary ({op = EQ; _} as e) -> eval_op val_eq e.lhs e.rhs
         | Binary ({op = LT; _} as e) -> eval_op val_lt e.lhs e.rhs
         | Binary ({op = GT; _} as e) -> eval_op val_gt e.lhs e.rhs
+        | Binary ({op = And; _} as e) -> eval_op val_and e.lhs e.rhs
+        | Binary ({op = Or; _} as e) -> eval_op val_or e.lhs e.rhs
+        | Binary ({op = Mod; _} as e) -> eval_op val_mod e.lhs e.rhs
         | LambdaDef d -> eval_lambda_def d.lambda_def_expr d.lambda_def_args
         | Let l -> fun s -> (eval_let l.assignee l.assigned_expr) s
         | TupleExpr ls -> fun s -> eval_tuple_expr ls s
