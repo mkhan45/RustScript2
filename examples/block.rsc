@@ -13,4 +13,5 @@ f(10, 5, 3)
 
 let c = 5 + { 5 + 10 * 2 }
 
-c
+inspect(a)
+inspect(b)
