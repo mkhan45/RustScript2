@@ -16,7 +16,6 @@ type pattern =
 
 type lambda = {lambda_expr: expr; lambda_args: pattern}
 and lambda_call = {callee: string; call_args: expr}
-
 and if_expr = {cond: expr; then_expr: expr; else_expr: expr}
 
 and value =
@@ -25,7 +24,7 @@ and value =
     | Tuple of value list
     | Unit
     | Lambda of lambda
-
+    | Thunk of {thunk_fn: lambda; thunk_args: value}
 and expr =
     | Atomic of value
     | Ident of string
@@ -42,6 +41,7 @@ let rec string_of_val = function
     | Tuple ls -> "(" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ ")"
     | Unit -> "()"
     | Lambda _ -> "Lambda"
+    | Thunk _ -> "Thunk"
 
 let rec string_of_expr = function
     | Atomic v -> string_of_val v
