@@ -95,8 +95,9 @@ and parse_lambda = function
                 match rest with
                     | Arrow::xs ->
                             let (lambda_expr, rest) = parse xs (-1) in
-                            let lambda = Lambda {lambda_expr = lambda_expr; lambda_args = args} 
-                            in (Atomic lambda, rest)
+                            let lambda = 
+                                LambdaDef {lambda_def_expr = lambda_expr; lambda_def_args = args} 
+                            in (lambda, rest)
                     | _ ->
                             printf "Expected an arrow, got (%s)\n" (string_of_toks rest);
                             assert false
