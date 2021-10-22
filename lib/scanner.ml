@@ -15,6 +15,7 @@ type token =
     | LBrace
     | RBrace
     | Fn
+    | When
     | If
     | Then
     | Else
@@ -47,6 +48,7 @@ and scan_ident ls =
                    | "then" -> Then
                    | "else" -> Else
                    | "match" -> Match
+                   | "when" -> When
                    | _ -> Ident n
                 in
                 tok::(scan_ls ls)
@@ -113,6 +115,7 @@ let string_of_tok = function
     | Arrow -> "Arrow"
     | True -> "True"
     | False -> "False"
+    | When -> "When"
     | If -> "If"
     | Then -> "Then"
     | Else -> "Else"

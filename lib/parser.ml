@@ -149,13 +149,22 @@ and parse_match_expr ls =
     let rec parse_match_arms toks acc = match toks with
         | Pipe::xs ->
             let arm_pat, rest = parse_pat xs in begin
+            let cond, rest = match rest with
+                | MatchArrow::_ -> None, rest
+                | When::rest ->
+                        let cond, rest = parse rest 0 in
+                        Some cond, rest
+                | _ ->
+                    printf "Expected When or MatchArrow, got: %s" (string_of_toks rest);
+                    assert false
+            in
             match rest with
                 | MatchArrow::rest ->
                     let rest = skip_newlines rest in
                     let arm_expr, rest = parse rest 0 in begin
                         match rest with
                             | Newline::xs -> 
-                                parse_match_arms xs ((arm_pat, arm_expr)::acc)
+                                parse_match_arms xs ((arm_pat, arm_expr, cond)::acc)
                             | _ ->
                                 printf "Must break line after each match arm";
                                 assert false

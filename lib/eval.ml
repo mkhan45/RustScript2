@@ -128,13 +128,30 @@ and eval_block_expr ?tc:(tail_call=false) ls state =
 
 and eval_match_expr ?tc:(tail_call=false) match_val match_arms state =
     let (match_val, state) = (eval_expr match_val) state in
-    let match_arm = List.find ~f:(fun (pat, _) -> pattern_matches pat match_val) match_arms in
-    match match_arm with
-        | Some (matched_pat, match_expr) ->
-            let inner_state = (bind matched_pat match_val) state in
-            let (result, _) = (eval_expr ~tc:tail_call match_expr) inner_state in
+    let result_state_opt = List.find_map ~f:(
+        fun (pat, arm_expr, cond) -> 
+            if pattern_matches pat match_val then
+                match cond with
+                    | Some cond ->
+                        let inner_state = (bind pat match_val) state in
+                        let cond_eval, inner_state = (eval_expr cond) inner_state in
+                        if val_is_true cond_eval then
+                            let (result, _) = (eval_expr ~tc:tail_call arm_expr) inner_state in
+                            Some (result, state)
+                        else
+                            None
+                    | None ->
+                        let inner_state = (bind pat match_val) state in
+                        let (result, _) = (eval_expr ~tc:tail_call arm_expr) inner_state in
+                        Some(result, state)
+            else
+                None
+    ) match_arms
+    in
+    match result_state_opt with
+        | Some((result, state)) -> 
             result, state
-        | None -> 
+        | None ->
             printf "No patterns matched in match expression\n";
             assert false
 
