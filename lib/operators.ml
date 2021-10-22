@@ -37,7 +37,9 @@ let rec val_eq lhs rhs = match lhs, rhs with
                     in Boolean res
                 else
                     Boolean false
-    | _ -> assert false
+    | _ -> Boolean false
+
+let val_neq lhs rhs = Boolean (not (val_is_true (val_eq lhs rhs)))
 
 let val_lt lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs < 0)

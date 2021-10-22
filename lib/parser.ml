@@ -4,9 +4,9 @@ open Printf
 open Base
 
 let op_bp = function
-    | EQ -> (1, 2)
-    | And | Or -> (3, 4)
-    | LT  | GT -> (5, 6)
+    | EQ  | NEQ -> (1, 2)
+    | And | Or  -> (3, 4)
+    | LT  | GT  -> (5, 6)
     | Add | Sub -> (7, 8)
     | Mul | Div | Mod -> (9, 10)
 
@@ -57,8 +57,9 @@ and parse_pat ls = match ls with
             in (TuplePat (List.rev parsed), remaining)
     | (Ident s)::xs -> (SinglePat s, xs)
     | (Number f)::xs -> (NumberPat f, xs)
+    | Underscore::xs -> (WildcardPat, xs)
     | _ ->
-            print_toks ls;
+            printf "Expected pattern, got %s" (string_of_toks ls);
             assert false
 
 and parse_let ls =

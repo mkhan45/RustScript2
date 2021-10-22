@@ -22,10 +22,12 @@ let rec bind lhs rhs =
                         (string_of_val (Tuple rhs_ls)) (List.length rhs_ls);
                     assert false
                 end
+    | WildcardPat, _ -> fun state -> state
     | _ -> assert false
 
 let rec pattern_matches pat value =
     match pat, value with
+        | WildcardPat, _ -> true
         | SinglePat _, _ -> true
         | NumberPat lhs, Number rhs -> 
                 Float.equal lhs rhs
@@ -147,6 +149,7 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | Binary ({op = Mul; _} as e) -> eval_op val_mul e.lhs e.rhs
         | Binary ({op = Div; _} as e) -> eval_op val_div e.lhs e.rhs
         | Binary ({op = EQ; _} as e) -> eval_op val_eq e.lhs e.rhs
+        | Binary ({op = NEQ; _} as e) -> eval_op val_neq e.lhs e.rhs
         | Binary ({op = LT; _} as e) -> eval_op val_lt e.lhs e.rhs
         | Binary ({op = GT; _} as e) -> eval_op val_gt e.lhs e.rhs
         | Binary ({op = And; _} as e) -> eval_op val_and e.lhs e.rhs

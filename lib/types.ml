@@ -9,6 +9,7 @@ type operator =
     | LT
     | GT
     | EQ
+    | NEQ
     | And
     | Or
     | Mod
@@ -17,6 +18,7 @@ type pattern =
     | SinglePat of string
     | NumberPat of float
     | TuplePat of pattern list
+    | WildcardPat
 
 and state = (string, value, String.comparator_witness) Map.t
 
@@ -67,4 +69,5 @@ let rec string_of_expr = function
 and string_of_pat = function
     | SinglePat s -> s
     | NumberPat f -> Float.to_string f
-    | TuplePat ls -> "(" ^ (String.concat ~sep:", " (List.map ~f:string_of_pat ls)) ^ ")"
+    | TuplePat ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_pat ls))
+    | WildcardPat -> "_"

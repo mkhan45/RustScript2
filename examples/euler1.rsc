@@ -7,7 +7,7 @@ let range = {
 
 let filter = {
     let helper = fn(f, ls, acc) => match ls
-        | (hd, ()) -> acc
+        | (_, ()) -> acc
         | (hd, tl) ->
             if f(hd) 
                 then helper(f, tl, (hd, acc))
