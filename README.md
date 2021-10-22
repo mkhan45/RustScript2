@@ -115,3 +115,5 @@ let sum = {
 let predicate = fn(n) => (n % 3 == 0) || (n % 5 == 0)
 inspect(sum(filter(predicate, range(1, 1000)))) # 233168
 ```
+
+More project euler problems can be found in the [examples folder](https://github.com/mkhan45/RustScript2/tree/main/examples).

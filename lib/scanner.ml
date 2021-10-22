@@ -24,6 +24,7 @@ type token =
     | Hashtag
     | Comma
     | Pipe
+    | Underscore
 
 let is_numeric d = Base.Char.is_digit d || phys_equal d '.'
 let is_identic c = Base.Char.is_alphanum c || phys_equal c '_'
@@ -66,19 +67,21 @@ and scan_ls = function
     | '&'::'&'::xs -> Operator And :: scan_ls xs
     | '|'::'|'::xs -> Operator Or :: scan_ls xs
     | '='::'='::xs -> Operator EQ :: scan_ls xs
+    | '!'::'='::xs -> Operator NEQ :: scan_ls xs
     | '%'::xs -> Operator Mod :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
     | '{'::xs -> LBrace :: scan_ls xs
     | '}'::xs -> RBrace :: scan_ls xs
     | '='::xs -> Equal :: scan_ls xs
+    | '_'::xs -> Underscore :: scan_ls xs
     | ','::xs -> Comma :: scan_ls xs
     | '#'::xs -> Hashtag :: scan_ls xs
     | '|'::xs -> Pipe :: scan_ls xs
     | 'T'::xs -> True :: scan_ls xs
     | 'F'::xs -> False :: scan_ls xs
-    | d::_ as ls when Base.Char.is_digit d -> scan_digit ls
-    | i::_ as ls when not (Base.Char.is_digit i) -> scan_ident ls
+    | d::_ as ls when Char.is_digit d -> scan_digit ls
+    | i::_ as ls when Char.is_alpha i -> scan_ident ls
     | ls -> 
             printf "Scan Error: %s\n" (String.of_char_list ls); 
             assert false
@@ -118,6 +121,7 @@ let string_of_tok = function
     | Pipe -> "Pipe"
     | Match -> "Match"
     | MatchArrow -> "MatchArrow"
+    | Underscore -> "Underscore"
 
 let string_of_toks ls = String.concat ~sep:" " (List.map ~f:string_of_tok ls)
 let print_toks ls = ls |> string_of_toks |> printf "%s\n"
