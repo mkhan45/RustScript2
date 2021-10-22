@@ -1,20 +1,16 @@
 let gcd = fn(a, b) => match (a, b)
     | (0, b) -> b
     | (a, 0) -> a
+    | (a, b) when a > b -> gcd(b, a)
     | (a, b) -> {
-        if a > b then {
-            gcd(b, a)
-        } else {
-            let remainder = b % a
-            if remainder != 0 then (gcd(a, remainder)) else a
-        }
+        let remainder = b % a
+        if remainder != 0 then (gcd(a, remainder)) else a
     }
 
 let pollard = fn(n) => match n
     | 1 -> ()
-    | n -> if n % 2 == 0 then {
-        2
-    } else {
+    | n when n % 2 == 0 -> 2
+    | n -> {
         let g = fn(x, n) => (x * x + 1) % n
         let iter = fn(x, y, d) => match (x, y, d)
             | (x, y, 1) -> {
@@ -37,8 +33,11 @@ let euler3 = {
     # repeatedly factors until largest is found
     let aux = fn(n) => match largest_factor(n)
         | () -> n
-        | f -> if n == f then f else aux(f)
+        | f when n == f -> f
+        | f -> aux(f)
 
     let n = 600851475143
     aux(n)
 }
+
+# inspect(euler3) # should be 6857

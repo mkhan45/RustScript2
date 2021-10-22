@@ -44,7 +44,7 @@ and expr =
     | IfExpr of  if_expr
     | TupleExpr of expr list
     | BlockExpr of expr list
-    | MatchExpr of {match_val: expr; match_arms: (pattern * expr) list}
+    | MatchExpr of {match_val: expr; match_arms: (pattern * expr * expr option) list}
 
 let rec string_of_val = function
     | Number n -> Float.to_string n
