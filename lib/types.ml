@@ -46,6 +46,7 @@ and expr =
     | TupleExpr of expr list
     | BlockExpr of expr list
     | MatchExpr of {match_val: expr; match_arms: (pattern * expr * expr option) list}
+    | MapExpr of (expr * expr) list
 
 let rec string_of_val = function
     | Number n -> Float.to_string n
@@ -66,6 +67,7 @@ let rec string_of_expr = function
     | IfExpr _ -> "IfExpr"
     | BlockExpr ls -> sprintf "{\n\t%s\n}" (String.concat ~sep:"\n\t" (List.map ~f:string_of_expr ls))
     | MatchExpr _ -> "MatchExpr"
+    | MapExpr _ -> "Map"
 
 and string_of_pat = function
     | SinglePat s -> s

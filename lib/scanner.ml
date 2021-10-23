@@ -27,6 +27,7 @@ type token =
     | Pipe
     | Underscore
     | Colon
+    | Percent
 
 let is_numeric d = Base.Char.is_digit d || phys_equal d '.'
 let is_identic c = Base.Char.is_alphanum c || phys_equal c '_'
@@ -71,7 +72,7 @@ and scan_ls = function
     | '|'::'|'::xs -> Operator Or :: scan_ls xs
     | '='::'='::xs -> Operator EQ :: scan_ls xs
     | '!'::'='::xs -> Operator NEQ :: scan_ls xs
-    | '%'::xs -> Operator Mod :: scan_ls xs
+    | '%'::xs -> Percent :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
     | '{'::xs -> LBrace :: scan_ls xs
@@ -128,6 +129,7 @@ let string_of_tok = function
     | MatchArrow -> "MatchArrow"
     | Underscore -> "Underscore"
     | Colon -> "Colon"
+    | Percent -> "Percent"
 
 let string_of_toks ls = String.concat ~sep:" " (List.map ~f:string_of_tok ls)
 let print_toks ls = ls |> string_of_toks |> printf "%s\n"

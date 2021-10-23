@@ -11,6 +11,7 @@ let op_bp = function
     | Mul | Div | Mod -> (9, 10)
 
 let rec complete_expr lhs ls min_bp = match ls with
+    | Percent::xs -> complete_expr lhs ((Operator Mod)::xs) min_bp
     | (Operator op)::xs ->
             let (l_bp, r_bp) = op_bp op
             in
@@ -143,6 +144,41 @@ and parse_block_expr ls =
                 aux rest (next_expr::acc)
     in aux ls []
 
+and parse_map = function
+    | LBrace::rest ->
+        let rest = skip_newlines rest in
+        let parse_key_val ls =
+            let key_expr, xs = parse ls 0 in
+            match xs with
+                | Colon::xs ->
+                    let xs = skip_newlines xs in
+                    let (val_expr, more) = parse xs 0 in
+                    (key_expr, val_expr, more)
+                | _ ->
+                    printf "Expected comma";
+                    assert false
+        in
+        let rec aux ls acc = match ls with
+            | RBrace::more -> (acc, more)
+            | Comma::xs ->
+                let xs = skip_newlines xs in
+                let (key_expr, val_expr, rest) = parse_key_val xs in
+                let rest = skip_newlines rest in
+                aux rest ((key_expr, val_expr)::acc)
+            | _ -> assert false
+        in begin match rest with
+            | RBrace::xs ->
+                (MapExpr [], xs)
+            | _ ->
+                let k0, v0, rest = parse_key_val rest in
+                let res, more = aux rest [(k0, v0)] in
+                (MapExpr (List.rev res), more)
+        end
+
+    | ls ->
+        printf "Expected LBrace, got %s\n" (string_of_toks ls);
+        assert false
+
 and parse_match_expr ls =
     let (match_val, rest) = parse ls 0 in
     let rest = skip_newlines rest in
@@ -186,23 +222,28 @@ and parse_match_expr ls =
 and parse: token list -> int -> expr * (token list) = fun s min_bp ->
     let s = skip_newlines s in
     match s with
-    | LBrace::xs -> parse_block_expr xs
-    | (Ident _)::LParen::_ -> 
+        | LBrace::xs -> 
+            let (block, xs) = parse_block_expr xs in
+            complete_expr block xs min_bp
+        | Percent::xs -> 
+            let (map, xs) = parse_map xs in
+            complete_expr map xs min_bp
+        | (Ident _)::LParen::_ -> 
             let (call, xs) = parse_lambda_call s in
             complete_expr call xs min_bp
-    | LParen::_ -> expr_bp s 0
-    | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
-    | Let::xs -> parse_let xs
-    | Fn::_ -> 
+        | LParen::_ -> expr_bp s 0
+        | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
+        | Let::xs -> parse_let xs
+        | Fn::_ -> 
             let (lambda_parsed, xs) = parse_lambda s in
             complete_expr lambda_parsed xs min_bp
-    | If::_ -> 
+        | If::_ -> 
             let (if_parsed, xs) = parse_if_expr s in
             complete_expr if_parsed xs min_bp
-    | Match::xs -> 
+        | Match::xs -> 
             let (match_parsed, xs) = parse_match_expr xs in
             complete_expr match_parsed xs min_bp
-    | _ -> 
+        | _ -> 
             printf "Expected expression, got (%s)\n" (string_of_toks s);
             assert false
 

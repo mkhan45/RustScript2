@@ -80,13 +80,25 @@ and eval_lambda_call ?tc:(tail_call=false) call =
         | None -> begin
             match call.callee with
                 | "inspect" ->
-                    let (result, _) = (eval_expr call.call_args) state in begin
+                    let (result, state) = (eval_expr ~tc:tail_call call.call_args) state in begin
                     match result with
                         | Tuple [v] -> 
                             printf "%s\n" (string_of_val v);
                             (v, state)
                         | _ -> 
                             printf "Expected only one argument to inspect";
+                            assert false
+                    end
+                | "get" ->
+                    let (args, state) = (eval_expr call.call_args) state in begin
+                    match args with
+                        | Tuple [ValueMap m; key] -> begin
+                            match Map.find m (hash_value key) with
+                                | Some found_val -> (found_val, state)
+                                | None -> (Tuple [], state)
+                            end
+                        | _ ->
+                            printf "get requires two arguments, a list, and a value";
                             assert false
                     end
                 | _ -> 
@@ -155,6 +167,18 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms state =
             printf "No patterns matched in match expression\n";
             assert false
 
+and eval_map_expr ?tc:(tail_call=false) map_pairs state =
+    let fold_fn = fun (map_acc, state) (key_expr, val_expr) ->
+        let key_val, state = (eval_expr ~tc:tail_call key_expr) state in
+        let data_val, state = (eval_expr ~tc:tail_call val_expr) state in
+        let key_hash = hash_value key_val in
+        (Map.set map_acc ~key:key_hash ~data:data_val, state)
+    in 
+    let start_map = Map.empty (module Int) in
+    let (val_map, state) = 
+        List.fold_left ~init:(start_map, state) ~f:fold_fn map_pairs
+    in (ValueMap val_map, state)
+
 and eval_expr: expr -> ?tc:bool -> state -> value * state = 
     fun expr ?tc:(tail_call=false) -> 
         (* printf "Evaluating: %s\n" (string_of_expr expr); *)
@@ -179,3 +203,4 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | IfExpr i -> fun s -> (eval_if_expr ~tc:tail_call i) s
         | BlockExpr ls -> fun s -> eval_block_expr ~tc:tail_call ls s
         | MatchExpr m -> fun s -> eval_match_expr ~tc:tail_call m.match_val m.match_arms s
+        | MapExpr ls -> fun s -> eval_map_expr ~tc:tail_call ls s
