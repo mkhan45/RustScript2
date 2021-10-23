@@ -53,7 +53,7 @@ and eval_ident name = fun state ->
 and eval_let lhs rhs = fun state ->
     let (evaled, new_state) = (eval_expr rhs) state in
     let new_state = (bind lhs evaled) new_state in
-    (Unit, new_state)
+    (Tuple [], new_state)
 
 and eval_lambda_def e args =
     fun s -> (Lambda {lambda_expr = e; lambda_args = args; enclosed_state = s}), s

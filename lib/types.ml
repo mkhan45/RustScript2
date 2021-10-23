@@ -14,7 +14,14 @@ type operator =
     | Or
     | Mod
 
-type pattern =
+type value =
+    | Number of float
+    | Boolean of bool
+    | Tuple of value list
+    | Lambda of lambda
+    | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
+
+and pattern =
     | SinglePat of string
     | NumberPat of float
     | TuplePat of pattern list
@@ -26,13 +33,6 @@ and lambda = {lambda_expr: expr; lambda_args: pattern; enclosed_state: state}
 and lambda_call = {callee: string; call_args: expr}
 and if_expr = {cond: expr; then_expr: expr; else_expr: expr}
 
-and value =
-    | Number of float
-    | Boolean of bool
-    | Tuple of value list
-    | Unit
-    | Lambda of lambda
-    | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
 
 and expr =
     | Atomic of value
@@ -50,7 +50,6 @@ let rec string_of_val = function
     | Number n -> Float.to_string n
     | Boolean b -> Bool.to_string b
     | Tuple ls -> "(" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ ")"
-    | Unit -> "()"
     | Lambda _ -> "Lambda"
     | Thunk _ -> "Thunk"
 
