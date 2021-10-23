@@ -1,5 +1,6 @@
 open Base
 open Printf
+open Stdio
 
 type operator =
     | Add
@@ -14,7 +15,15 @@ type operator =
     | Or
     | Mod
 
-type pattern =
+type value =
+    | Number of float
+    | Boolean of bool
+    | Tuple of value list
+    | Lambda of lambda
+    | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
+    | ValueMap of (int, value, Int.comparator_witness) Map.t
+
+and pattern =
     | SinglePat of string
     | NumberPat of float
     | TuplePat of pattern list
@@ -25,15 +34,6 @@ and state = (string, value, String.comparator_witness) Map.t
 and lambda = {lambda_expr: expr; lambda_args: pattern; enclosed_state: state}
 and lambda_call = {callee: string; call_args: expr}
 and if_expr = {cond: expr; then_expr: expr; else_expr: expr}
-
-and value =
-    | Number of float
-    | Boolean of bool
-    | Tuple of value list
-    | Unit
-    | Lambda of lambda
-    | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
-    | ValueMap of (value, value) Map.Poly.t
 
 and expr =
     | Atomic of value
@@ -51,7 +51,6 @@ let rec string_of_val = function
     | Number n -> Float.to_string n
     | Boolean b -> Bool.to_string b
     | Tuple ls -> "(" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ ")"
-    | Unit -> "()"
     | Lambda _ -> "Lambda"
     | Thunk _ -> "Thunk"
     | ValueMap  _ -> "Map"
@@ -73,3 +72,11 @@ and string_of_pat = function
     | NumberPat f -> Float.to_string f
     | TuplePat ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_pat ls))
     | WildcardPat -> "_"
+
+let rec hash_value = function
+    | Number f -> Hashtbl.hash (0, f)
+    | Boolean b -> Hashtbl.hash (1, b)
+    | Tuple ls -> Hashtbl.hash (List.map ~f:hash_value ls)
+    | _ ->
+        printf "Tried to hash an unhashable type";
+        assert false

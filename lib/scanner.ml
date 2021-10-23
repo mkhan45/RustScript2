@@ -26,6 +26,7 @@ type token =
     | Comma
     | Pipe
     | Underscore
+    | Colon
 
 let is_numeric d = Base.Char.is_digit d || phys_equal d '.'
 let is_identic c = Base.Char.is_alphanum c || phys_equal c '_'
@@ -82,6 +83,7 @@ and scan_ls = function
     | '|'::xs -> Pipe :: scan_ls xs
     | 'T'::xs -> True :: scan_ls xs
     | 'F'::xs -> False :: scan_ls xs
+    | ':'::xs -> Colon :: scan_ls xs
     | d::_ as ls when Char.is_digit d -> scan_digit ls
     | i::_ as ls when Char.is_alpha i -> scan_ident ls
     | ls -> 
@@ -125,6 +127,7 @@ let string_of_tok = function
     | Match -> "Match"
     | MatchArrow -> "MatchArrow"
     | Underscore -> "Underscore"
+    | Colon -> "Colon"
 
 let string_of_toks ls = String.concat ~sep:" " (List.map ~f:string_of_tok ls)
 let print_toks ls = ls |> string_of_toks |> printf "%s\n"

@@ -9,7 +9,7 @@ let eval state s =
 
 let run_line state line =
     match eval state line with
-        | (Unit, new_state) -> new_state
+        | (Tuple [], new_state) -> new_state
         | (evaled, new_state) ->
             printf "%s\n" (string_of_val evaled);
             Out_channel.flush Stdio.stdout;
