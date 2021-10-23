@@ -33,6 +33,7 @@ and value =
     | Unit
     | Lambda of lambda
     | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
+    | ValueMap of (value, value) Map.Poly.t
 
 and expr =
     | Atomic of value
@@ -53,6 +54,7 @@ let rec string_of_val = function
     | Unit -> "()"
     | Lambda _ -> "Lambda"
     | Thunk _ -> "Thunk"
+    | ValueMap  _ -> "Map"
 
 let rec string_of_expr = function
     | Atomic v -> string_of_val v
