@@ -4,12 +4,14 @@ open Printf
 open Base
 
 let binary_op_bp = function
-    | EQ -> (1, 2)
-    | LT | GT -> (3, 4)
-    | Add | Sub -> (4, 5)
-    | Mul | Div -> (6, 7);;
+    | Or        -> (1, 2)
+    | And       -> (3, 4)
+    | EQ | NEQ  -> (5, 6)
+    | LT | GT   -> (7, 8)
+    | Add | Sub -> (9, 10)
+    | Mul | Div | Mod -> (11, 12)
 
-let prefix_op_bp = 8;;
+let prefix_op_bp = 8
 
 let rec complete_expr lhs ls min_bp = match ls with
     | (BinaryOperator op)::xs ->

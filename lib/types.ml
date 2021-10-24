@@ -22,6 +22,7 @@ type value =
     | Number of float
     | Boolean of bool
     | Tuple of value list
+    | ValList of value list
     | Lambda of lambda
     | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
 
@@ -41,14 +42,6 @@ and state = (string, value, String.comparator_witness) Map.t
 and lambda = {lambda_expr: expr; lambda_args: pattern; enclosed_state: state}
 and lambda_call = {callee: string; call_args: expr}
 and if_expr = {cond: expr; then_expr: expr; else_expr: expr}
-
-and value =
-    | Number of float
-    | Boolean of bool
-    | Tuple of value list
-    | ValList of value list
-    | Unit
-    | Lambda of lambda
 
 and expr =
     | Atomic of value
@@ -92,10 +85,7 @@ and string_of_list_pat = function
 
 and string_of_pat = function
     | SinglePat s -> s
-    | TuplePat ls -> "(" ^ (String.concat ~sep:", " (List.map ~f:string_of_pat ls)) ^ ")"
     | ListPat lp -> (string_of_list_pat lp)
     | NumberPat f -> Float.to_string f
     | TuplePat ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_pat ls))
     | WildcardPat -> "_"
-
-type state = (string, value, String.comparator_witness) Map.t

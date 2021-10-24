@@ -4,13 +4,13 @@ open Base
 open Operators
 
 let val_list_head rhs = match rhs with
-    | List (head::_) -> head
+    | ValList (head::_) -> head
     | _ ->
         printf "Invalid Head: rhs = %s\n" (string_of_val rhs);
         assert false
 
 let val_list_tail rhs = match rhs with
-    | List (_::tail) -> List tail
+    | ValList (_::tail) -> ValList tail
     | _ ->
         printf "Invalid Tail: rhs = %s\n" (string_of_val rhs);
         assert false
@@ -55,7 +55,7 @@ let rec eval_op op lhs rhs = fun s ->
     let (rhs, s) = (eval_expr rhs) s in
     op lhs rhs, s
     
-let rec eval_prefix_op rhs = fun s ->
+and eval_prefix_op op rhs = fun s ->
     let (rhs, s) = (eval_expr rhs) s in
     op rhs, s
 
@@ -204,4 +204,4 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
                     ~f:(fun (acc, s) e -> let (ev, s) = eval_expr e s in (ev::acc, s))
                     ls
             in
-            List (List.rev eval_ls), state
+            ValList (List.rev eval_ls), state
