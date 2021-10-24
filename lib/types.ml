@@ -21,7 +21,7 @@ type value =
     | Tuple of value list
     | Lambda of lambda
     | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
-    | ValueMap of (int, value, Int.comparator_witness) Map.t
+    | Dictionary of (int, (value * value) list, Int.comparator_witness) Map.t
 
 and pattern =
     | SinglePat of string
@@ -54,7 +54,7 @@ let rec string_of_val = function
     | Tuple ls -> "(" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ ")"
     | Lambda _ -> "Lambda"
     | Thunk _ -> "Thunk"
-    | ValueMap  _ -> "Map"
+    | Dictionary  _ -> "Map"
 
 let rec string_of_expr = function
     | Atomic v -> string_of_val v

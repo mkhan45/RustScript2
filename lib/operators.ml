@@ -39,6 +39,8 @@ let rec val_eq lhs rhs = match lhs, rhs with
                     Boolean false
     | _ -> Boolean false
 
+let val_eq_bool l r = val_is_true (val_eq l r)
+
 let val_neq lhs rhs = Boolean (not (val_is_true (val_eq lhs rhs)))
 
 let val_lt lhs rhs = match lhs, rhs with

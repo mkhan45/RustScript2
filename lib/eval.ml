@@ -92,9 +92,12 @@ and eval_lambda_call ?tc:(tail_call=false) call =
                 | "get" ->
                     let (args, state) = (eval_expr call.call_args) state in begin
                     match args with
-                        | Tuple [ValueMap m; key] -> begin
+                        | Tuple [Dictionary m; key] -> begin
                             match Map.find m (hash_value key) with
-                                | Some found_val -> (found_val, state)
+                                | Some found_values -> 
+                                    let res = List.Assoc.find found_values ~equal:val_eq_bool key in
+                                    let v = Option.value ~default:(Tuple []) res in
+                                    v, state
                                 | None -> (Tuple [], state)
                             end
                         | _ ->
@@ -172,12 +175,16 @@ and eval_map_expr ?tc:(tail_call=false) map_pairs state =
         let key_val, state = (eval_expr ~tc:tail_call key_expr) state in
         let data_val, state = (eval_expr ~tc:tail_call val_expr) state in
         let key_hash = hash_value key_val in
-        (Map.set map_acc ~key:key_hash ~data:data_val, state)
+        let new_data = match Map.find map_acc key_hash with
+            | Some assoc_list -> (key_val, data_val)::assoc_list
+            | None -> [(key_val, data_val)]
+        in
+        (Map.set map_acc ~key:key_hash ~data:new_data, state)
     in 
     let start_map = Map.empty (module Int) in
     let (val_map, state) = 
         List.fold_left ~init:(start_map, state) ~f:fold_fn map_pairs
-    in (ValueMap val_map, state)
+    in (Dictionary val_map, state)
 
 and eval_expr: expr -> ?tc:bool -> state -> value * state = 
     fun expr ?tc:(tail_call=false) -> 
