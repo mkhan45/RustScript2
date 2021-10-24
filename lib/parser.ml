@@ -201,8 +201,11 @@ and parse_match_expr ls =
                         match rest with
                             | Newline::xs -> 
                                 parse_match_arms xs ((arm_pat, arm_expr, cond)::acc)
+                            | Pipe::_ -> 
+                                printf "Must break line after each match arm\n";
+                                assert false
                             | _ ->
-                                printf "Must break line after each match arm";
+                                printf "Error parsing expression in match arm\n";
                                 assert false
                     end
                 | _ ->

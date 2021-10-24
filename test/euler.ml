@@ -17,4 +17,8 @@ let () =
         Map.empty (module String) |> run_file (test_file "euler3.rsc") in
     assert_equal_expressions "euler3" "6857" state;
 
+    let state = 
+        Map.empty (module String) |> run_file (test_file "euler5.rsc") in
+    assert_equal_expressions "euler5" "232792560" state;
+
     printf "Passed\n"
