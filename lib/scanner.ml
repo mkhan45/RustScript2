@@ -8,6 +8,7 @@ type token =
     | Ident of string
     | PrefixOperator of Types.prefix_operator
     | BinaryOperator of Types.binary_operator
+    | Match
     | Let
     | Equal
     | LParen
@@ -17,17 +18,20 @@ type token =
     | LBracket
     | RBracket
     | Fn
+    | When
     | If
     | Then
     | Else
     | Arrow
+    | MatchArrow
     | Newline
     | Hashtag
-    | VLine
-    | Comma;;
+    | Comma
+    | Pipe
+    | Underscore
 
-let is_numeric d = Base.Char.is_digit d || phys_equal d '.';;
-let is_identic c = Base.Char.is_alphanum c || phys_equal c '_';;
+let is_numeric d = Base.Char.is_digit d || phys_equal d '.'
+let is_identic c = Base.Char.is_alphanum c || phys_equal c '_'
 
 let rec scan_digit ls =
     let rec aux ls acc = match ls with
@@ -39,8 +43,18 @@ let rec scan_digit ls =
 and scan_ident ls =
     let rec aux ls acc = match ls with
         | c::xs when is_identic c -> aux xs (c::acc)
-        | _ -> let n = (acc |> List.rev |> String.of_char_list)
-                in (Ident n)::(scan_ls ls)
+        | _ -> let n = (acc |> List.rev |> String.of_char_list) in
+               let tok = match n with
+                   | "let" -> Let
+                   | "fn" -> Fn
+                   | "if" -> If
+                   | "then" -> Then
+                   | "else" -> Else
+                   | "match" -> Match
+                   | "when" -> When
+                   | _ -> Ident n
+                in
+                tok::(scan_ls ls)
     in aux ls []
 
 and scan_ls = function
@@ -48,13 +62,18 @@ and scan_ls = function
     | (' '|'\t')::xs -> scan_ls xs
     | '\n'::xs -> Newline :: scan_ls xs
     | '='::'>'::xs -> Arrow :: scan_ls xs
-    | '+'::xs -> BinaryOperator Add :: (scan_ls xs)
+    | '-'::'>'::xs -> MatchArrow :: scan_ls xs
+    | '+'::xs -> BinaryOperator Add :: scan_ls xs
     | '-'::xs -> BinaryOperator Sub :: scan_ls xs
     | '*'::xs -> BinaryOperator Mul :: scan_ls xs
     | '/'::xs -> BinaryOperator Div :: scan_ls xs
     | '<'::xs -> BinaryOperator LT :: scan_ls xs
     | '>'::xs -> BinaryOperator GT :: scan_ls xs
+    | '|'::'|'::xs -> BinaryOperator Or :: scan_ls xs
+    | '&'::'&'::xs -> BinaryOperator And :: scan_ls xs
     | '='::'='::xs -> BinaryOperator EQ :: scan_ls xs
+    | '!'::'='::xs -> BinaryOperator NEQ :: scan_ls xs
+    | '%'::xs -> BinaryOperator Mod :: scan_ls xs
     | '^'::xs -> PrefixOperator Head :: scan_ls xs
     | '$'::xs -> PrefixOperator Tail :: scan_ls xs
     | '~'::xs -> PrefixOperator Negate :: scan_ls xs
@@ -65,19 +84,15 @@ and scan_ls = function
     | '['::xs -> LBracket :: scan_ls xs
     | ']'::xs -> RBracket :: scan_ls xs
     | '='::xs -> Equal :: scan_ls xs
+    | '_'::xs -> Underscore :: scan_ls xs
     | ','::xs -> Comma :: scan_ls xs
-    | '|'::xs -> VLine :: scan_ls xs
     | '#'::xs -> Hashtag :: scan_ls xs
-    | 'l'::'e'::'t'::xs -> Let :: scan_ls xs
-    | 'f'::'n'::xs -> Fn :: scan_ls xs
-    | 'i'::'f'::xs -> If :: scan_ls xs
-    | 't'::'h'::'e'::'n'::xs -> Then :: scan_ls xs
-    | 'e'::'l'::'s'::'e'::xs -> Else :: scan_ls xs
+    | '|'::xs -> Pipe :: scan_ls xs
     | 'T'::xs -> True :: scan_ls xs
     | 'F'::xs -> False :: scan_ls xs
-    | d::_ as ls when Base.Char.is_digit d -> scan_digit ls
-    | i::_ as ls when not (Base.Char.is_digit i) -> scan_ident ls
-    | _ as ls -> 
+    | d::_ as ls when Char.is_digit d -> scan_digit ls
+    | i::_ as ls when Char.is_alpha i -> scan_ident ls
+    | ls -> 
             printf "Scan Error: %s\n" (String.of_char_list ls); 
             assert false
 
@@ -91,7 +106,7 @@ and remove_comments ls =
         | Hashtag::xs -> skip_until_endline xs
         | t::xs -> t :: (remove_comments xs)
 
-let scan s = s |> String.to_list |> scan_ls |> remove_comments;;
+let scan s = s |> String.to_list |> scan_ls |> remove_comments
 
 let string_of_tok = function
     | Number f -> Float.to_string f
@@ -111,12 +126,16 @@ let string_of_tok = function
     | Arrow -> "Arrow"
     | True -> "True"
     | False -> "False"
+    | When -> "When"
     | If -> "If"
     | Then -> "Then"
     | Else -> "Else"
     | Newline -> "Newline"
-    | VLine -> "VLine"
     | Hashtag -> "Hashtag"
+    | Pipe -> "Pipe"
+    | Match -> "Match"
+    | MatchArrow -> "MatchArrow"
+    | Underscore -> "Underscore"
 
 let string_of_toks ls = String.concat ~sep:" " (List.map ~f:string_of_tok ls)
 let print_toks ls = ls |> string_of_toks |> printf "%s\n"
