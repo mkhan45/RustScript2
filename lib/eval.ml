@@ -4,6 +4,7 @@ open Base
 
 let val_add lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Number (lhs +. rhs)
+    | List lhs, List rhs -> List (lhs @ rhs)
     | _ -> 
             printf "Invalid Add: lhs = %s, rhs = %s\n" (string_of_val lhs) (string_of_val rhs);
             assert false
