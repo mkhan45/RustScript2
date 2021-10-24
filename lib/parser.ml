@@ -48,10 +48,10 @@ and parse_expr_tuple xs min_bp =
     end
 
 
-and parse_expr_list xs min_bp =
+and parse_list_expr xs min_bp =
     let rec aux toks acc = match toks with
         | RBracket::rest -> (acc, None), rest
-        | _ -> let nx, rest = parse toks 0 in begin
+        | _ -> let nx, rest = parse toks 0 in
             match rest with
                 | Comma::rest -> aux rest (nx::acc)
                 | RBracket::rest -> (nx::acc, None), rest
@@ -64,7 +64,6 @@ and parse_expr_list xs min_bp =
                 | _ -> 
                         print_toks rest;
                         assert false
-        end
     in 
     let (expr_list, tail), rest = aux xs [] in
     let parsed_list = ListExpr ((List.rev expr_list), tail) in
@@ -72,7 +71,7 @@ and parse_expr_list xs min_bp =
 
 and expr_bp ls min_bp = match ls with
     | (LParen::xs) -> parse_expr_tuple xs min_bp
-    | (LBracket::xs) -> parse_expr_list xs min_bp
+    | (LBracket::xs) -> parse_list_expr xs min_bp
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
     | (Operator op)::xs -> parse_prefix_expr op xs min_bp
@@ -92,6 +91,27 @@ and parse_pat ls = match ls with
             in 
             let (parsed, remaining) = aux xs [] 
             in (TuplePat (List.rev parsed), remaining)
+    | LBracket::xs ->
+            let rec aux toks acc = match toks with
+                | RBracket::rest -> (acc, None), rest
+                | _ -> let (nx, rest) = parse_pat toks in
+                    match rest with
+                        | Comma::rest -> aux rest (nx::acc)
+                        | RBracket::rest -> (nx::acc, None), rest
+                        | Pipe::rest ->
+                            let tail_pat, more = parse_pat rest in begin
+                                match more with
+                                    | RBracket::rest -> (nx::acc, Some tail_pat), rest
+                                    | _ -> assert false
+                            end
+                        | _ -> assert false
+            in
+            let (pat_list, tail), rest = aux xs [] in
+            let parsed_list_pat = match tail with
+                | None -> FullPat (List.rev pat_list)
+                | Some tail_pat -> HeadTailPat (pat_list, tail_pat)
+            in
+            ListPat parsed_list_pat, rest
     | (Ident s)::xs -> (SinglePat s, xs)
     | (Number f)::xs -> (NumberPat f, xs)
     | Underscore::xs -> (WildcardPat, xs)

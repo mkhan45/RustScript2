@@ -34,7 +34,7 @@ and pattern =
 
 and list_pattern =
     | FullPat of pattern list
-    | HeadTailPat of pattern * list_pattern
+    | HeadTailPat of (pattern list) * pattern
 
 and state = (string, value, String.comparator_witness) Map.t
 
@@ -83,7 +83,7 @@ let rec string_of_expr = function
 
 and string_of_list_pat = function
     | FullPat ls -> "[" ^ (String.concat ~sep:", " (List.map ~f:string_of_pat ls)) ^ "]"
-    | HeadTailPat (hd, tl) -> "[" ^ (string_of_pat hd) ^ " | " ^ (string_of_list_pat tl) ^ "]"
+    | HeadTailPat (_hd, _tl) -> assert false (* TODO *)
 
 and string_of_pat = function
     | SinglePat s -> s

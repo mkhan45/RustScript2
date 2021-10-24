@@ -10,7 +10,9 @@ let rec bind lhs rhs =
             Map.set state ~key:s ~data:rhs;
     | NumberPat lhs, Number rhs when Float.equal lhs rhs -> 
             fun state -> state
-    | (TuplePat lhs_ls), (Tuple rhs_ls) -> fun state ->
+    | ((TuplePat lhs_ls) as lhs, ((Tuple rhs_ls) as rhs))|
+      ((ListPat (FullPat lhs_ls)) as lhs, ((ValList rhs_ls) as rhs)) -> fun state ->
+            (* TODO: Look into moving the closure inwards, moving some "runtime" computation to "comptime" *)
             if phys_equal (List.length lhs_ls) (List.length rhs_ls)
                 then 
                     let zipped = List.zip_exn lhs_ls rhs_ls in
@@ -18,10 +20,15 @@ let rec bind lhs rhs =
                 else begin
                     printf "\n";
                     printf "Tried to bind %s of len %d to %s of len %d\n"
-                        (string_of_pat (TuplePat lhs_ls)) (List.length lhs_ls)
-                        (string_of_val (Tuple rhs_ls)) (List.length rhs_ls);
+                        (string_of_pat lhs) (List.length lhs_ls)
+                        (string_of_val rhs) (List.length rhs_ls);
                     assert false
                 end
+    | (ListPat (HeadTailPat (head_pat_ls, tail_pat))), ValList rhs_ls -> fun s ->
+            let (head_ls, tail_ls) = List.split_n rhs_ls (List.length head_pat_ls) in
+            let s = (bind (ListPat (FullPat head_pat_ls)) (ValList head_ls)) s in
+            let s = (bind tail_pat (ValList tail_ls)) s in
+            s
     | WildcardPat, _ -> fun state -> state
     | _ -> assert false
 
@@ -31,11 +38,16 @@ let rec pattern_matches pat value =
         | SinglePat _, _ -> true
         | NumberPat lhs, Number rhs -> 
                 Float.equal lhs rhs
-        | (TuplePat lhs_ls), (Tuple rhs_ls) ->
+        | ((TuplePat lhs_ls), (Tuple rhs_ls))|(ListPat (FullPat lhs_ls), ValList rhs_ls) ->
             if phys_equal (List.length lhs_ls) (List.length rhs_ls) then
                 let zipped = List.zip_exn lhs_ls rhs_ls in
                 List.for_all ~f:(fun (p, v) -> pattern_matches p v) zipped
             else false
+        | (ListPat (HeadTailPat (head_pat_ls, tail_pat)), ValList rhs_ls) ->
+            let (head_ls, tail_ls) = List.split_n rhs_ls (List.length head_pat_ls) in
+            let head_matches = pattern_matches (ListPat (FullPat head_pat_ls)) (ValList head_ls) in
+            let tail_matches = pattern_matches tail_pat (ValList tail_ls) in
+            head_matches && tail_matches
         | _ -> false
 
 let rec eval_op op lhs rhs = fun s ->
