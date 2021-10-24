@@ -8,13 +8,15 @@ let binary_op_bp = function
     | And       -> (3, 4)
     | EQ | NEQ  -> (5, 6)
     | LT | GT   -> (7, 8)
-    | Add | Sub -> (9, 10)
+    | Add | Neg -> (9, 10)
     | Mul | Div | Mod -> (11, 12)
+    | Head | Tail -> (13, 14)
+    | NegateBool -> assert false
 
-let prefix_op_bp = 8
+let prefix_op_bp = 13
 
 let rec complete_expr lhs ls min_bp = match ls with
-    | (BinaryOperator op)::xs ->
+    | (Operator op)::xs ->
             let (l_bp, r_bp) = binary_op_bp op
             in
             if l_bp < min_bp 
@@ -64,7 +66,7 @@ and expr_bp ls min_bp = match ls with
     | (LBracket::xs) -> parse_expr_list xs min_bp
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
-    | (PrefixOperator op)::xs -> parse_prefix_expr op xs min_bp
+    | (Operator op)::xs -> parse_prefix_expr op xs min_bp
     | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp
     | False::xs -> complete_expr (Atomic (Boolean false)) xs min_bp
     | _ -> assert false
@@ -218,8 +220,8 @@ and parse: token list -> int -> expr * (token list) = fun s min_bp ->
             let (call, xs) = parse_lambda_call s in
             complete_expr call xs min_bp
     | LParen::_ -> expr_bp s 0
-    | LBracket::_ -> expr_bp s 0 (* TODO: Parse lists *)
-    | (PrefixOperator _)::_ -> expr_bp s 0
+    | LBracket::_ -> expr_bp s 0
+    | (Operator _)::_ -> expr_bp s 0
     | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
     | Let::xs -> parse_let xs
     | Fn::_ -> 

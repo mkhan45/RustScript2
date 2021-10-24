@@ -1,9 +1,9 @@
 open Base
 open Printf
 
-type binary_operator =
+type operator =
     | Add
-    | Sub
+    | Neg
     | Mul
     | Div
     | LT
@@ -13,11 +13,9 @@ type binary_operator =
     | And
     | Or
     | Mod
-    
-type prefix_operator =
-    | Negate
     | Head
     | Tail
+    | NegateBool
 
 type value =
     | Number of float
@@ -47,8 +45,8 @@ and if_expr = {cond: expr; then_expr: expr; else_expr: expr}
 and expr =
     | Atomic of value
     | Ident of string
-    | Binary of {lhs: expr; op: binary_operator; rhs: expr}
-    | Prefix of {op: prefix_operator; rhs: expr}
+    | Binary of {lhs: expr; op: operator; rhs: expr}
+    | Prefix of {op: operator; rhs: expr}
     | Let of {assignee: pattern; assigned_expr: expr}
     | LambdaDef of {lambda_def_expr: expr; lambda_def_args: pattern}
     | LambdaCall of lambda_call

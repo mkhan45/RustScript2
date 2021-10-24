@@ -3,23 +3,6 @@ open Stdio
 open Base
 open Operators
 
-let val_negate rhs = match rhs with
-    | Number rhs -> Number (~-.rhs)
-    | Boolean rhs -> Boolean (not rhs)
-    | _ -> assert false
-
-let val_list_head rhs = match rhs with
-    | ValList (head::_) -> head
-    | _ ->
-        printf "Invalid Head: rhs = %s\n" (string_of_val rhs);
-        assert false
-
-let val_list_tail rhs = match rhs with
-    | ValList (_::tail) -> ValList tail
-    | _ ->
-        printf "Invalid Tail: rhs = %s\n" (string_of_val rhs);
-        assert false
-
 let rec bind lhs rhs = 
     (* printf "Binding %s to %s\n" (string_of_pat lhs) (string_of_val rhs); *)
     match lhs, rhs with
@@ -184,9 +167,11 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | Ident name -> fun state -> eval_ident name state
         | Prefix ({op = Head; _} as e) -> eval_prefix_op val_list_head e.rhs
         | Prefix ({op = Tail; _} as e) -> eval_prefix_op val_list_tail e.rhs
-        | Prefix ({op = Negate; _} as e) -> eval_prefix_op val_negate e.rhs
+        | Prefix ({op = Neg; _} as e) -> eval_prefix_op val_negate e.rhs
+        | Prefix ({op = NegateBool; _} as e) -> eval_prefix_op val_negate_bool e.rhs
+        | Prefix ({op = _op; _}) -> assert false (* Invalid prefix op *)
         | Binary ({op = Add; _} as e) -> eval_op val_add e.lhs e.rhs
-        | Binary ({op = Sub; _} as e) -> eval_op val_sub e.lhs e.rhs
+        | Binary ({op = Neg; _} as e) -> eval_op val_sub e.lhs e.rhs
         | Binary ({op = Mul; _} as e) -> eval_op val_mul e.lhs e.rhs
         | Binary ({op = Div; _} as e) -> eval_op val_div e.lhs e.rhs
         | Binary ({op = EQ; _} as e) -> eval_op val_eq e.lhs e.rhs
@@ -196,6 +181,7 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | Binary ({op = And; _} as e) -> eval_op val_and e.lhs e.rhs
         | Binary ({op = Or; _} as e) -> eval_op val_or e.lhs e.rhs
         | Binary ({op = Mod; _} as e) -> eval_op val_mod e.lhs e.rhs
+        | Binary ({op = _op; _}) -> assert false (* Invalid binary op *)
         | LambdaDef d -> eval_lambda_def d.lambda_def_expr d.lambda_def_args
         | Let l -> fun s -> (eval_let l.assignee l.assigned_expr) s
         | TupleExpr ls -> fun s -> eval_tuple_expr ls s

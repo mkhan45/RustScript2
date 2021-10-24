@@ -6,8 +6,7 @@ type token =
     | False
     | Number of float
     | Ident of string
-    | PrefixOperator of Types.prefix_operator
-    | BinaryOperator of Types.binary_operator
+    | Operator of Types.operator
     | Match
     | Let
     | Equal
@@ -63,20 +62,20 @@ and scan_ls = function
     | '\n'::xs -> Newline :: scan_ls xs
     | '='::'>'::xs -> Arrow :: scan_ls xs
     | '-'::'>'::xs -> MatchArrow :: scan_ls xs
-    | '+'::xs -> BinaryOperator Add :: scan_ls xs
-    | '-'::xs -> BinaryOperator Sub :: scan_ls xs
-    | '*'::xs -> BinaryOperator Mul :: scan_ls xs
-    | '/'::xs -> BinaryOperator Div :: scan_ls xs
-    | '<'::xs -> BinaryOperator LT :: scan_ls xs
-    | '>'::xs -> BinaryOperator GT :: scan_ls xs
-    | '|'::'|'::xs -> BinaryOperator Or :: scan_ls xs
-    | '&'::'&'::xs -> BinaryOperator And :: scan_ls xs
-    | '='::'='::xs -> BinaryOperator EQ :: scan_ls xs
-    | '!'::'='::xs -> BinaryOperator NEQ :: scan_ls xs
-    | '%'::xs -> BinaryOperator Mod :: scan_ls xs
-    | '^'::xs -> PrefixOperator Head :: scan_ls xs
-    | '$'::xs -> PrefixOperator Tail :: scan_ls xs
-    | '~'::xs -> PrefixOperator Negate :: scan_ls xs
+    | '+'::xs -> Operator Add :: scan_ls xs
+    | '-'::xs -> Operator Neg :: scan_ls xs
+    | '*'::xs -> Operator Mul :: scan_ls xs
+    | '/'::xs -> Operator Div :: scan_ls xs
+    | '<'::xs -> Operator LT :: scan_ls xs
+    | '>'::xs -> Operator GT :: scan_ls xs
+    | '|'::'|'::xs -> Operator Or :: scan_ls xs
+    | '&'::'&'::xs -> Operator And :: scan_ls xs
+    | '='::'='::xs -> Operator EQ :: scan_ls xs
+    | '!'::'='::xs -> Operator NEQ :: scan_ls xs
+    | '%'::xs -> Operator Mod :: scan_ls xs
+    | '^'::xs -> Operator Head :: scan_ls xs
+    | '$'::xs -> Operator Tail :: scan_ls xs
+    | '!'::xs -> Operator NegateBool :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
     | '{'::xs -> LBrace :: scan_ls xs
@@ -111,8 +110,7 @@ let scan s = s |> String.to_list |> scan_ls |> remove_comments
 let string_of_tok = function
     | Number f -> Float.to_string f
     | Ident s -> "(Ident " ^ s ^ ")"
-    | PrefixOperator _ -> "PrefixOperator"
-    | BinaryOperator _ -> "BinaryOperator"
+    | Operator _ -> "Operator"
     | Let -> "Let"
     | Equal -> "Equal"
     | LParen -> "LParen"
