@@ -1,7 +1,7 @@
 open Base
 open Printf
 
-type operator =
+type binary_operator =
     | Add
     | Sub
     | Mul
@@ -9,6 +9,10 @@ type operator =
     | LT
     | GT
     | EQ;;
+type prefix_operator =
+    | Head
+    | Tail;;
+
 
 type pattern =
     | SinglePat of string
@@ -35,7 +39,8 @@ and value =
 and expr =
     | Atomic of value
     | Ident of string
-    | Binary of {lhs: expr; op: operator; rhs: expr}
+    | Binary of {lhs: expr; op: binary_operator; rhs: expr}
+    | Prefix of {op: prefix_operator; rhs: expr}
     | Let of {assignee: pattern; assigned_expr: expr}
     | LambdaCall of lambda_call
     | IfExpr of  if_expr
@@ -54,6 +59,7 @@ let rec string_of_val = function
 let rec string_of_expr = function
     | Atomic v -> string_of_val v
     | Ident s -> s
+    | Prefix (_ as p) -> sprintf "{rhs: %s}" (string_of_expr p.rhs)
     | Binary (_ as b) -> sprintf "{lhs: %s, rhs: %s}" (string_of_expr b.lhs) (string_of_expr b.rhs)
     | Let (_ as l) -> sprintf "Let %s = %s" (string_of_pat l.assignee) (string_of_expr l.assigned_expr)
     | LambdaCall call -> sprintf "{Call: %s, args: %s}" call.callee (string_of_expr call.call_args)

@@ -6,7 +6,8 @@ type token =
     | False
     | Number of float
     | Ident of string
-    | Operator of Types.operator
+    | PrefixOperator of Types.prefix_operator
+    | BinaryOperator of Types.binary_operator
     | Let
     | Equal
     | LParen
@@ -47,13 +48,15 @@ and scan_ls = function
     | (' '|'\t')::xs -> scan_ls xs
     | '\n'::xs -> Newline :: scan_ls xs
     | '='::'>'::xs -> Arrow :: scan_ls xs
-    | '+'::xs -> Operator Add :: (scan_ls xs)
-    | '-'::xs -> Operator Sub :: scan_ls xs
-    | '*'::xs -> Operator Mul :: scan_ls xs
-    | '/'::xs -> Operator Div :: scan_ls xs
-    | '<'::xs -> Operator LT :: scan_ls xs
-    | '>'::xs -> Operator GT :: scan_ls xs
-    | '='::'='::xs -> Operator EQ :: scan_ls xs
+    | '+'::xs -> BinaryOperator Add :: (scan_ls xs)
+    | '-'::xs -> BinaryOperator Sub :: scan_ls xs
+    | '*'::xs -> BinaryOperator Mul :: scan_ls xs
+    | '/'::xs -> BinaryOperator Div :: scan_ls xs
+    | '<'::xs -> BinaryOperator LT :: scan_ls xs
+    | '>'::xs -> BinaryOperator GT :: scan_ls xs
+    | '='::'='::xs -> BinaryOperator EQ :: scan_ls xs
+    | '^'::xs -> PrefixOperator Head :: scan_ls xs
+    | '$'::xs -> PrefixOperator Tail :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
     | '{'::xs -> LBrace :: scan_ls xs
@@ -92,7 +95,8 @@ let scan s = s |> String.to_list |> scan_ls |> remove_comments;;
 let string_of_tok = function
     | Number f -> Float.to_string f
     | Ident s -> "(Ident " ^ s ^ ")"
-    | Operator _ -> "Operator"
+    | PrefixOperator _ -> "PrefixOperator"
+    | BinaryOperator _ -> "BinaryOperator"
     | Let -> "Let"
     | Equal -> "Equal"
     | LParen -> "LParen"

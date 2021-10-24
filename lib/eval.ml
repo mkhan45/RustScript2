@@ -48,6 +48,18 @@ let val_gt lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs > 0)
     | _ -> assert false
 
+let val_list_head rhs = match rhs with
+    | List (head::_) -> head
+    | _ ->
+        printf "Invalid Head: rhs = %s\n" (string_of_val rhs);
+        assert false
+
+let val_list_tail rhs = match rhs with
+    | List (_::tail) -> List tail
+    | _ ->
+        printf "Invalid Tail: rhs = %s\n" (string_of_val rhs);
+        assert false
+
 let rec bind lhs rhs = 
     (* printf "Binding %s to %s\n" (string_of_pat lhs) (string_of_val rhs); *)
     match lhs, rhs with
@@ -108,6 +120,12 @@ and eval_expr: expr -> state -> value * state = fun expr ->
                     printf "Error: variable not found: %s\n" n;
                     assert false
             end
+        | Prefix ({op = Head; _} as e) -> fun s ->
+                let (rhs, s) = (eval_expr e.rhs) s in
+                val_list_head rhs, s
+        | Prefix ({op = Tail; _} as e) -> fun s ->
+                let (rhs, s) = (eval_expr e.rhs) s in
+                val_list_tail rhs, s
         | Binary ({op = Add; _} as e) -> fun s -> 
                 let (lhs, s) = (eval_expr e.lhs) s in
                 let (rhs, s) = (eval_expr e.rhs) s in
