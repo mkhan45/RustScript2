@@ -13,6 +13,8 @@ type token =
     | RParen
     | LBrace
     | RBrace
+    | LBracket
+    | RBracket
     | Fn
     | If
     | Then
@@ -20,6 +22,7 @@ type token =
     | Arrow
     | Newline
     | Hashtag
+    | VLine
     | Comma;;
 
 let is_numeric d = Base.Char.is_digit d || phys_equal d '.';;
@@ -55,8 +58,11 @@ and scan_ls = function
     | ')'::xs -> RParen :: scan_ls xs
     | '{'::xs -> LBrace :: scan_ls xs
     | '}'::xs -> RBrace :: scan_ls xs
+    | '['::xs -> LBracket :: scan_ls xs
+    | ']'::xs -> RBracket :: scan_ls xs
     | '='::xs -> Equal :: scan_ls xs
     | ','::xs -> Comma :: scan_ls xs
+    | '|'::xs -> VLine :: scan_ls xs
     | '#'::xs -> Hashtag :: scan_ls xs
     | 'l'::'e'::'t'::xs -> Let :: scan_ls xs
     | 'f'::'n'::xs -> Fn :: scan_ls xs
@@ -93,6 +99,8 @@ let string_of_tok = function
     | RParen -> "RParen"
     | LBrace -> "LBrace"
     | RBrace -> "RBrace"
+    | LBracket -> "LBracket"
+    | RBracket -> "RBracket"
     | Comma -> "Comma"
     | Fn -> "Fn"
     | Arrow -> "Arrow"
@@ -102,6 +110,7 @@ let string_of_tok = function
     | Then -> "Then"
     | Else -> "Else"
     | Newline -> "Newline"
+    | VLine -> "VLine"
     | Hashtag -> "Hashtag"
 
 let string_of_toks ls = String.concat ~sep:" " (List.map ~f:string_of_tok ls)
