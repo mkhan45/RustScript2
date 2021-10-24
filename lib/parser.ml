@@ -3,16 +3,17 @@ open Scanner
 open Printf
 open Base
 
-let op_bp = function
-    | EQ  | NEQ -> (1, 2)
-    | And | Or  -> (3, 4)
-    | LT  | GT  -> (5, 6)
-    | Add | Sub -> (7, 8)
-    | Mul | Div | Mod -> (9, 10)
+let binary_op_bp = function
+    | EQ -> (1, 2)
+    | LT | GT -> (3, 4)
+    | Add | Sub -> (4, 5)
+    | Mul | Div -> (6, 7);;
+
+let prefix_op_bp = 8;;
 
 let rec complete_expr lhs ls min_bp = match ls with
-    | (Operator op)::xs ->
-            let (l_bp, r_bp) = op_bp op
+    | (BinaryOperator op)::xs ->
+            let (l_bp, r_bp) = binary_op_bp op
             in
             if l_bp < min_bp 
                 then (lhs, ls)
@@ -21,24 +22,47 @@ let rec complete_expr lhs ls min_bp = match ls with
                       in complete_expr complete rem min_bp
     | _ -> (lhs, ls)
 
+and parse_prefix_expr op xs min_bp =
+    let (rhs, rem) = parse xs min_bp in 
+    let complete = Prefix {op = op; rhs = rhs} in
+    complete_expr complete rem min_bp
+
+and parse_expr_tuple xs min_bp =
+    let rec aux toks saw_comma acc = match toks with
+        | RParen::rest -> acc, rest, saw_comma
+        | _ -> let nx, rest = parse toks 0 in begin
+            match rest with
+                | Comma::rest -> aux rest true (nx::acc)
+                | RParen::rest -> (nx::acc), rest, saw_comma
+                | _ -> assert false
+        end
+    in let expr_list, rest, saw_comma = aux xs false [] in begin
+        match expr_list, saw_comma with
+            | _, true -> complete_expr (TupleExpr (List.rev expr_list)) rest min_bp
+            | [], false -> complete_expr (TupleExpr []) rest min_bp
+            | _, false -> complete_expr (List.hd_exn expr_list) rest min_bp
+    end
+
+
+and parse_expr_list xs min_bp =
+    let rec aux toks acc = match toks with
+        | RBracket::rest -> acc, rest
+        | _ -> let nx, rest = parse toks 0 in begin
+            match rest with
+                | Comma::rest -> aux rest (nx::acc)
+                | RBracket::rest -> (nx::acc), rest
+                | _ -> assert false
+        end
+    in let expr_list, rest = aux xs [] in begin
+      complete_expr (ListExpr (List.rev expr_list)) rest min_bp
+    end
+
 and expr_bp ls min_bp = match ls with
-    | (LParen::xs) -> 
-            let rec aux toks saw_comma acc = match toks with
-                | RParen::rest -> acc, rest, saw_comma
-                | _ -> let nx, rest = parse toks 0 in begin
-                    match rest with
-                        | Comma::rest -> aux rest true (nx::acc)
-                        | RParen::rest -> (nx::acc), rest, saw_comma
-                        | _ -> assert false
-                end
-            in let expr_list, rest, saw_comma = aux xs false [] in begin
-               match expr_list, saw_comma with
-                   | _, true -> complete_expr (TupleExpr (List.rev expr_list)) rest min_bp
-                   | [], false -> complete_expr (TupleExpr []) rest min_bp
-                   | _, false -> complete_expr (List.hd_exn expr_list) rest min_bp
-            end
+    | (LParen::xs) -> parse_expr_tuple xs min_bp
+    | (LBracket::xs) -> parse_expr_list xs min_bp
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
+    | (PrefixOperator op)::xs -> parse_prefix_expr op xs min_bp
     | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp
     | False::xs -> complete_expr (Atomic (Boolean false)) xs min_bp
     | _ -> assert false
@@ -71,7 +95,7 @@ and parse_let ls =
                 in (let_expr, rest)
         | _ -> assert false
 
-and parse_args toks = 
+and parse_args toks =
     match toks with
     | LParen::xs ->
             let rec aux toks acc = match toks with
@@ -84,9 +108,9 @@ and parse_args toks =
                 end
             in
             let (parsed, remaining) = aux xs []
-            in 
+            in
             (List.rev parsed, remaining)
-    | _ -> 
+    | _ ->
             printf "Error parsing args: ";
             print_toks toks;
             assert false
@@ -115,6 +139,7 @@ and parse_lambda_call = function
                         (LambdaCall {callee = lambda_name; call_args = call_args}, rest)
     end
     | _ -> assert false
+
 
 and parse_if_expr = function
     | If::xs -> begin
@@ -191,6 +216,8 @@ and parse: token list -> int -> expr * (token list) = fun s min_bp ->
             let (call, xs) = parse_lambda_call s in
             complete_expr call xs min_bp
     | LParen::_ -> expr_bp s 0
+    | LBracket::_ -> expr_bp s 0 (* TODO: Parse lists *)
+    | (PrefixOperator _)::_ -> expr_bp s 0
     | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
     | Let::xs -> parse_let xs
     | Fn::_ -> 

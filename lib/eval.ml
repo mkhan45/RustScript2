@@ -3,6 +3,18 @@ open Stdio
 open Base
 open Operators
 
+let val_list_head rhs = match rhs with
+    | List (head::_) -> head
+    | _ ->
+        printf "Invalid Head: rhs = %s\n" (string_of_val rhs);
+        assert false
+
+let val_list_tail rhs = match rhs with
+    | List (_::tail) -> List tail
+    | _ ->
+        printf "Invalid Tail: rhs = %s\n" (string_of_val rhs);
+        assert false
+
 let rec bind lhs rhs = 
     (* printf "Binding %s to %s\n" (string_of_pat lhs) (string_of_val rhs); *)
     match lhs, rhs with
@@ -42,6 +54,10 @@ let rec eval_op op lhs rhs = fun s ->
     let (lhs, s) = (eval_expr lhs) s in
     let (rhs, s) = (eval_expr rhs) s in
     op lhs rhs, s
+    
+let rec eval_prefix_op rhs = fun s ->
+    let (rhs, s) = (eval_expr rhs) s in
+    op rhs, s
 
 and eval_ident name = fun state ->
     match Map.find state name with
@@ -125,7 +141,7 @@ and eval_block_expr ?tc:(tail_call=false) ls state =
                 (eval_expr ~tc:tail_call last_expr) block_state
             | _ -> assert false
     in (res, state)
-
+    
 and eval_match_expr ?tc:(tail_call=false) match_val match_arms state =
     let (match_val, state) = (eval_expr match_val) state in
     let result_state_opt = List.find_map ~f:(
@@ -161,6 +177,8 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         match expr with
         | Atomic v -> fun s -> v, s
         | Ident name -> fun state -> eval_ident name state
+        | Prefix ({op = Head; _} as e) -> eval_prefix_op val_list_head e.rhs
+        | Prefix ({op = Tail; _} as e) -> eval_prefix_op val_list_tail e.rhs
         | Binary ({op = Add; _} as e) -> eval_op val_add e.lhs e.rhs
         | Binary ({op = Sub; _} as e) -> eval_op val_sub e.lhs e.rhs
         | Binary ({op = Mul; _} as e) -> eval_op val_mul e.lhs e.rhs
@@ -179,3 +197,11 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | IfExpr i -> fun s -> (eval_if_expr ~tc:tail_call i) s
         | BlockExpr ls -> fun s -> eval_block_expr ~tc:tail_call ls s
         | MatchExpr m -> fun s -> eval_match_expr ~tc:tail_call m.match_val m.match_arms s
+        | ListExpr ls -> fun s ->
+            let (eval_ls, state) =
+                List.fold_left
+                    ~init:([], s)
+                    ~f:(fun (acc, s) e -> let (ev, s) = eval_expr e s in (ev::acc, s))
+                    ls
+            in
+            List (List.rev eval_ls), state
