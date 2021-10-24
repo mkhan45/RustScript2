@@ -159,6 +159,28 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms state =
             printf "No patterns matched in match expression\n";
             assert false
 
+and eval_list_expr ?tc:(_tail_call=false) ls tail = fun s ->
+    let eval_expr_list ~init =
+        List.fold_left
+        ~init:init
+        ~f:(fun (acc, s) e -> let (ev, s) = eval_expr e s in (ev::acc, s))
+    in
+    let eval_prepend ls tail =
+        let (tail_eval, s) = (eval_expr tail) s in
+        match tail_eval with
+            | ValList tail_ls ->
+                let (eval_ls, state) = eval_expr_list ~init:(tail_ls, s) (List.rev ls) in
+                ValList eval_ls, state
+            | _ ->
+                printf "tried to prepend to a non-list";
+                assert false
+    in
+    match tail with
+        | Some tail -> eval_prepend ls tail
+        | None ->
+            let (eval_ls, state) = eval_expr_list ~init:([], s) ls in
+            ValList (List.rev eval_ls), state
+
 and eval_expr: expr -> ?tc:bool -> state -> value * state = 
     fun expr ?tc:(tail_call=false) -> 
         (* printf "Evaluating: %s\n" (string_of_expr expr); *)
@@ -168,7 +190,7 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | Prefix ({op = Head; _} as e) -> eval_prefix_op val_list_head e.rhs
         | Prefix ({op = Tail; _} as e) -> eval_prefix_op val_list_tail e.rhs
         | Prefix ({op = Neg; _} as e) -> eval_prefix_op val_negate e.rhs
-        | Prefix ({op = NegateBool; _} as e) -> eval_prefix_op val_negate_bool e.rhs
+        | Prefix ({op = Not; _} as e) -> eval_prefix_op val_negate_bool e.rhs
         | Prefix ({op = _op; _}) -> assert false (* Invalid prefix op *)
         | Binary ({op = Add; _} as e) -> eval_op val_add e.lhs e.rhs
         | Binary ({op = Neg; _} as e) -> eval_op val_sub e.lhs e.rhs
@@ -189,11 +211,4 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | IfExpr i -> fun s -> (eval_if_expr ~tc:tail_call i) s
         | BlockExpr ls -> fun s -> eval_block_expr ~tc:tail_call ls s
         | MatchExpr m -> fun s -> eval_match_expr ~tc:tail_call m.match_val m.match_arms s
-        | ListExpr ls -> fun s ->
-            let (eval_ls, state) =
-                List.fold_left
-                    ~init:([], s)
-                    ~f:(fun (acc, s) e -> let (ev, s) = eval_expr e s in (ev::acc, s))
-                    ls
-            in
-            ValList (List.rev eval_ls), state
+        | ListExpr (ls, tail) -> eval_list_expr ls tail

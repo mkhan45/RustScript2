@@ -11,7 +11,7 @@ let binary_op_bp = function
     | Add | Neg -> (9, 10)
     | Mul | Div | Mod -> (11, 12)
     | Head | Tail -> (13, 14)
-    | NegateBool -> assert false
+    | Not -> assert false
 
 let prefix_op_bp = 13
 
@@ -50,16 +50,25 @@ and parse_expr_tuple xs min_bp =
 
 and parse_expr_list xs min_bp =
     let rec aux toks acc = match toks with
-        | RBracket::rest -> acc, rest
+        | RBracket::rest -> (acc, None), rest
         | _ -> let nx, rest = parse toks 0 in begin
             match rest with
                 | Comma::rest -> aux rest (nx::acc)
-                | RBracket::rest -> (nx::acc), rest
-                | _ -> assert false
+                | RBracket::rest -> (nx::acc, None), rest
+                | Pipe::rest ->
+                    let tail, more = parse rest 0 in begin
+                    match more with
+                        | RBracket::rest -> (nx::acc, Some tail), rest
+                        | _ -> assert false
+                    end
+                | _ -> 
+                        print_toks rest;
+                        assert false
         end
-    in let expr_list, rest = aux xs [] in begin
-      complete_expr (ListExpr (List.rev expr_list)) rest min_bp
-    end
+    in 
+    let (expr_list, tail), rest = aux xs [] in
+    let parsed_list = ListExpr ((List.rev expr_list), tail) in
+    complete_expr parsed_list rest min_bp
 
 and expr_bp ls min_bp = match ls with
     | (LParen::xs) -> parse_expr_tuple xs min_bp

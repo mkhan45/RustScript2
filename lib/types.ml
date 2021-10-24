@@ -15,7 +15,7 @@ type operator =
     | Mod
     | Head
     | Tail
-    | NegateBool
+    | Not
 
 type value =
     | Number of float
@@ -52,9 +52,9 @@ and expr =
     | LambdaCall of lambda_call
     | IfExpr of  if_expr
     | TupleExpr of expr list
-    | ListExpr of expr list
     | BlockExpr of expr list
     | MatchExpr of {match_val: expr; match_arms: (pattern * expr * expr option) list}
+    | ListExpr of (expr list) * (expr option)
 
 let rec string_of_val = function
     | Number n -> Float.to_string n
@@ -73,7 +73,10 @@ let rec string_of_expr = function
     | LambdaDef _ -> "Lambda"
     | LambdaCall call -> sprintf "{Call: %s, args: %s}" call.callee (string_of_expr call.call_args)
     | TupleExpr ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_expr ls))
-    | ListExpr ls -> "[" ^ (String.concat ~sep:", " (List.map ~f:string_of_expr ls)) ^ "]"
+    | ListExpr (ls, tail) -> 
+        sprintf "[%s|%s]"
+        (String.concat ~sep:", " (List.map ~f:string_of_expr ls))
+        (if Option.is_none tail then "None" else "Tail")
     | IfExpr _ -> "IfExpr"
     | BlockExpr ls -> sprintf "{\n\t%s\n}" (String.concat ~sep:"\n\t" (List.map ~f:string_of_expr ls))
     | MatchExpr _ -> "MatchExpr"

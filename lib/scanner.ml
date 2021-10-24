@@ -75,7 +75,7 @@ and scan_ls = function
     | '%'::xs -> Operator Mod :: scan_ls xs
     | '^'::xs -> Operator Head :: scan_ls xs
     | '$'::xs -> Operator Tail :: scan_ls xs
-    | '!'::xs -> Operator NegateBool :: scan_ls xs
+    | '!'::xs -> Operator Not :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
     | '{'::xs -> LBrace :: scan_ls xs
