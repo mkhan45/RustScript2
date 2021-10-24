@@ -10,7 +10,7 @@ let rec repl state =
     | None -> ()
     | Some line -> 
         match Rustscript.Run.eval state line with
-            | (Unit, new_state) -> repl new_state
+            | (Tuple [], new_state) -> repl new_state
             | (evaled, new_state) ->
                     printf "%s\n" (Rustscript.Types.string_of_val evaled);
                     Out_channel.flush stdout;

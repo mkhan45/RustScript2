@@ -80,8 +80,10 @@ and parse_pat ls = match ls with
             let (parsed, remaining) = aux xs [] 
             in (TuplePat (List.rev parsed), remaining)
     | (Ident s)::xs -> (SinglePat s, xs)
+    | (Number f)::xs -> (NumberPat f, xs)
+    | Underscore::xs -> (WildcardPat, xs)
     | _ ->
-            print_toks ls;
+            printf "Expected pattern, got %s" (string_of_toks ls);
             assert false
 
 and parse_let ls =
@@ -120,8 +122,9 @@ and parse_lambda = function
                 match rest with
                     | Arrow::xs ->
                             let (lambda_expr, rest) = parse xs (-1) in
-                            let lambda = Lambda {lambda_expr = lambda_expr; lambda_args = args} 
-                            in (Atomic lambda, rest)
+                            let lambda = 
+                                LambdaDef {lambda_def_expr = lambda_expr; lambda_def_args = args} 
+                            in (lambda, rest)
                     | _ ->
                             printf "Expected an arrow, got (%s)\n" (string_of_toks rest);
                             assert false
@@ -144,36 +147,76 @@ and parse_if_expr = function
         match skip_newlines xs with
             | Then::xs -> begin
                 let (then_expr, xs) = parse xs 0 in
-                match xs with
+                match (skip_newlines xs) with
                     | Else::xs ->
-                            let (else_expr, rest) = parse xs 0 in
-                            (IfExpr {cond = cond; then_expr = then_expr; else_expr = else_expr}, rest)
+                        let (else_expr, rest) = parse xs 0 in
+                        (IfExpr {cond = cond; then_expr = then_expr; else_expr = else_expr}, rest)
                     | _ -> 
-                            printf "Error parsing as else: ";
-                            print_toks xs;
-                            assert false
+                        printf "Error parsing as else: ";
+                        print_toks xs;
+                        assert false
                 end
             | _ -> assert false
     end
     | _ -> assert false
 
 and parse_block_expr ls =
-    let rec aux ls acc = match ls with
-        | (RBrace::rest)|(Newline::RBrace::rest) -> (BlockExpr (List.rev acc), rest)
-        | Newline::rest ->
+    let rec aux ls acc = match skip_newlines ls with
+        | RBrace::rest -> (BlockExpr (List.rev acc), rest)
+        | rest ->
                 let (next_expr, rest) = parse rest 0 in
                 aux rest (next_expr::acc)
-        | _ -> assert false
     in aux ls []
 
+and parse_match_expr ls =
+    let (match_val, rest) = parse ls 0 in
+    let rest = skip_newlines rest in
+    let rec parse_match_arms toks acc = match toks with
+        | Pipe::xs ->
+            let arm_pat, rest = parse_pat xs in begin
+            let cond, rest = match rest with
+                | MatchArrow::_ -> None, rest
+                | When::rest ->
+                        let cond, rest = parse rest 0 in
+                        Some cond, rest
+                | _ ->
+                    printf "Expected When or MatchArrow, got: %s" (string_of_toks rest);
+                    assert false
+            in
+            match rest with
+                | MatchArrow::rest ->
+                    let rest = skip_newlines rest in
+                    let arm_expr, rest = parse rest 0 in begin
+                        match rest with
+                            | Newline::xs -> 
+                                parse_match_arms xs ((arm_pat, arm_expr, cond)::acc)
+                            | _ ->
+                                printf "Must break line after each match arm";
+                                assert false
+                    end
+                | _ ->
+                    printf "Expected an arrow\n";
+                    assert false
+            end
+        | more -> List.rev acc, more
+    in
+    let (match_arms, rest) = parse_match_arms rest [] in
+    if (not (phys_equal match_arms [])) then
+        MatchExpr {match_val = match_val; match_arms = match_arms}, rest
+    else begin
+        printf "No match arms in match expression\n";
+        assert false
+    end
+
 and parse: token list -> int -> expr * (token list) = fun s min_bp ->
+    let s = skip_newlines s in
     match s with
     | LBrace::xs -> parse_block_expr xs
     | (Ident _)::LParen::_ -> 
             let (call, xs) = parse_lambda_call s in
             complete_expr call xs min_bp
     | LParen::_ -> expr_bp s 0
-    | LBracket::_ -> expr_bp s 0
+    | LBracket::_ -> expr_bp s 0 (* TODO: Parse lists *)
     | (PrefixOperator _)::_ -> expr_bp s 0
     | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
     | Let::xs -> parse_let xs
@@ -183,6 +226,9 @@ and parse: token list -> int -> expr * (token list) = fun s min_bp ->
     | If::_ -> 
             let (if_parsed, xs) = parse_if_expr s in
             complete_expr if_parsed xs min_bp
+    | Match::xs -> 
+            let (match_parsed, xs) = parse_match_expr xs in
+            complete_expr match_parsed xs min_bp
     | _ -> 
             printf "Expected expression, got (%s)\n" (string_of_toks s);
             assert false
