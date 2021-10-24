@@ -48,6 +48,11 @@ let val_gt lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs > 0)
     | _ -> assert false
 
+let val_negate rhs = match rhs with
+    | Number rhs -> Number (~-.rhs)
+    | Boolean rhs -> Boolean (not rhs)
+    | _ -> assert false
+
 let val_list_head rhs = match rhs with
     | List (head::_) -> head
     | _ ->
@@ -126,6 +131,9 @@ and eval_expr: expr -> state -> value * state = fun expr ->
         | Prefix ({op = Tail; _} as e) -> fun s ->
                 let (rhs, s) = (eval_expr e.rhs) s in
                 val_list_tail rhs, s
+        | Prefix ({op = Negate; _} as e) -> fun s ->
+                let (rhs, s) = (eval_expr e.rhs) s in
+                val_negate rhs, s
         | Binary ({op = Add; _} as e) -> fun s -> 
                 let (lhs, s) = (eval_expr e.lhs) s in
                 let (rhs, s) = (eval_expr e.rhs) s in

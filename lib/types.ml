@@ -10,6 +10,7 @@ type binary_operator =
     | GT
     | EQ;;
 type prefix_operator =
+    | Negate
     | Head
     | Tail;;
 

@@ -57,6 +57,7 @@ and scan_ls = function
     | '='::'='::xs -> BinaryOperator EQ :: scan_ls xs
     | '^'::xs -> PrefixOperator Head :: scan_ls xs
     | '$'::xs -> PrefixOperator Tail :: scan_ls xs
+    | '~'::xs -> PrefixOperator Negate :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
     | '{'::xs -> LBrace :: scan_ls xs
