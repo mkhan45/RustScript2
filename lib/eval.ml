@@ -3,6 +3,11 @@ open Stdio
 open Base
 open Operators
 
+let val_negate rhs = match rhs with
+    | Number rhs -> Number (~-.rhs)
+    | Boolean rhs -> Boolean (not rhs)
+    | _ -> assert false
+
 let val_list_head rhs = match rhs with
     | ValList (head::_) -> head
     | _ ->
@@ -179,6 +184,7 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | Ident name -> fun state -> eval_ident name state
         | Prefix ({op = Head; _} as e) -> eval_prefix_op val_list_head e.rhs
         | Prefix ({op = Tail; _} as e) -> eval_prefix_op val_list_tail e.rhs
+        | Prefix ({op = Negate; _} as e) -> eval_prefix_op val_negate e.rhs
         | Binary ({op = Add; _} as e) -> eval_op val_add e.lhs e.rhs
         | Binary ({op = Sub; _} as e) -> eval_op val_sub e.lhs e.rhs
         | Binary ({op = Mul; _} as e) -> eval_op val_mul e.lhs e.rhs

@@ -15,6 +15,7 @@ type binary_operator =
     | Mod
     
 type prefix_operator =
+    | Negate
     | Head
     | Tail
 
