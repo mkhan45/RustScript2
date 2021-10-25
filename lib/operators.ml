@@ -60,3 +60,23 @@ let val_or lhs rhs = match lhs, rhs with
 let val_mod lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Number (Float.mod_float lhs rhs)
     | _ -> assert false
+
+let val_negate rhs = match rhs with
+    | Number rhs -> Number (~-.rhs)
+    | _ -> assert false
+
+let val_negate_bool rhs = match rhs with
+    | Boolean rhs -> Boolean (not rhs)
+    | _ -> assert false
+
+let val_list_head rhs = match rhs with
+    | ValList (head::_) -> head
+    | _ ->
+        printf "Invalid Head: rhs = %s\n" (string_of_val rhs);
+        assert false
+
+let val_list_tail rhs = match rhs with
+    | ValList (_::tail) -> ValList tail
+    | _ ->
+        printf "Invalid Tail: rhs = %s\n" (string_of_val rhs);
+        assert false

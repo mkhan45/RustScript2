@@ -7,6 +7,8 @@ let gcd = fn(a, b) => match (a, b)
         if remainder != 0 then (gcd(a, remainder)) else a
     }
 
+let abs = fn(x) => if x < 0 then -x else x
+
 let pollard = fn(n) => match n
     | 1 -> ()
     | n when n % 2 == 0 -> 2
@@ -16,7 +18,7 @@ let pollard = fn(n) => match n
             | (x, y, 1) -> {
                 let x = g(x, n)
                 let y = g(g(y, n), n)
-                let d = gcd(if (x > y) then (x - y) else (y - x), n)
+                let d = gcd(abs(x - y), n)
                 iter(x, y, d)
             }
             | (_, _, d) -> if d == n then () else d

@@ -14,6 +14,8 @@ type token =
     | RParen
     | LBrace
     | RBrace
+    | LBracket
+    | RBracket
     | Fn
     | When
     | If
@@ -60,21 +62,26 @@ and scan_ls = function
     | '\n'::xs -> Newline :: scan_ls xs
     | '='::'>'::xs -> Arrow :: scan_ls xs
     | '-'::'>'::xs -> MatchArrow :: scan_ls xs
-    | '+'::xs -> Operator Add :: (scan_ls xs)
-    | '-'::xs -> Operator Sub :: scan_ls xs
+    | '+'::xs -> Operator Add :: scan_ls xs
+    | '-'::xs -> Operator Neg :: scan_ls xs
     | '*'::xs -> Operator Mul :: scan_ls xs
     | '/'::xs -> Operator Div :: scan_ls xs
     | '<'::xs -> Operator LT :: scan_ls xs
     | '>'::xs -> Operator GT :: scan_ls xs
-    | '&'::'&'::xs -> Operator And :: scan_ls xs
     | '|'::'|'::xs -> Operator Or :: scan_ls xs
+    | '&'::'&'::xs -> Operator And :: scan_ls xs
     | '='::'='::xs -> Operator EQ :: scan_ls xs
     | '!'::'='::xs -> Operator NEQ :: scan_ls xs
     | '%'::xs -> Operator Mod :: scan_ls xs
+    | '^'::xs -> Operator Head :: scan_ls xs
+    | '$'::xs -> Operator Tail :: scan_ls xs
+    | '!'::xs -> Operator Not :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
     | '{'::xs -> LBrace :: scan_ls xs
     | '}'::xs -> RBrace :: scan_ls xs
+    | '['::xs -> LBracket :: scan_ls xs
+    | ']'::xs -> RBracket :: scan_ls xs
     | '='::xs -> Equal :: scan_ls xs
     | '_'::xs -> Underscore :: scan_ls xs
     | ','::xs -> Comma :: scan_ls xs
@@ -110,6 +117,8 @@ let string_of_tok = function
     | RParen -> "RParen"
     | LBrace -> "LBrace"
     | RBrace -> "RBrace"
+    | LBracket -> "LBracket"
+    | RBracket -> "RBracket"
     | Comma -> "Comma"
     | Fn -> "Fn"
     | Arrow -> "Arrow"
