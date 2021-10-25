@@ -39,15 +39,48 @@ let map_rsc = "let map = fn(f, ls) => reverse(map_rev(f, ls))"
 
 let range_rsc = "let range = fn(a, b) => range_step(a, b, 1)"
 
+(* TODO: Make this a builtin *)
+let zip_rev_rsc = 
+    "
+    let zip_rev = {
+        let helper = fn(acc, l1, l2) => match (l1, l2)
+            | ([], _) -> acc
+            | (_, []) -> acc
+            | ([x|xs], [y|ys]) -> helper([(x, y)|acc], xs, ys)
+
+        fn(l1, l2) => helper([], l1, l2)
+    }
+    "
+
+let zip_rsc = "let zip = fn(ls) => reverse(zip_rev(ls))"
+
+let length_rsc = "let length = fn(ls) => fold(0, fn(l, _) => l + 1, ls)"
+
+let enumerate_rev_rsc =
+    "
+    let enumerate_rev = fn(ls) => {
+        let len = length(ls)
+        zip_rev([0..len], ls)
+    }
+    "
+
+let enumerate_rsc = "let enumerate = fn(ls) => reverse(enumerate_rev(ls))"
+
 let load_stdlib state =
-    let state = run_line state "let sum = fn(ls) => fold(0, fn(a, b) => a + b, ls)" in
-    let state = run_line state reverse_rsc in
-    let state = run_line state filter_rev_rsc in
-    let state = run_line state filter_rsc in
-    let state = run_line state map_rev_rsc in
-    let state = run_line state map_rsc in
-    let state = run_line state range_rsc in
+    let run_line_swap line state = run_line state line in
     state
+        |> run_line_swap "let sum = fn(ls) => fold(0, fn(a, b) => a + b, ls)"
+        |> run_line_swap reverse_rsc
+        |> run_line_swap filter_rev_rsc
+        |> run_line_swap filter_rsc
+        |> run_line_swap map_rev_rsc
+        |> run_line_swap map_rsc
+        |> run_line_swap range_rsc
+        |> run_line_swap zip_rev_rsc
+        |> run_line_swap zip_rsc
+        |> run_line_swap length_rsc
+        |> run_line_swap enumerate_rev_rsc
+        |> run_line_swap enumerate_rsc
 
 let default_state = Map.empty(module String) |> load_stdlib
 

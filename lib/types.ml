@@ -57,7 +57,7 @@ and expr =
     | TupleExpr of expr list
     | BlockExpr of expr list
     | MatchExpr of {match_val: expr; match_arms: (pattern * expr * expr option) list}
-    | MapExpr of (expr * expr) list
+    | MapExpr of ((expr * expr) list) * (expr option)
     | ListExpr of (expr list) * (expr option)
 
 let rec string_of_val = function

@@ -307,20 +307,30 @@ and parse_map = function
                     assert false
         in
         let rec aux ls acc = match ls with
-            | RBrace::more -> (acc, more)
+            | RBrace::more -> ((acc, None), more)
             | Comma::xs ->
                 let xs = skip_newlines xs in
                 let (key_expr, val_expr, rest) = parse_key_val xs in
                 let rest = skip_newlines rest in
                 aux rest ((key_expr, val_expr)::acc)
+            | Pipe::xs ->
+                let xs = skip_newlines xs in
+                let tail, rest = parse xs 0 in
+                let rest = skip_newlines rest in begin
+                match rest with
+                    | RBrace::more -> ((acc, Some tail), more)
+                    | _ ->
+                        printf "Invalid map expression\n";
+                        assert false
+                end
             | _ -> assert false
         in begin match rest with
             | RBrace::xs ->
-                (MapExpr [], xs)
+                (MapExpr ([], None), xs)
             | _ ->
                 let k0, v0, rest = parse_key_val rest in
-                let res, more = aux rest [(k0, v0)] in
-                (MapExpr (List.rev res), more)
+                let (res, tail), more = aux rest [(k0, v0)] in
+                (MapExpr (List.rev res, tail), more)
         end
 
     | ls ->

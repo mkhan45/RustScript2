@@ -51,7 +51,7 @@ and list_equal_len lhs rhs = match lhs, rhs with
     | [], _ | _, [] -> false
     | _::xs, _::ys -> list_equal_len xs ys
 
-and pattern_matches pat value =
+and pattern_matches pat value state =
     match pat, value with
         | WildcardPat, _ -> true
         | SinglePat _, _ -> true
@@ -60,13 +60,19 @@ and pattern_matches pat value =
         | ((TuplePat lhs_ls), (Tuple rhs_ls))|(ListPat (FullPat lhs_ls), ValList rhs_ls) ->
             if list_equal_len lhs_ls rhs_ls then
                 let zipped = List.zip_exn lhs_ls rhs_ls in
-                List.for_all ~f:(fun (p, v) -> pattern_matches p v) zipped
+                List.for_all ~f:(fun (p, v) -> pattern_matches p v state) zipped
             else false
         | (ListPat (HeadTailPat (head_pat_ls, tail_pat)), ValList rhs_ls) ->
             let (head_ls, tail_ls) = List.split_n rhs_ls (List.length head_pat_ls) in
-            let head_matches = pattern_matches (ListPat (FullPat head_pat_ls)) (ValList head_ls) in
-            let tail_matches = pattern_matches tail_pat (ValList tail_ls) in
+            let head_matches = pattern_matches (ListPat (FullPat head_pat_ls)) (ValList head_ls) state in
+            let tail_matches = pattern_matches tail_pat (ValList tail_ls) state in
             head_matches && tail_matches
+        | (MapPat kv_pairs, Dictionary rhs) ->
+            let fetched_pairs = kv_pairs
+                |> List.map ~f:(fun (k, v) -> let ev_k, _ = (eval_expr k) state in ev_k, v)
+                |> List.map ~f:(fun (k, v) -> dict_get rhs k, v)
+            in
+            List.for_all ~f:(fun (k, v) -> pattern_matches v k state) fetched_pairs
         | _ -> false
 
 and inspect_builtin (args, state) =
@@ -212,7 +218,7 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms state =
     let (match_val, state) = (eval_expr match_val) state in
     let result_state_opt = List.find_map ~f:(
         fun (pat, arm_expr, cond) -> 
-            if pattern_matches pat match_val then
+            if pattern_matches pat match_val state then
                 match cond with
                     | Some cond ->
                         let inner_state = (bind pat match_val) state in
@@ -237,7 +243,7 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms state =
             printf "No patterns matched in match expression\n";
             assert false
 
-and eval_map_expr ?tc:(tail_call=false) map_pairs state =
+and eval_map_expr ?tc:(tail_call=false) map_pairs tail_map state =
     let fold_fn = fun (map_acc, state) (key_expr, val_expr) ->
         let key_val, state = (eval_expr ~tc:tail_call key_expr) state in
         let data_val, state = (eval_expr ~tc:tail_call val_expr) state in
@@ -247,8 +253,20 @@ and eval_map_expr ?tc:(tail_call=false) map_pairs state =
             | None -> [(key_val, data_val)]
         in
         (Map.set map_acc ~key:key_hash ~data:new_data, state)
-    in 
-    let start_map = Map.empty (module Int) in
+    in
+    let tail_map, state = match tail_map with
+        | Some e ->
+            let m, state = (eval_expr e) state in
+            Some m, state
+        | None -> None, state
+    in
+    let start_map = match tail_map with
+        | Some (Dictionary m) -> m
+        | None -> Map.empty (module Int)
+        | _ ->
+            printf "Expected a map\n";
+            assert false
+    in
     let (val_map, state) = 
         List.fold_left ~init:(start_map, state) ~f:fold_fn map_pairs
     in (Dictionary val_map, state)
@@ -305,5 +323,5 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | IfExpr i -> fun s -> (eval_if_expr ~tc:tail_call i) s
         | BlockExpr ls -> fun s -> eval_block_expr ~tc:tail_call ls s
         | MatchExpr m -> fun s -> eval_match_expr ~tc:tail_call m.match_val m.match_arms s
-        | MapExpr ls -> fun s -> eval_map_expr ~tc:tail_call ls s
+        | MapExpr (ls, tail) -> fun s -> eval_map_expr ~tc:tail_call ls tail s
         | ListExpr (ls, tail) -> eval_list_expr ls tail
