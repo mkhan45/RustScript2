@@ -1,3 +1,4 @@
+open Base
 open Stdio
 open Types
 open Scanner
@@ -44,6 +45,8 @@ let load_stdlib state =
     let state = run_line state map_rev_rsc in
     let state = run_line state map_rsc in
     state
+
+let default_state = Map.empty(module String) |> load_stdlib
 
 let run_file filename state = 
     let in_stream = In_channel.create filename in
