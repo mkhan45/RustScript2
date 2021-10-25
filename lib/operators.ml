@@ -29,14 +29,13 @@ let val_is_true = function
 let rec val_eq lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.equal lhs rhs)
     | Boolean lhs, Boolean rhs -> Boolean (Bool.equal lhs rhs)
-    | Tuple lhs, Tuple rhs ->
-            if phys_equal (List.length lhs) (List.length rhs)
-                then
-                    let zipped = List.zip_exn lhs rhs in
-                    let res = List.for_all zipped ~f:(fun (a, b) -> val_is_true (val_eq a b))
-                    in Boolean res
-                else
-                    Boolean false
+    | (Tuple lhs, Tuple rhs)|(ValList lhs, ValList rhs) -> begin
+        match List.zip lhs rhs with
+            | Ok zipped ->  
+                let res = List.for_all zipped ~f:(fun (a, b) -> val_is_true (val_eq a b))
+                in Boolean res
+            | _ -> Boolean false
+    end
     | _ -> Boolean false
 
 let val_eq_bool l r = val_is_true (val_eq l r)

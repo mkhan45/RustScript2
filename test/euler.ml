@@ -33,4 +33,8 @@ let () =
         default_state |> run_file (test_file "euler5.rsc") in
     assert_equal_expressions "euler5" "232792560" state;
 
+    let state = 
+        default_state |> run_file (test_file "euler6.rsc") in
+    assert_equal_expressions "euler6" "25164150" state;
+
     printf "Passed\n"

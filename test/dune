@@ -1,3 +1,3 @@
 (tests
- (names fib tuple block comments tailrec euler match_expr map)
+ (names fib tuple block comments tailrec euler match_expr map run_len_encode)
  (libraries base stdio rustscript))
