@@ -18,7 +18,7 @@ let rec repl state =
 
 let () =
     let args = Sys.get_argv () in
-    let state = Map.empty (module String) in
+    let state = Map.empty (module String) |> Run.load_stdlib in
     match args |> Array.to_list with
         | [_; filename] -> let _state = Run.run_file filename state in ()
         | [_] ->
