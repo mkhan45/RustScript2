@@ -28,15 +28,30 @@ let rec bind lhs rhs =
             let s = (bind (ListPat (FullPat head_pat_ls)) (ValList head_ls)) s in
             let s = (bind tail_pat (ValList tail_ls)) s in
             s
+    | MapPat kv_pairs, Dictionary rhs -> fun s ->
+        let fetched_pairs = kv_pairs
+            |> List.map ~f:(fun (k, v) -> let ev_k, _ = (eval_expr k) s in ev_k, v)
+            |> List.map ~f:(fun (k, v) -> dict_get rhs k, v)
+        in
+        let fold_step state (k, v) = (bind v k) state in
+        List.fold_left ~init:s ~f:fold_step fetched_pairs
     | WildcardPat, _ -> fun state -> state
     | _ -> assert false
 
-let rec list_equal_len lhs rhs = match lhs, rhs with
+and dict_get dict key =
+    (* Can probably be replaced by Base.Option functions *)
+    match Map.find dict (hash_value key) with
+        | Some found_values ->
+            let res = List.Assoc.find found_values ~equal:val_eq_bool key in
+            Option.value ~default:(Tuple []) res
+        | _ -> Tuple []
+
+and list_equal_len lhs rhs = match lhs, rhs with
     | [], [] -> true
     | [], _ | _, [] -> false
     | _::xs, _::ys -> list_equal_len xs ys
 
-let rec pattern_matches pat value =
+and pattern_matches pat value =
     match pat, value with
         | WildcardPat, _ -> true
         | SinglePat _, _ -> true
@@ -54,7 +69,7 @@ let rec pattern_matches pat value =
             head_matches && tail_matches
         | _ -> false
 
-let rec eval_op op lhs rhs = fun s ->
+and eval_op op lhs rhs = fun s ->
     let (lhs, s) = (eval_expr lhs) s in
     let (rhs, s) = (eval_expr rhs) s in
     op lhs rhs, s

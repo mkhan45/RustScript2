@@ -32,6 +32,7 @@ and pattern =
     | NumberPat of float
     | TuplePat of pattern list
     | ListPat of list_pattern
+    | MapPat of (expr * pattern) list
     | WildcardPat
 
 and list_pattern =
@@ -93,6 +94,7 @@ and string_of_list_pat = function
 and string_of_pat = function
     | SinglePat s -> s
     | ListPat lp -> (string_of_list_pat lp)
+    | MapPat _ -> "MapPat"
     | NumberPat f -> Float.to_string f
     | TuplePat ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_pat ls))
     | WildcardPat -> "_"

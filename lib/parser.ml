@@ -113,6 +113,33 @@ and parse_pat ls = match ls with
                 | Some tail_pat -> HeadTailPat (pat_list, tail_pat)
             in
             ListPat parsed_list_pat, rest
+    | Percent::LBrace::xs ->
+        let parse_pair toks =
+            let key, rest = parse toks 0 in
+            match rest with
+                | Colon::more ->
+                    let val_pat, more = parse_pat more in
+                    (key, val_pat), more
+                | _ -> 
+                    printf "Expected a colon\n";
+                    assert false
+        in
+        let rec aux toks acc = match toks with
+            | RBrace::rest -> acc, rest
+            | Comma::rest ->
+                let pair, more = parse_pair rest in
+                aux more (pair::acc)
+            | _ -> assert false
+        in begin match xs with
+            | RBrace::rest -> MapPat [], rest
+            | _ ->
+                let first_pair, rest = parse_pair xs in
+                let pair_ls, more = aux rest [first_pair] in
+                MapPat (List.rev pair_ls), more
+        end
+    | Percent::_ -> 
+        printf "Expected LBrace\n";
+        assert false
     | (Ident s)::xs -> (SinglePat s, xs)
     | (Number f)::xs -> (NumberPat f, xs)
     | Underscore::xs -> (WildcardPat, xs)
