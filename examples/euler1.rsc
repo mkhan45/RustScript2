@@ -23,4 +23,3 @@ let sum = {
 }
 
 let predicate = fn(n) => (n % 3 == 0) || (n % 5 == 0)
-inspect(sum(filter(predicate, range(1, 25000))))
