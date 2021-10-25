@@ -2,6 +2,7 @@ open Types
 open Stdio
 open Base
 open Operators
+open Builtins
 
 let rec bind lhs rhs = 
     (* printf "Binding %s to %s\n" (string_of_pat lhs) (string_of_val rhs); *)
@@ -99,16 +100,8 @@ and eval_lambda_call ?tc:(tail_call=false) call =
         end
         | None -> begin
             match call.callee with
-                | "inspect" ->
-                    let (result, _) = (eval_expr call.call_args) state in begin
-                    match result with
-                        | Tuple [v] -> 
-                            printf "%s\n" (string_of_val v);
-                            (v, state)
-                        | _ -> 
-                            printf "Expected only one argument to inspect";
-                            assert false
-                    end
+                | "inspect" -> inspect_builtin ((eval_expr call.call_args) state)
+                | "range" -> range_builtin ((eval_expr call.call_args) state)
                 | _ -> 
                     printf "Error: function not found: %s\n" call.callee;
                     assert false

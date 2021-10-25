@@ -1,10 +1,3 @@
-let range = {
-    let helper = fn(l, r, acc) =>
-        if l + 1 == r then acc else helper(l, r - 1, [r | acc])
-
-    fn (l, r) => helper(l - 1, r - 1, [])
-}
-
 let filter = {
     let helper = fn(f, ls, acc) => match ls
         | [] -> acc
