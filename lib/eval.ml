@@ -80,12 +80,13 @@ and inspect_builtin (args, state) =
 
 and range_builtin (args, state) =
     match args with
-        | Tuple [Number start; Number end_] when (Caml.Float.is_integer start) && (Caml.Float.is_integer end_) ->
-            let caml_ls = List.range (Float.to_int start) (Float.to_int end_) in
+        | Tuple [Number start; Number end_; Number step] 
+        when (Caml.Float.is_integer start) && (Caml.Float.is_integer end_) && (Caml.Float.is_integer step) ->
+            let caml_ls = List.range (Float.to_int start) (Float.to_int end_) ~stride:(Float.to_int step) in
             let val_ls = List.map ~f:(fun n -> Number (Int.to_float n)) caml_ls in
             ValList val_ls, state
         | _ ->
-            printf "Expected two integer arguments to inspect";
+            printf "Expected three integer arguments to range_step";
             assert false
 
 and fold_builtin (args, state) =
@@ -153,7 +154,7 @@ and eval_lambda_call ?tc:(tail_call=false) call =
         | None -> begin
             match call.callee with
                 | "inspect" -> inspect_builtin ((eval_expr call.call_args) state)
-                | "range" -> range_builtin ((eval_expr call.call_args) state)
+                | "range_step" -> range_builtin ((eval_expr call.call_args) state)
                 | "fold" -> fold_builtin ((eval_expr call.call_args) state)
                 | "get" ->
                     let (args, state) = (eval_expr call.call_args) state in begin

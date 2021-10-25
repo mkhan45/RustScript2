@@ -30,16 +30,26 @@ type token =
     | Underscore
     | Colon
     | Percent
+    | DotDot
+    | For
+    | In
 
-let is_numeric d = Base.Char.is_digit d || phys_equal d '.'
+let is_numeric d = Base.Char.is_digit d
 let is_identic c = Base.Char.is_alphanum c || phys_equal c '_'
 
 let rec scan_digit ls =
-    let rec aux ls acc = match ls with
-        | d::xs when is_numeric d -> aux xs (d::acc)
-        | _ -> let f = (acc |> List.rev |> String.of_char_list |> Float.of_string)
-                in (Number f)::(scan_ls ls)
-    in aux ls []
+    let rec aux ls acc saw_dot = match ls with
+        | '.'::_ when saw_dot -> begin match acc with
+            | '.'::chars -> chars, scan_ls ('.'::ls)
+            | _ -> acc, scan_ls ls
+        end
+        | '.'::xs -> aux xs ('.'::acc) true
+        | d::xs when (is_numeric d) -> aux xs (d::acc) saw_dot
+        | _ -> acc, scan_ls ls
+    in 
+    let chars, scanned = aux ls [] false in
+    let f = chars |> List.rev |> String.of_char_list |> Float.of_string in
+    (Number f)::scanned
 
 and scan_ident ls =
     let rec aux ls acc = match ls with
@@ -53,6 +63,8 @@ and scan_ident ls =
                    | "else" -> Else
                    | "match" -> Match
                    | "when" -> When
+                   | "for" -> For
+                   | "in" -> In
                    | _ -> Ident n
                 in
                 tok::(scan_ls ls)
@@ -78,6 +90,7 @@ and scan_ls = function
     | '^'::xs -> Operator Head :: scan_ls xs
     | '$'::xs -> Operator Tail :: scan_ls xs
     | '!'::xs -> Operator Not :: scan_ls xs
+    | '.'::'.'::xs -> DotDot :: scan_ls xs
     | '('::xs -> LParen :: scan_ls xs
     | ')'::xs -> RParen :: scan_ls xs
     | '{'::xs -> LBrace :: scan_ls xs
@@ -139,6 +152,9 @@ let string_of_tok = function
     | Underscore -> "Underscore"
     | Colon -> "Colon"
     | Percent -> "Percent"
+    | DotDot -> "DotDot"
+    | For -> "For"
+    | In -> "In"
 
 let string_of_toks ls = String.concat ~sep:" " (List.map ~f:string_of_tok ls)
 let print_toks ls = ls |> string_of_toks |> printf "%s\n"

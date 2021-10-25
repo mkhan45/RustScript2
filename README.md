@@ -86,34 +86,71 @@ inspect(result) #(10, (20, (40, (60, (2, ())))))
 
 ##### Project Euler #1
 ```
-let range = {
-    let helper = fn (l, r, acc) => 
-        if l == r then acc else helper(l, r - 1, (r, acc))
-    
-    fn (l, r) => helper(l - 1, r, ())
+euler1 = sum([x for x in [1..1000] if x % 3 == 0 || x % 5 == 0])
+inspect(euler1) # 233168
+```
+
+##### Project Euler #2
+```
+let euler2 = {
+    let aux = fn((a, b), acc) =>
+        if b < 4000000
+            then aux((b, a + 4 * b), acc + b)
+            else acc
+
+    aux((0, 2), 0)
 }
 
-let filter = {
-    let helper = fn(f, ls, acc) => match ls
-        | (hd, ()) -> acc
-        | (hd, tl) ->
-            if f(hd) 
-                then helper(f, tl, (hd, acc))
-                else helper(f, tl, acc)
+inspect(euler2) # 4613732
+```
 
-    fn(f, ls) => helper(f, ls, ())
+#### Euler 3
+```
+let gcd = fn(a, b) => match (a, b)
+    | (0, b) -> b
+    | (a, 0) -> a
+    | (a, b) when a > b -> gcd(b, a)
+    | (a, b) -> {
+        let remainder = b % a
+        if remainder != 0 then (gcd(a, remainder)) else a
+    }
+
+let abs = fn(x) => if x < 0 then -x else x
+
+let pollard = fn(n) => match n
+    | 1 -> ()
+    | n when n % 2 == 0 -> 2
+    | n -> {
+        let g = fn(x, n) => (x * x + 1) % n
+        let iter = fn(x, y, d) => match (x, y, d)
+            | (x, y, 1) -> {
+                let x = g(x, n)
+                let y = g(g(y, n), n)
+                let d = gcd(abs(x - y), n)
+                iter(x, y, d)
+            }
+            | (_, _, d) -> if d == n then () else d
+
+        iter(2, 2, 1)
+    }
+
+let factor = fn(n) => {
+    let d = pollard(n)
+    if d == () then () else n / d
 }
 
-let sum = {
-    let helper = fn(ls, acc) => match ls
-        | (hd, ()) -> hd + acc
-        | (hd, tl) -> helper(tl, hd + acc)
-    
-    fn (ls) => helper(ls, 0)
+let euler3 = {
+    # repeatedly factors until largest is found
+    let aux = fn(n) => match factor(n)
+        | () -> n
+        | f when n == f -> f
+        | f -> aux(f)
+
+    let n = 600851475143
+    aux(n)
 }
 
-let predicate = fn(n) => (n % 3 == 0) || (n % 5 == 0)
-inspect(sum(filter(predicate, range(1, 1000)))) # 233168
+# inspect(euler3) # 6857
 ```
 
 More project euler problems can be found in the [examples folder](https://github.com/mkhan45/RustScript2/tree/main/examples).
