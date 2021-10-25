@@ -1,2 +1,2 @@
-let predicate = fn(n) => (n % 3 == 0) || (n % 5 == 0)
-# inspect(sum(filter_rev(predicate, range(1, 1000)))) #233168
+let euler1 = sum([x for x in [1..1000] if x % 3 == 0 || x % 5 == 0])
+# inspect(euler1) # 233168

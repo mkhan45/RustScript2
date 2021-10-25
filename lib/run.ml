@@ -37,6 +37,8 @@ let filter_rsc = "let filter = fn(f, ls) => reverse(filter_rev(f, ls))"
 let map_rev_rsc = "let map_rev = fn(f, ls) => fold([], fn(ls, x) => [f(x)|ls], ls)"
 let map_rsc = "let map = fn(f, ls) => reverse(map_rev(f, ls))"
 
+let range_rsc = "let range = fn(a, b) => range_step(a, b, 1)"
+
 let load_stdlib state =
     let state = run_line state "let sum = fn(ls) => fold(0, fn(a, b) => a + b, ls)" in
     let state = run_line state reverse_rsc in
@@ -44,6 +46,7 @@ let load_stdlib state =
     let state = run_line state filter_rsc in
     let state = run_line state map_rev_rsc in
     let state = run_line state map_rsc in
+    let state = run_line state range_rsc in
     state
 
 let default_state = Map.empty(module String) |> load_stdlib

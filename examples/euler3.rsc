@@ -26,14 +26,14 @@ let pollard = fn(n) => match n
         iter(2, 2, 1)
     }
 
-let largest_factor = fn(n) => {
+let factor = fn(n) => {
     let d = pollard(n)
     if d == () then () else n / d
 }
 
 let euler3 = {
     # repeatedly factors until largest is found
-    let aux = fn(n) => match largest_factor(n)
+    let aux = fn(n) => match factor(n)
         | () -> n
         | f when n == f -> f
         | f -> aux(f)
