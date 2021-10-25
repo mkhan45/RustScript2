@@ -2,6 +2,7 @@ open Types
 open Stdio
 open Base
 open Operators
+open Builtins
 
 let rec bind lhs rhs = 
     (* printf "Binding %s to %s\n" (string_of_pat lhs) (string_of_val rhs); *)
