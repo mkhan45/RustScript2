@@ -10,6 +10,10 @@ let () =
     assert_equal_expressions "sum(filter(predicate, range(1, 1000)))" "233168" state;
 
     let state = 
+        Map.empty (module String) |> run_file (test_file "euler1_tup.rsc") in
+    assert_equal_expressions "sum(filter(predicate, range(1, 1000)))" "233168" state;
+
+    let state = 
         Map.empty (module String) |> run_file (test_file "euler2.rsc") in
     assert_equal_expressions "euler2" "4613732" state;
 
