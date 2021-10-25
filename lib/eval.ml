@@ -69,6 +69,44 @@ and pattern_matches pat value =
             head_matches && tail_matches
         | _ -> false
 
+and inspect_builtin (args, state) =
+    match args with
+        | Tuple [v] ->
+            printf "%s\n" (string_of_val v);
+            (v, state)
+        | _ ->
+            printf "Expected only one argument to inspect";
+            assert false
+
+and range_builtin (args, state) =
+    match args with
+        | Tuple [Number start; Number end_] when (Caml.Float.is_integer start) && (Caml.Float.is_integer end_) ->
+            let caml_ls = List.range (Float.to_int start) (Float.to_int end_) in
+            let val_ls = List.map ~f:(fun n -> Number (Int.to_float n)) caml_ls in
+            ValList val_ls, state
+        | _ ->
+            printf "Expected two integer arguments to inspect";
+            assert false
+
+and fold_builtin (args, state) =
+    match args with
+        | Tuple [init; Lambda fn; ValList ls] ->
+            let call_fn = fun args ->
+                let lambda_call = Thunk {thunk_fn = fn; thunk_args= args; thunk_fn_name = ""} in
+                let res, _ = unwrap_thunk lambda_call state in
+                res
+            in
+            let fold_result = 
+                List.fold 
+                ~init:init
+                ~f:(fun acc v -> call_fn (Tuple [acc; v]))
+                ls
+            in
+            fold_result, state
+        | _ ->
+            printf "Expected (init, fn, ls) as arguments to fold\n";
+            assert false
+
 and eval_op op lhs rhs = fun s ->
     let (lhs, s) = (eval_expr lhs) s in
     let (rhs, s) = (eval_expr rhs) s in
@@ -114,16 +152,9 @@ and eval_lambda_call ?tc:(tail_call=false) call =
         end
         | None -> begin
             match call.callee with
-                | "inspect" ->
-                    let (result, state) = (eval_expr ~tc:tail_call call.call_args) state in begin
-                    match result with
-                        | Tuple [v] -> 
-                            printf "%s\n" (string_of_val v);
-                            (v, state)
-                        | _ -> 
-                            printf "Expected only one argument to inspect";
-                            assert false
-                    end
+                | "inspect" -> inspect_builtin ((eval_expr call.call_args) state)
+                | "range" -> range_builtin ((eval_expr call.call_args) state)
+                | "fold" -> fold_builtin ((eval_expr call.call_args) state)
                 | "get" ->
                     let (args, state) = (eval_expr call.call_args) state in begin
                     match args with
