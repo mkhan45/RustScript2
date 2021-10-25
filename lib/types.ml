@@ -1,5 +1,6 @@
 open Base
 open Printf
+open Stdio
 
 type operator =
     | Add
@@ -24,12 +25,14 @@ type value =
     | ValList of value list
     | Lambda of lambda
     | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
+    | Dictionary of (int, (value * value) list, Int.comparator_witness) Map.t
 
 and pattern =
     | SinglePat of string
     | NumberPat of float
     | TuplePat of pattern list
     | ListPat of list_pattern
+    | MapPat of (expr * pattern) list
     | WildcardPat
 
 and list_pattern =
@@ -54,6 +57,7 @@ and expr =
     | TupleExpr of expr list
     | BlockExpr of expr list
     | MatchExpr of {match_val: expr; match_arms: (pattern * expr * expr option) list}
+    | MapExpr of (expr * expr) list
     | ListExpr of (expr list) * (expr option)
 
 let rec string_of_val = function
@@ -63,6 +67,7 @@ let rec string_of_val = function
     | ValList ls -> "[" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ "]"
     | Lambda _ -> "Lambda"
     | Thunk _ -> "Thunk"
+    | Dictionary  _ -> "Map"
 
 let rec string_of_expr = function
     | Atomic v -> string_of_val v
@@ -80,6 +85,7 @@ let rec string_of_expr = function
     | IfExpr _ -> "IfExpr"
     | BlockExpr ls -> sprintf "{\n\t%s\n}" (String.concat ~sep:"\n\t" (List.map ~f:string_of_expr ls))
     | MatchExpr _ -> "MatchExpr"
+    | MapExpr _ -> "Map"
 
 and string_of_list_pat = function
     | FullPat ls -> "[" ^ (String.concat ~sep:", " (List.map ~f:string_of_pat ls)) ^ "]"
@@ -88,6 +94,15 @@ and string_of_list_pat = function
 and string_of_pat = function
     | SinglePat s -> s
     | ListPat lp -> (string_of_list_pat lp)
+    | MapPat _ -> "MapPat"
     | NumberPat f -> Float.to_string f
     | TuplePat ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_pat ls))
     | WildcardPat -> "_"
+
+let rec hash_value = function
+    | Number f -> Hashtbl.hash (0, f)
+    | Boolean b -> Hashtbl.hash (1, b)
+    | Tuple ls -> Hashtbl.hash (List.map ~f:hash_value ls)
+    | _ ->
+        printf "Tried to hash an unhashable type";
+        assert false

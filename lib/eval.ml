@@ -28,15 +28,30 @@ let rec bind lhs rhs =
             let s = (bind (ListPat (FullPat head_pat_ls)) (ValList head_ls)) s in
             let s = (bind tail_pat (ValList tail_ls)) s in
             s
+    | MapPat kv_pairs, Dictionary rhs -> fun s ->
+        let fetched_pairs = kv_pairs
+            |> List.map ~f:(fun (k, v) -> let ev_k, _ = (eval_expr k) s in ev_k, v)
+            |> List.map ~f:(fun (k, v) -> dict_get rhs k, v)
+        in
+        let fold_step state (k, v) = (bind v k) state in
+        List.fold_left ~init:s ~f:fold_step fetched_pairs
     | WildcardPat, _ -> fun state -> state
     | _ -> assert false
 
-let rec list_equal_len lhs rhs = match lhs, rhs with
+and dict_get dict key =
+    (* Can probably be replaced by Base.Option functions *)
+    match Map.find dict (hash_value key) with
+        | Some found_values ->
+            let res = List.Assoc.find found_values ~equal:val_eq_bool key in
+            Option.value ~default:(Tuple []) res
+        | _ -> Tuple []
+
+and list_equal_len lhs rhs = match lhs, rhs with
     | [], [] -> true
     | [], _ | _, [] -> false
     | _::xs, _::ys -> list_equal_len xs ys
 
-let rec pattern_matches pat value =
+and pattern_matches pat value =
     match pat, value with
         | WildcardPat, _ -> true
         | SinglePat _, _ -> true
@@ -54,7 +69,7 @@ let rec pattern_matches pat value =
             head_matches && tail_matches
         | _ -> false
 
-let rec eval_op op lhs rhs = fun s ->
+and eval_op op lhs rhs = fun s ->
     let (lhs, s) = (eval_expr lhs) s in
     let (rhs, s) = (eval_expr rhs) s in
     op lhs rhs, s
@@ -100,13 +115,28 @@ and eval_lambda_call ?tc:(tail_call=false) call =
         | None -> begin
             match call.callee with
                 | "inspect" ->
-                    let (result, _) = (eval_expr call.call_args) state in begin
+                    let (result, state) = (eval_expr ~tc:tail_call call.call_args) state in begin
                     match result with
                         | Tuple [v] -> 
                             printf "%s\n" (string_of_val v);
                             (v, state)
                         | _ -> 
                             printf "Expected only one argument to inspect";
+                            assert false
+                    end
+                | "get" ->
+                    let (args, state) = (eval_expr call.call_args) state in begin
+                    match args with
+                        | Tuple [Dictionary m; key] -> begin
+                            match Map.find m (hash_value key) with
+                                | Some found_values -> 
+                                    let res = List.Assoc.find found_values ~equal:val_eq_bool key in
+                                    let v = Option.value ~default:(Tuple []) res in
+                                    v, state
+                                | None -> (Tuple [], state)
+                            end
+                        | _ ->
+                            printf "get requires two arguments, a list, and a value";
                             assert false
                     end
                 | _ -> 
@@ -175,6 +205,22 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms state =
             printf "No patterns matched in match expression\n";
             assert false
 
+and eval_map_expr ?tc:(tail_call=false) map_pairs state =
+    let fold_fn = fun (map_acc, state) (key_expr, val_expr) ->
+        let key_val, state = (eval_expr ~tc:tail_call key_expr) state in
+        let data_val, state = (eval_expr ~tc:tail_call val_expr) state in
+        let key_hash = hash_value key_val in
+        let new_data = match Map.find map_acc key_hash with
+            | Some assoc_list -> (key_val, data_val)::assoc_list
+            | None -> [(key_val, data_val)]
+        in
+        (Map.set map_acc ~key:key_hash ~data:new_data, state)
+    in 
+    let start_map = Map.empty (module Int) in
+    let (val_map, state) = 
+        List.fold_left ~init:(start_map, state) ~f:fold_fn map_pairs
+    in (Dictionary val_map, state)
+
 and eval_list_expr ?tc:(_tail_call=false) ls tail = fun s ->
     let eval_expr_list ~init =
         List.fold_left
@@ -227,4 +273,5 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | IfExpr i -> fun s -> (eval_if_expr ~tc:tail_call i) s
         | BlockExpr ls -> fun s -> eval_block_expr ~tc:tail_call ls s
         | MatchExpr m -> fun s -> eval_match_expr ~tc:tail_call m.match_val m.match_arms s
+        | MapExpr ls -> fun s -> eval_map_expr ~tc:tail_call ls s
         | ListExpr (ls, tail) -> eval_list_expr ls tail
