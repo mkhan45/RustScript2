@@ -50,7 +50,69 @@ and parse_expr_tuple xs min_bp =
 
 
 and parse_list_expr xs min_bp =
-    let rec aux toks acc = match toks with
+    let rec parse_tail ls expr_list =
+        let tail, more = parse ls 0 in
+        match more with
+            | RBracket::rest ->
+                let parsed_list = ListExpr((List.rev expr_list), Some tail) in
+                complete_expr parsed_list rest min_bp
+            | _ -> assert false
+
+    and parse_range ls expr_list =
+        let (end_, rest) = parse ls 0 in
+        match expr_list, rest with
+            | [a; b], RBracket::rest ->
+                let step = (Binary {lhs = a; rhs = b; op = Neg}) in
+                let call =
+                    LambdaCall {callee = "range_step"; call_args = TupleExpr [b;end_;step]}
+                in
+                complete_expr call rest min_bp
+            | [start], RBracket::rest ->
+                let call =
+                    LambdaCall {callee = "range"; call_args = TupleExpr [start;end_]}
+                in
+                complete_expr call rest min_bp
+            | _ ->
+                printf "Invalid range expression:\n";
+                assert false
+
+    and parse_listcomp ls expr_list =
+        let arg_pat, rest = parse_pat ls in
+        let arg_pat = TuplePat [arg_pat] in
+        match expr_list, rest with
+            | [map_expr], In::rest ->
+                let ls_expr, rest = parse rest 0 in
+                let map_fn = LambdaDef {lambda_def_expr = map_expr; lambda_def_args = arg_pat} in
+                let map_args = TupleExpr [map_fn; ls_expr] in
+                let mapped_ls = LambdaCall {callee = "map_rev"; call_args = map_args} in
+                let filter_expr, more = match rest with
+                    | RBracket::more -> 
+                        None, more
+                    | If::rest -> begin match parse rest 0 with
+                        | e, RBracket::more ->
+                            Some e, more
+                        | _ ->
+                            printf "Invalid filter clause in list comprehension\n";
+                            assert false
+                    end
+                    | _ ->
+                        printf "Invalid list comprehension\n";
+                        assert false
+                in
+                begin match filter_expr with
+                    | Some e ->
+                        let filter_fn = LambdaDef {lambda_def_expr = e; lambda_def_args = arg_pat} in
+                        let filter_args = TupleExpr [filter_fn; mapped_ls] in
+                        LambdaCall {callee = "filter_rev"; call_args = filter_args}, more
+                    | None ->
+                        let reverse_args = TupleExpr [mapped_ls] in
+                        LambdaCall {callee = "reverse"; call_args = reverse_args}, more
+                end
+            | _ ->
+                printf "Invalid list comprehension: %s\n" (string_of_toks rest);
+                assert false
+
+    and aux toks acc = match toks with
         | RBracket::rest -> 
             let expr_list, tail = (acc, None) in
             let parsed_list = ListExpr ((List.rev expr_list), tail) in
@@ -62,71 +124,9 @@ and parse_list_expr xs min_bp =
                     let expr_list, tail = (nx::acc, None) in
                     let parsed_list = ListExpr ((List.rev expr_list), tail) in
                     complete_expr parsed_list rest min_bp
-                | Pipe::rest ->
-                    let tail, more = parse rest 0 in begin
-                    match more with
-                        | RBracket::rest -> 
-                            let expr_list, tail = (nx::acc, Some tail) in
-                            let parsed_list = ListExpr ((List.rev expr_list), tail) in
-                            complete_expr parsed_list rest min_bp
-                        | _ -> assert false
-                    end
-                | DotDot::rest ->
-                    let acc = nx::acc in
-                    let (res, rest) = parse rest 0 in begin match res with
-                    | end_ -> match acc, rest with
-                        | [a; b], RBracket::rest ->
-                            let step = (Binary {lhs = a; rhs = b; op = Neg}) in
-                            let call =
-                                LambdaCall {callee = "range_step"; call_args = TupleExpr [b;end_;step]}
-                            in
-                            complete_expr call rest min_bp
-                        | [start], RBracket::rest ->
-                            let call =
-                                LambdaCall {callee = "range"; call_args = TupleExpr [start;end_]}
-                            in
-                            complete_expr call rest min_bp
-                        | _ ->
-                            printf "Invalid range expression: %s\n" (string_of_expr (ListExpr (acc, None)));
-                            assert false
-                    end
-                | For::rest ->
-                    let arg_pat, rest = parse_pat rest in begin
-                        let acc = nx::acc in
-                        let arg_pat = TuplePat [arg_pat] in
-                        match acc, rest with
-                            | [map_expr], In::rest ->
-                                let ls_expr, rest = parse rest 0 in
-                                let map_fn = LambdaDef {lambda_def_expr = map_expr; lambda_def_args = arg_pat} in
-                                let map_args = TupleExpr [map_fn; ls_expr] in
-                                let mapped_ls = LambdaCall {callee = "map_rev"; call_args = map_args} in
-                                let filter_expr, more = match rest with
-                                    | RBracket::more -> 
-                                        None, more
-                                    | If::rest -> begin match parse rest 0 with
-                                        | e, RBracket::more ->
-                                            Some e, more
-                                        | _ ->
-                                            printf "Invalid filter clause in list comprehension\n";
-                                            assert false
-                                    end
-                                    | _ ->
-                                        printf "Invalid list comprehension\n";
-                                        assert false
-                                in
-                                begin match filter_expr with
-                                    | Some e ->
-                                        let filter_fn = LambdaDef {lambda_def_expr = e; lambda_def_args = arg_pat} in
-                                        let filter_args = TupleExpr [filter_fn; mapped_ls] in
-                                        LambdaCall {callee = "filter_rev"; call_args = filter_args}, more
-                                    | None ->
-                                        let reverse_args = TupleExpr [mapped_ls] in
-                                        LambdaCall {callee = "reverse"; call_args = reverse_args}, more
-                                end
-                            | _ ->
-                                printf "Invalid list comprehension: %s\n" (string_of_toks rest);
-                                assert false
-                    end
+                | Pipe::rest -> parse_tail rest (nx::acc)
+                | DotDot::rest -> parse_range rest (nx::acc)
+                | For::rest -> parse_listcomp rest (nx::acc)
                 | _ -> 
                         print_toks rest;
                         assert false
