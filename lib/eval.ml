@@ -162,21 +162,6 @@ and eval_lambda_call ?tc:(tail_call=false) call =
                 | "inspect" -> inspect_builtin ((eval_expr call.call_args) state)
                 | "range_step" -> range_builtin ((eval_expr call.call_args) state)
                 | "fold" -> fold_builtin ((eval_expr call.call_args) state)
-                | "get" ->
-                    let (args, state) = (eval_expr call.call_args) state in begin
-                    match args with
-                        | Tuple [Dictionary m; key] -> begin
-                            match Map.find m (hash_value key) with
-                                | Some found_values -> 
-                                    let res = List.Assoc.find found_values ~equal:val_eq_bool key in
-                                    let v = Option.value ~default:(Tuple []) res in
-                                    v, state
-                                | None -> (Tuple [], state)
-                            end
-                        | _ ->
-                            printf "get requires two arguments, a list, and a value";
-                            assert false
-                    end
                 | _ -> 
                     printf "Error: function not found: %s\n" call.callee;
                     assert false
@@ -327,3 +312,4 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | MatchExpr m -> fun s -> eval_match_expr ~tc:tail_call m.match_val m.match_arms s
         | MapExpr (ls, tail) -> fun s -> eval_map_expr ~tc:tail_call ls tail s
         | ListExpr (ls, tail) -> eval_list_expr ls tail
+        | UnresolvedAtom _ -> assert false (* TODO *)

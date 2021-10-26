@@ -22,6 +22,7 @@ type operator =
 
 type value =
     | Number of float
+    | Atom of int
     | Boolean of bool
     | Tuple of value list
     | ValList of value list
@@ -61,9 +62,11 @@ and expr =
     | MatchExpr of {match_val: expr; match_arms: (pattern * expr * expr option) list}
     | MapExpr of ((expr * expr) list) * (expr option)
     | ListExpr of (expr list) * (expr option)
+    | UnresolvedAtom of string
 
 let rec string_of_val = function
     | Number n -> Float.to_string n
+    | Atom _i -> assert false (* TODO *)
     | Boolean b -> Bool.to_string b
     | Tuple ls -> "(" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ ")"
     | ValList ls -> "[" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ "]"
@@ -88,6 +91,7 @@ let rec string_of_expr = function
     | BlockExpr ls -> sprintf "{\n\t%s\n}" (String.concat ~sep:"\n\t" (List.map ~f:string_of_expr ls))
     | MatchExpr _ -> "MatchExpr"
     | MapExpr _ -> "Map"
+    | UnresolvedAtom s -> sprintf "(UnresolvedAtom %s)" s
 
 and string_of_list_pat = function
     | FullPat ls -> "[" ^ (String.concat ~sep:", " (List.map ~f:string_of_pat ls)) ^ "]"
