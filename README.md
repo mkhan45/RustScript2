@@ -37,7 +37,7 @@ dune exec ./bin/rustscript_cli.exe
 
 #### Quicksort
 
-```
+```ex
 let sort = fn(ls) => match ls
     | [] -> []
     | [pivot | tail] -> {
@@ -51,7 +51,7 @@ inspect(sort([5, 3, 7, 9, 10, 4, 6])) # [3, 4, 5, 6, 7, 9, 10]
 ```
 
 #### Run Length Encode
-```
+```ex
 let run_len_encode = fn(ls) => match ls
     | [] -> []
     | [x | xs] -> {
@@ -68,7 +68,7 @@ inspect(run_len_encode(test_ls))
 ```
 
 #### Two Sum
-```
+```ex
 let two_sum = fn(nums, target) => {
     let helper = fn(m, ls, target) => match ls
         | [] -> ()
@@ -82,19 +82,19 @@ let two_sum = fn(nums, target) => {
     helper(%{}, enumerate(nums), target)
 }
 
-# inspect(two_sum([1,9,13,20,47], 10)) # (0, 1)
-# inspect(two_sum([3,2,4,1,9], 10)) # (0, 4)
-# inspect(two_sum([], 10)) # ()
+inspect(two_sum([1,9,13,20,47], 10)) # (0, 1)
+inspect(two_sum([3,2,4,1,9], 10)) # (0, 4)
+inspect(two_sum([], 10)) # ()
 ```
 
 ##### Project Euler #1
-```
+```ex
 euler1 = sum([x for x in [1..1000] if x % 3 == 0 || x % 5 == 0])
 inspect(euler1) # 233168
 ```
 
 ##### Project Euler #2
-```
+```ex
 let euler2 = {
     let aux = fn((a, b), acc) =>
         if b < 4000000
@@ -108,7 +108,7 @@ inspect(euler2) # 4613732
 ```
 
 #### Euler 3
-```
+```ex
 let gcd = fn(a, b) => match (a, b)
     | (0, b) -> b
     | (a, 0) -> a
@@ -153,7 +153,7 @@ let euler3 = {
     aux(n)
 }
 
-# inspect(euler3) # 6857
+inspect(euler3) # 6857
 ```
 
 More project euler problems can be found in the [examples folder](https://github.com/mkhan45/RustScript2/tree/main/examples).
