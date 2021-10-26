@@ -6,7 +6,7 @@ open Base
 let binary_op_bp = function
     | Or        -> (1, 2)
     | And       -> (3, 4)
-    | EQ | NEQ  -> (5, 6)
+    | EQ | NEQ | GEQ | LEQ  -> (5, 6)
     | LT | GT   -> (7, 8)
     | Add | Neg -> (9, 10)
     | Mul | Div | Mod -> (11, 12)

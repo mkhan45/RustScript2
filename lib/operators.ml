@@ -4,6 +4,7 @@ open Base
 
 let val_add lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Number (lhs +. rhs)
+    | ValList lhs, ValList rhs ->  ValList (lhs @ rhs)
     | _ -> 
             printf "Invalid Add: lhs = %s, rhs = %s\n" (string_of_val lhs) (string_of_val rhs);
             assert false
@@ -48,6 +49,14 @@ let val_lt lhs rhs = match lhs, rhs with
 
 let val_gt lhs rhs = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs > 0)
+    | _ -> assert false
+
+let val_leq lhs rhs = match lhs, rhs with
+    | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs <= 0)
+    | _ -> assert false
+
+let val_geq lhs rhs = match lhs, rhs with
+    | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs >= 0)
     | _ -> assert false
 
 let val_and lhs rhs = match lhs, rhs with

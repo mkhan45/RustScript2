@@ -80,7 +80,9 @@ and scan_ls = function
     | '-'::xs -> Operator Neg :: scan_ls xs
     | '*'::xs -> Operator Mul :: scan_ls xs
     | '/'::xs -> Operator Div :: scan_ls xs
+    | '<'::'='::xs -> Operator LEQ :: scan_ls xs
     | '<'::xs -> Operator LT :: scan_ls xs
+    | '>'::'='::xs -> Operator GEQ :: scan_ls xs
     | '>'::xs -> Operator GT :: scan_ls xs
     | '|'::'|'::xs -> Operator Or :: scan_ls xs
     | '&'::'&'::xs -> Operator And :: scan_ls xs

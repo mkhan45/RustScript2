@@ -35,35 +35,19 @@ dune exec ./bin/rustscript_cli.exe
 
 ### Examples:
 
-##### REPL
-```
-> let fib = fn(n) => if n < 2 then 1 else fib(n - 1) + fib(n - 2)
-> fib(25)
-121393.
-> let (a, b) = (4, 2)
-> (b, a)
-(2., 4.)
-> let (a, (b, c), d) = (4, (5, 6), 10)
-> a * c + b / d
-24.5
-> (a, b, c, d)
-(4., 5., 6., 10.)
-```
+#### Quicksort
 
-##### Tuple Assignment/Matching
 ```
-let (a, b) = {
-    let a = (4, 2)
-    let (a, b) = a
-    (a * b, 12)
-}
+let sort = fn(ls) => match ls
+    | [] -> []
+    | [pivot | tail] -> {
+        let higher = filter (fn(x) => x >= pivot, tail)
+        let lower = filter(fn(x) => x < pivot, tail)
 
-let f = fn(a, b, c) => {
-    let g = fn(a, b) => a * b + c
-    g(b, c) + a
-}
+        sort(lower) + [pivot] + sort(higher)
+    }
 
-inspect(f(10, 5, 3)) # 28
+inspect(sort([5, 3, 7, 9, 10, 4, 6])) # [3, 4, 5, 6, 7, 9, 10]
 ```
 
 #### Run Length Encode

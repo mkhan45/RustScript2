@@ -9,6 +9,8 @@ type operator =
     | Div
     | LT
     | GT
+    | LEQ
+    | GEQ
     | EQ
     | NEQ
     | And
