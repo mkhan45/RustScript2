@@ -4,8 +4,8 @@ let two_sum = fn(nums, target) => {
         | [(i, x) | xs] -> {
             let complement = target - x
             match m
-                | %{complement: ()} -> helper(%{x: i | m}, xs, target)
-                | %{complement: y} -> (y, i)
+                | %{complement => ()} -> helper(%{x: i | m}, xs, target)
+                | %{complement => y} -> (y, i)
         }
 
     helper(%{}, enumerate(nums), target)
