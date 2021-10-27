@@ -10,6 +10,11 @@ let rec bind lhs rhs =
             Map.set state ~key:s ~data:rhs;
     | NumberPat lhs, Number rhs when Float.equal lhs rhs -> 
             fun state -> state
+    | OrPat (l, r), _ -> fun state ->
+            if (pattern_matches l rhs state) then (bind l rhs) state else (bind r rhs) state
+    | AsPat (pat, n), _ -> fun state ->
+            let state = bind (SinglePat n) rhs state in
+            bind pat rhs state
     | ((TuplePat lhs_ls) as lhs, ((Tuple rhs_ls) as rhs))|
       ((ListPat (FullPat lhs_ls)) as lhs, ((ValList rhs_ls) as rhs)) -> fun state -> begin
             (* TODO: Look into moving the closure inwards, moving some "runtime" computation to "comptime" *)
@@ -55,6 +60,8 @@ and pattern_matches pat value state =
     match pat, value with
         | WildcardPat, _ -> true
         | SinglePat _, _ -> true
+        | AsPat (pat, _), _ -> pattern_matches pat value state
+        | OrPat (lhs, rhs), value -> (pattern_matches lhs value state) || (pattern_matches rhs value state)
         | NumberPat lhs, Number rhs -> 
                 Float.equal lhs rhs
         | ((TuplePat lhs_ls), (Tuple rhs_ls))|(ListPat (FullPat lhs_ls), ValList rhs_ls) ->
