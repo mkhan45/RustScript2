@@ -33,6 +33,7 @@ type token =
     | DotDot
     | For
     | In
+    | As
 
 let is_numeric d = Base.Char.is_digit d
 let is_identic c = Base.Char.is_alphanum c || phys_equal c '_'
@@ -65,6 +66,7 @@ and scan_ident ls =
                    | "when" -> When
                    | "for" -> For
                    | "in" -> In
+                   | "as" -> As
                    | _ -> Ident n
                 in
                 tok::(scan_ls ls)
@@ -157,6 +159,7 @@ let string_of_tok = function
     | DotDot -> "DotDot"
     | For -> "For"
     | In -> "In"
+    | As -> "As"
 
 let string_of_toks ls = String.concat ~sep:" " (List.map ~f:string_of_tok ls)
 let print_toks ls = ls |> string_of_toks |> printf "%s\n"

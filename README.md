@@ -97,9 +97,10 @@ inspect(euler1) # 233168
 ```ex
 let euler2 = {
     let aux = fn((a, b), acc) =>
-        if b < 4000000
-            then aux((b, a + 4 * b), acc + b)
-            else acc
+        if b < 4000000 then 
+            aux((b, a + 4 * b), acc + b)
+       else 
+            acc
 
     aux((0, 2), 0)
 }
@@ -110,8 +111,7 @@ inspect(euler2) # 4613732
 #### Euler 3
 ```ex
 let gcd = fn(a, b) => match (a, b)
-    | (0, b) -> b
-    | (a, 0) -> a
+    | (0, x)|(x, 0) -> x
     | (a, b) when a > b -> gcd(b, a)
     | (a, b) -> {
         let remainder = b % a

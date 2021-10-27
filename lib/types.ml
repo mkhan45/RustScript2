@@ -35,6 +35,8 @@ and pattern =
     | TuplePat of pattern list
     | ListPat of list_pattern
     | MapPat of (expr * pattern) list
+    | OrPat of pattern * pattern
+    | AsPat of pattern * string
     | WildcardPat
 
 and list_pattern =
@@ -100,6 +102,8 @@ and string_of_pat = function
     | NumberPat f -> Float.to_string f
     | TuplePat ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_pat ls))
     | WildcardPat -> "_"
+    | OrPat _ -> "OrPat"
+    | AsPat _ -> "AsPat"
 
 let rec hash_value = function
     | Number f -> Hashtbl.hash (0, f)

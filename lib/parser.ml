@@ -143,7 +143,18 @@ and expr_bp ls min_bp = match ls with
     | False::xs -> complete_expr (Atomic (Boolean false)) xs min_bp
     | _ -> assert false
 
-and parse_pat ls = match ls with
+and complete_pat lhs ls in_list = match ls with
+    | Pipe::xs when not in_list ->
+        let rhs, rest = parse_pat xs in
+        OrPat (lhs, rhs), rest
+    | As::(Ident n)::xs ->
+        AsPat (lhs, n), xs
+    | As::_ ->
+        printf "Expected a name";
+        assert false
+    | _ -> lhs, ls
+
+and parse_pat ?in_list:(in_list=false) ls = match ls with
     | LParen::xs ->
             let rec aux toks acc = match toks with
                 | RParen::rest -> (acc, rest)
@@ -154,11 +165,11 @@ and parse_pat ls = match ls with
                             | _ -> assert false
             in 
             let (parsed, remaining) = aux xs [] 
-            in (TuplePat (List.rev parsed), remaining)
+            in complete_pat (TuplePat (List.rev parsed)) remaining in_list
     | LBracket::xs ->
             let rec aux toks acc = match toks with
                 | RBracket::rest -> (acc, None), rest
-                | _ -> let (nx, rest) = parse_pat toks in
+                | _ -> let (nx, rest) = parse_pat ~in_list:true toks in
                     match rest with
                         | Comma::rest -> aux rest (nx::acc)
                         | RBracket::rest -> (nx::acc, None), rest
@@ -175,7 +186,7 @@ and parse_pat ls = match ls with
                 | None -> FullPat (List.rev pat_list)
                 | Some tail_pat -> HeadTailPat (pat_list, tail_pat)
             in
-            ListPat parsed_list_pat, rest
+            complete_pat (ListPat parsed_list_pat) rest in_list
     | Percent::LBrace::xs ->
         let parse_pair toks =
             let key, rest = parse toks 0 in
@@ -194,18 +205,18 @@ and parse_pat ls = match ls with
                 aux more (pair::acc)
             | _ -> assert false
         in begin match xs with
-            | RBrace::rest -> MapPat [], rest
+            | RBrace::rest -> complete_pat (MapPat []) rest in_list
             | _ ->
                 let first_pair, rest = parse_pair xs in
                 let pair_ls, more = aux rest [first_pair] in
-                MapPat (List.rev pair_ls), more
+                complete_pat (MapPat (List.rev pair_ls)) more in_list
         end
     | Percent::_ -> 
         printf "Expected LBrace\n";
         assert false
-    | (Ident s)::xs -> (SinglePat s, xs)
-    | (Number f)::xs -> (NumberPat f, xs)
-    | Underscore::xs -> (WildcardPat, xs)
+    | (Ident s)::xs -> complete_pat (SinglePat s) xs in_list
+    | (Number f)::xs -> complete_pat (NumberPat f) xs in_list
+    | Underscore::xs -> complete_pat WildcardPat xs in_list
     | _ ->
             printf "Expected pattern, got %s" (string_of_toks ls);
             assert false

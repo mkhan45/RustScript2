@@ -1,17 +1,16 @@
 let merge = fn(xs, ys) => match (xs, ys)
-    | (xs, []) -> xs
-    | ([], ys) -> ys
+    | (ls, [])|([], ls) -> ls
     | ([x|xs], [y|ys]) when x <= y -> [x | merge(xs, [y|ys])]
     | ([x|xs], [y|ys]) -> [y | merge([x|xs], ys)]
 
 let sort = fn(ls) => {
     let pairs = fn(ls) => match ls
         | [a, b | tl] -> [merge(a, b) | pairs(tl)]
-        | t -> t
+        | _ -> ls
 
     let loop = fn(ls) => match ls
         | [x] -> x
-        | xs -> loop(pairs(xs))
+        | _ -> loop(pairs(ls))
 
     loop([[x] for x in ls])
 }

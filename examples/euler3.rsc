@@ -1,6 +1,5 @@
 let gcd = fn(a, b) => match (a, b)
-    | (0, b) -> b
-    | (a, 0) -> a
+    | (x, 0) | (0, x) -> x
     | (a, b) when a > b -> gcd(b, a)
     | (a, b) -> {
         let remainder = b % a
