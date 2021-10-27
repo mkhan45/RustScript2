@@ -1,7 +1,7 @@
 (library
  (public_name rustscript)
  (libraries base stdio)
- (modules run types parser scanner eval operators))
+ (modules run types parser scanner eval operators preprocess))
 
 (env
   (release

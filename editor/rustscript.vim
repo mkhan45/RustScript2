@@ -49,6 +49,9 @@ syntax match rscBool "T"
 syntax match rscBool "F"
 highlight link rscBool Boolean
 
+syntax match rscAtom "\v:\[A-za-z][A-za-z0-9_]+"
+highlight link rscAtom Constant
+
 syntax match rscIdentifier "\v[A-Za-z@!?][A-Za-z0-9@!?]*"
 syntax match rscIdentifier "\v_"
 highlight link rscIdentifier Identifier

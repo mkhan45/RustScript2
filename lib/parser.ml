@@ -400,6 +400,7 @@ and parse: token list -> int -> expr * (token list) = fun s min_bp ->
         | Percent::xs -> 
             let (map, xs) = parse_map xs in
             complete_expr map xs min_bp
+        | Colon::(Ident n)::xs -> complete_expr (UnresolvedAtom n) xs min_bp
         | (Ident _)::LParen::_ -> 
             let (call, xs) = parse_lambda_call s in
             complete_expr call xs min_bp

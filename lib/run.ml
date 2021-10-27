@@ -3,16 +3,17 @@ open Stdio
 open Types
 open Scanner
 
-let eval state s = 
+let eval ss state s = 
     let (parsed, _remaining) = Parser.parse_str s in
-    let eval_closure = Eval.eval_expr parsed in
+    let eval_closure = Eval.eval_expr parsed ss in
     eval_closure state
 
-let run_line state line =
-    match eval state line with
+(* TODO: Make it support atoms *)
+let run_line ss state line =
+    match eval ss state line with
         | (Tuple [], new_state) -> new_state
         | (evaled, new_state) ->
-            printf "%s\n" (string_of_val evaled);
+            printf "%s\n" (string_of_val ss evaled);
             Out_channel.flush Stdio.stdout;
             new_state
 
@@ -67,7 +68,8 @@ let enumerate_rev_rsc =
 let enumerate_rsc = "let enumerate = fn(ls) => reverse(enumerate_rev(ls))"
 
 let load_stdlib state =
-    let run_line_swap line state = run_line state line in
+    let ss = { static_atoms = [] } in
+    let run_line_swap line state = run_line ss state line in
     state
         |> run_line_swap "let sum = fn(ls) => fold(0, fn(a, b) => a + b, ls)"
         |> run_line_swap reverse_rsc
@@ -82,15 +84,24 @@ let load_stdlib state =
         |> run_line_swap enumerate_rev_rsc
         |> run_line_swap enumerate_rsc
 
-let default_state = Map.empty(module String) |> load_stdlib
+let default_state: state = Map.empty (module String) |> load_stdlib
 
-let run_file filename state = 
+let run_file filename state =
     let in_stream = In_channel.create filename in
     let in_string = In_channel.input_all in_stream in
     let tokens = in_string |> Scanner.scan |> skip_newlines in
-    let rec aux (parsed, remaining) state =
-        let remaining = skip_newlines remaining in
-        match (Eval.eval_expr parsed state), remaining with
-            | (_, new_state), [] -> new_state
-            | (_, new_state), remaining -> aux (Parser.parse remaining 0) new_state
-    in aux (Parser.parse tokens 0) state
+    let expr_ls =
+        let rec aux remaining acc = match (skip_newlines remaining) with
+            | [] -> acc
+            | remaining ->
+                  let (parsed, remaining) = Parser.parse remaining 0 in
+                  aux remaining (parsed::acc)
+        in
+        let (parsed, remaining) = Parser.parse tokens 0 in
+        List.rev (aux remaining [parsed])
+    in
+    let block = BlockExpr expr_ls in
+    let ss = { static_atoms = Preprocess.find_atoms block [] } in
+    let expr_ls = List.map ~f:(Preprocess.resolve_atoms ss) expr_ls in
+    let fold_step = fun state e -> let _, s = (Eval.eval_expr e ss) state in s in
+    ss, List.fold_left ~init:state ~f:fold_step expr_ls

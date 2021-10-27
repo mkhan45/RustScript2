@@ -9,10 +9,10 @@ let rec repl state =
     | Some "\n" -> ()
     | None -> ()
     | Some line -> 
-        match Rustscript.Run.eval state line with
+        match Rustscript.Run.eval {static_atoms = []} state line with
             | (Tuple [], new_state) -> repl new_state
             | (evaled, new_state) ->
-                    printf "%s\n" (Rustscript.Types.string_of_val evaled);
+                    printf "%s\n" (Rustscript.Types.string_of_val {static_atoms = []} evaled);
                     Out_channel.flush stdout;
                     repl new_state
 
