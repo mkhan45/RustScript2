@@ -96,3 +96,6 @@ and resolve_atoms ss e =
             let tail = Option.map ~f:resolve tail in
             ListExpr (ls, tail)
         | UnresolvedAtom s -> Atomic (Atom (List.Assoc.find_exn ss.static_atoms ~equal:String.equal s))
+        | MapKey n -> match List.Assoc.find ss.static_atoms ~equal:String.equal n with
+            | Some a -> Atomic (Atom a)
+            | None -> Ident n

@@ -68,6 +68,7 @@ and expr =
     | MapExpr of ((expr * expr) list) * (expr option)
     | ListExpr of (expr list) * (expr option)
     | UnresolvedAtom of string
+    | MapKey of string
 
 let rec string_of_val ss v = 
     let string_of_val = string_of_val ss in
@@ -108,6 +109,7 @@ let rec string_of_expr ss e =
     | MatchExpr _ -> "MatchExpr"
     | MapExpr _ -> "Map"
     | UnresolvedAtom _ -> "UnresolvedAtom"
+    | MapKey n -> sprintf "MapKey %s" n
 
 and string_of_list_pat = function
     | FullPat ls -> "[" ^ (String.concat ~sep:", " (List.map ~f:string_of_pat ls)) ^ "]"

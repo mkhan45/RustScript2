@@ -190,8 +190,19 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
     | Percent::LBrace::xs ->
         let parse_pair toks =
             let key, rest = parse toks 0 in
+            let key = match key with
+                | Ident n -> MapKey n
+                | _ -> key
+            in
             match rest with
                 | Colon::more ->
+                    let val_pat, more = parse_pat more in
+                    let key = match key with
+                        | (Ident n) | (MapKey n)-> UnresolvedAtom n
+                        | _ -> assert false
+                    in
+                    (key, val_pat), more
+                | Arrow::more ->
                     let val_pat, more = parse_pat more in
                     (key, val_pat), more
                 | _ -> 
@@ -308,6 +319,10 @@ and parse_map = function
         let rest = skip_newlines rest in
         let parse_key_val ls =
             let key_expr, xs = parse ls 0 in
+            let key_expr = match key_expr with
+                | Ident n -> MapKey n
+                | _ -> key_expr
+            in
             match xs with
                 | Colon::xs ->
                     let xs = skip_newlines xs in
