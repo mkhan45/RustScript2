@@ -78,7 +78,11 @@ let rec string_of_val ss v =
     | ValList ls -> "[" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ "]"
     | Lambda _ -> "Lambda"
     | Thunk _ -> "Thunk"
-    | Dictionary  _ -> "Map"
+    | Dictionary d ->
+        let string_of_pair = fun (k, v) -> sprintf "%s: %s" (string_of_val k) (string_of_val v) in
+        let map_fn = fun ls -> String.concat ~sep:", " (List.map ~f:string_of_pair ls) in
+        let map_pairs = (List.map ~f:map_fn (Map.data d)) in
+        sprintf "{%s}" (String.concat ~sep:", " map_pairs)
     | Atom n -> 
         let reverse_map = List.Assoc.inverse ss.static_atoms in
         sprintf ":%s" (List.Assoc.find_exn reverse_map ~equal:Int.equal n)

@@ -258,13 +258,13 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss state =
             printf "No patterns matched in match expression\n";
             assert false
 
-and eval_map_expr ?tc:(tail_call=false) map_pairs tail_map ss state =
+and eval_map_expr ?tc:(_tail_call=false) map_pairs tail_map ss state =
     let fold_fn = fun (map_acc, state) (key_expr, val_expr) ->
-        let key_val, state = (eval_expr ~tc:tail_call key_expr ss) state in
-        let data_val, state = (eval_expr ~tc:tail_call val_expr ss) state in
+        let key_val, state = (eval_expr key_expr ss) state in
+        let data_val, state = (eval_expr val_expr ss) state in
         let key_hash = hash_value key_val in
         let new_data = match Map.find map_acc key_hash with
-            | Some assoc_list -> (key_val, data_val)::assoc_list
+            | Some assoc_list -> List.Assoc.add assoc_list ~equal:(fun l r -> val_eq_bool l r ss) key_val data_val
             | None -> [(key_val, data_val)]
         in
         (Map.set map_acc ~key:key_hash ~data:new_data, state)

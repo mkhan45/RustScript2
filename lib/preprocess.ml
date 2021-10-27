@@ -1,17 +1,32 @@
 open Base
 open Types
 
-let rec find_atoms: expr -> (string * int) list -> (string * int) list = 
+let rec find_pat_atoms pat atoms = match pat with
+    | SinglePat _ | NumberPat _ | AtomPat _ | WildcardPat -> atoms
+    | TuplePat ls -> List.fold_left ~init:atoms ~f:(fun atoms pat -> find_pat_atoms pat atoms) ls
+    | ListPat (FullPat ls) -> List.fold_left ~init:atoms ~f:(fun atoms pat -> find_pat_atoms pat atoms) ls
+    | ListPat (HeadTailPat (ls, tail)) -> atoms |> find_pat_atoms (ListPat (FullPat ls)) |> find_pat_atoms tail
+    | MapPat pairs -> List.fold_left ~init:atoms ~f:(fun a (e, p) -> a |> find_atoms e |> find_pat_atoms p) pairs
+    | OrPat (l, r) -> atoms |> find_pat_atoms l |> find_pat_atoms r
+    | AsPat (p, _) -> atoms |> find_pat_atoms p
+    | UnresolvedAtomPat s -> match List.Assoc.find atoms ~equal:String.equal s with
+        | Some _ -> atoms
+        | None -> (s, List.length atoms)::atoms
+
+and find_atoms: expr -> (string * int) list -> (string * int) list = 
     fun expr atoms -> match expr with
     | Binary b     -> atoms |> find_atoms b.lhs |> find_atoms b.rhs
     | Prefix p     -> atoms |> find_atoms p.rhs
-    | Let l        -> atoms |> find_atoms l.assigned_expr
-    | LambdaDef d  -> atoms |> find_atoms d.lambda_def_expr
+    | Let l        -> atoms |> find_atoms l.assigned_expr |> find_pat_atoms l.assignee
+    | LambdaDef d  -> atoms |> find_atoms d.lambda_def_expr |> find_pat_atoms d.lambda_def_args
     | LambdaCall c -> atoms |> find_atoms c.call_args
     | IfExpr i     -> atoms |> find_atoms i.cond |> find_atoms i.then_expr |> find_atoms i.else_expr
     | TupleExpr ls -> List.fold_left ~init:atoms ~f:(fun atoms e -> atoms |> find_atoms e) ls
     | BlockExpr ls -> List.fold_left ~init:atoms ~f:(fun atoms e -> atoms |> find_atoms e) ls
-    | MatchExpr m  -> atoms |> find_atoms m.match_val
+    | MatchExpr m  -> 
+        let fold_step a (p, e, _9) = a |> find_pat_atoms p |> find_atoms e in (* TODO: potentially recurse on o *)
+        let atoms = atoms |> find_atoms m.match_val in
+        List.fold_left ~init:atoms ~f:fold_step m.match_arms
     | MapExpr (m, _)  -> List.fold_left ~init:atoms ~f:(fun atoms (a, b) -> atoms |> find_atoms a |> find_atoms b) m
     | ListExpr (ls, _) -> List.fold_left ~init:atoms ~f:(fun atoms e -> atoms |> find_atoms e) ls
     | UnresolvedAtom s -> begin match List.Assoc.find atoms ~equal:String.equal s with
