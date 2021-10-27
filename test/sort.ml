@@ -5,12 +5,12 @@ open Rustscript.Run
 open Util
 
 let () =
-    let state = 
+    let ss, state = 
         default_state |> run_file (test_file "quicksort.rsc") in
-    assert_equal_expressions "sort([5, 3, 9, 10, 4, 7, 6])" "[3, 4, 5, 6, 7, 9, 10]" state;
+    assert_equal_expressions "sort([5, 3, 9, 10, 4, 7, 6])" "[3, 4, 5, 6, 7, 9, 10]" ss state;
 
-    let state = 
+    let ss, state = 
         default_state |> run_file (test_file "mergesort.rsc") in
-    assert_equal_expressions "sort([5, 3, 9, 10, 4, 7, 6])" "[3, 4, 5, 6, 7, 9, 10]" state;
+    assert_equal_expressions "sort([5, 3, 9, 10, 4, 7, 6])" "[3, 4, 5, 6, 7, 9, 10]" ss state;
 
     printf "Passed\n"

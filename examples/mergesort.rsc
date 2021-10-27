@@ -15,4 +15,4 @@ let sort = fn(ls) => {
     loop([[x] for x in ls])
 }
 
-inspect(sort([5, 4, 12, 17, 6, 7, 4, 3, 2, 8, 9]))
+# inspect(sort([5, 4, 12, 17, 6, 7, 4, 3, 2, 8, 9]))

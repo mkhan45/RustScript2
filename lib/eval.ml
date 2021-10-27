@@ -3,7 +3,11 @@ open Stdio
 open Base
 open Operators
 
-let rec bind lhs rhs = 
+(* Throughout, static state is abbreviated as ss *)
+
+let rec bind lhs rhs ss = 
+    let bind lhs rhs = bind lhs rhs ss in
+    let pattern_matches lhs rhs = pattern_matches lhs rhs ss in
     (* printf "Binding %s to %s\n" (string_of_pat lhs) (string_of_val rhs); *)
     match lhs, rhs with
     | SinglePat s, _ -> fun state ->
@@ -25,7 +29,7 @@ let rec bind lhs rhs =
                     printf "\n";
                     printf "Tried to bind %s of len %d to %s of len %d\n"
                         (string_of_pat lhs) (List.length lhs_ls)
-                        (string_of_val rhs) (List.length rhs_ls);
+                        (string_of_val ss rhs) (List.length rhs_ls);
                     assert false
       end
     | (ListPat (HeadTailPat (head_pat_ls, tail_pat))), ValList rhs_ls -> fun s ->
@@ -35,19 +39,19 @@ let rec bind lhs rhs =
             s
     | MapPat kv_pairs, Dictionary rhs -> fun s ->
         let fetched_pairs = kv_pairs
-            |> List.map ~f:(fun (k, v) -> let ev_k, _ = (eval_expr k) s in ev_k, v)
-            |> List.map ~f:(fun (k, v) -> dict_get rhs k, v)
+            |> List.map ~f:(fun (k, v) -> let ev_k, _ = (eval_expr k ss) s in ev_k, v)
+            |> List.map ~f:(fun (k, v) -> dict_get rhs k ss, v)
         in
         let fold_step state (k, v) = (bind v k) state in
         List.fold_left ~init:s ~f:fold_step fetched_pairs
     | WildcardPat, _ -> fun state -> state
     | _ -> assert false
 
-and dict_get dict key =
+and dict_get dict key ss =
     (* Can probably be replaced by Base.Option functions *)
     match Map.find dict (hash_value key) with
         | Some found_values ->
-            let res = List.Assoc.find found_values ~equal:val_eq_bool key in
+            let res = List.Assoc.find found_values ~equal:(fun a b -> val_eq_bool a b ss) key in
             Option.value ~default:(Tuple []) res
         | _ -> Tuple []
 
@@ -56,7 +60,9 @@ and list_equal_len lhs rhs = match lhs, rhs with
     | [], _ | _, [] -> false
     | _::xs, _::ys -> list_equal_len xs ys
 
-and pattern_matches pat value state =
+and pattern_matches pat value ss state =
+    let pattern_matches pat value = pattern_matches pat value ss in
+    let eval_expr expr ?tc:(tc=false) = eval_expr expr ss ~tc:tc in
     match pat, value with
         | WildcardPat, _ -> true
         | SinglePat _, _ -> true
@@ -77,15 +83,15 @@ and pattern_matches pat value state =
         | (MapPat kv_pairs, Dictionary rhs) ->
             let fetched_pairs = kv_pairs
                 |> List.map ~f:(fun (k, v) -> let ev_k, _ = (eval_expr k) state in ev_k, v)
-                |> List.map ~f:(fun (k, v) -> dict_get rhs k, v)
+                |> List.map ~f:(fun (k, v) -> dict_get rhs k ss, v)
             in
             List.for_all ~f:(fun (k, v) -> pattern_matches v k state) fetched_pairs
         | _ -> false
 
-and inspect_builtin (args, state) =
+and inspect_builtin (args, state) ss =
     match args with
         | Tuple [v] ->
-            printf "%s\n" (string_of_val v);
+            printf "%s\n" (string_of_val ss v);
             (v, state)
         | _ ->
             printf "Expected only one argument to inspect";
@@ -102,12 +108,12 @@ and range_builtin (args, state) =
             printf "Expected three integer arguments to range_step";
             assert false
 
-and fold_builtin (args, state) =
+and fold_builtin (args, state) ss =
     match args with
         | Tuple [init; Lambda fn; ValList ls] ->
             let call_fn = fun args ->
                 let lambda_call = Thunk {thunk_fn = fn; thunk_args= args; thunk_fn_name = ""} in
-                let res, _ = unwrap_thunk lambda_call state in
+                let res, _ = unwrap_thunk lambda_call state ss in
                 res
             in
             let fold_result = 
@@ -121,14 +127,14 @@ and fold_builtin (args, state) =
             printf "Expected (init, fn, ls) as arguments to fold\n";
             assert false
 
-and eval_op op lhs rhs = fun s ->
-    let (lhs, s) = (eval_expr lhs) s in
-    let (rhs, s) = (eval_expr rhs) s in
-    op lhs rhs, s
+and eval_op op lhs rhs ss = fun s ->
+    let (lhs, s) = (eval_expr lhs ss) s in
+    let (rhs, s) = (eval_expr rhs ss) s in
+    op lhs rhs ss, s
     
-and eval_prefix_op op rhs = fun s ->
-    let (rhs, s) = (eval_expr rhs) s in
-    op rhs, s
+and eval_prefix_op op rhs ss = fun s ->
+    let (rhs, s) = (eval_expr rhs ss) s in
+    op rhs ss, s
 
 and eval_ident name = fun state ->
     match Map.find state name with
@@ -137,45 +143,45 @@ and eval_ident name = fun state ->
             printf "Error: variable not found: %s\n" name;
             assert false
 
-and eval_let lhs rhs = fun state ->
-    let (evaled, new_state) = (eval_expr rhs) state in
-    let new_state = (bind lhs evaled) new_state in
+and eval_let lhs rhs ss = fun state ->
+    let (evaled, new_state) = (eval_expr rhs ss) state in
+    let new_state = (bind lhs evaled ss) new_state in
     (Tuple [], new_state)
 
 and eval_lambda_def e args =
     fun s -> (Lambda {lambda_expr = e; lambda_args = args; enclosed_state = s}), s
 
-and unwrap_thunk thunk state = match thunk with
+and unwrap_thunk thunk state ss = match thunk with
     | Thunk {thunk_fn = thunk_fn; thunk_args = thunk_args; thunk_fn_name = thunk_fn_name} ->
-            let inner_state = (bind thunk_fn.lambda_args thunk_args) thunk_fn.enclosed_state in
+            let inner_state = (bind thunk_fn.lambda_args thunk_args ss) thunk_fn.enclosed_state in
             let inner_state = Map.set inner_state ~key:thunk_fn_name ~data:(Lambda thunk_fn) in
-            let (new_thunk, _) = (eval_expr ~tc:true thunk_fn.lambda_expr) inner_state in
-            unwrap_thunk new_thunk state
+            let (new_thunk, _) = (eval_expr ~tc:true thunk_fn.lambda_expr ss) inner_state in
+            unwrap_thunk new_thunk state ss
     | value -> value, state
 
-and eval_lambda_call ?tc:(tail_call=false) call =
+and eval_lambda_call ?tc:(tail_call=false) call ss =
     fun (state: state) -> match Map.find state call.callee with
         | Some(Lambda lambda_val) -> begin
-            let (evaled, _) = (eval_expr call.call_args) state in
+            let (evaled, _) = (eval_expr call.call_args ss) state in
             let thunk = Thunk {thunk_fn = lambda_val; thunk_args = evaled; thunk_fn_name = call.callee} in
             if tail_call 
                 then (thunk, state)
                 else 
-                    let res, _ = unwrap_thunk thunk state in
+                    let res, _ = unwrap_thunk thunk state ss in
                     (res, state)
         end
         | None -> begin
             match call.callee with
-                | "inspect" -> inspect_builtin ((eval_expr call.call_args) state)
-                | "range_step" -> range_builtin ((eval_expr call.call_args) state)
-                | "fold" -> fold_builtin ((eval_expr call.call_args) state)
+                | "inspect" -> inspect_builtin ((eval_expr call.call_args ss) state) ss
+                | "range_step" -> range_builtin ((eval_expr call.call_args ss) state)
+                | "fold" -> fold_builtin ((eval_expr call.call_args ss) state) ss
                 | "get" ->
-                    let (args, state) = (eval_expr call.call_args) state in begin
+                    let (args, state) = (eval_expr call.call_args ss) state in begin
                     match args with
                         | Tuple [Dictionary m; key] -> begin
                             match Map.find m (hash_value key) with
                                 | Some found_values -> 
-                                    let res = List.Assoc.find found_values ~equal:val_eq_bool key in
+                                    let res = List.Assoc.find found_values ~equal:(fun a b -> val_eq_bool a b ss) key in
                                     let v = Option.value ~default:(Tuple []) res in
                                     v, state
                                 | None -> (Tuple [], state)
@@ -190,23 +196,23 @@ and eval_lambda_call ?tc:(tail_call=false) call =
         end
         | _ -> assert false
 
-and eval_tuple_expr ls state =
+and eval_tuple_expr ls ss state =
     let (eval_ls, state) =
         List.fold_left 
             ~init:([], state) 
-            ~f:(fun (acc, s) e -> let (ev, s) = eval_expr e s in (ev::acc, s))
+            ~f:(fun (acc, s) e -> let (ev, s) = (eval_expr e ss) s in (ev::acc, s))
             ls
     in
     Tuple (List.rev eval_ls), state
 
-and eval_if_expr ?tc:(tail_call=false) if_expr = fun state ->
-    match (eval_expr if_expr.cond) state with
-        | Boolean true, state -> (eval_expr ~tc:tail_call if_expr.then_expr) state
+and eval_if_expr ?tc:(tail_call=false) if_expr ss = fun state ->
+    match (eval_expr if_expr.cond ss) state with
+        | Boolean true, state -> (eval_expr ~tc:tail_call if_expr.then_expr ss) state
         | Boolean false, state -> 
-                (eval_expr ~tc:tail_call if_expr.else_expr) state
+                (eval_expr ~tc:tail_call if_expr.else_expr ss) state
         | _ -> assert false
 
-and eval_block_expr ?tc:(tail_call=false) ls state =
+and eval_block_expr ?tc:(tail_call=false) ls ss state =
     let (res, _) =
         let len = List.length ls in
         match List.split_n ls (len - 1) with
@@ -214,23 +220,25 @@ and eval_block_expr ?tc:(tail_call=false) ls state =
                 let block_state =
                     List.fold_left 
                         ~init:state 
-                        ~f:(fun line_state e -> let _, s = (eval_expr e) line_state in s) 
+                        ~f:(fun line_state e -> let _, s = (eval_expr e ss) line_state in s) 
                         exprs
                 in
-                (eval_expr ~tc:tail_call last_expr) block_state
+                (eval_expr ~tc:tail_call last_expr ss) block_state
             | _ -> assert false
     in (res, state)
     
-and eval_match_expr ?tc:(tail_call=false) match_val match_arms state =
-    let (match_val, state) = (eval_expr match_val) state in
+and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss state =
+    let (match_val, state) = (eval_expr match_val ss) state in
+    let eval_expr expr ?tc:(tc=false) = eval_expr expr ss ~tc:tc in
+    let bind lhs rhs = bind lhs rhs ss in
     let result_state_opt = List.find_map ~f:(
         fun (pat, arm_expr, cond) -> 
-            if pattern_matches pat match_val state then
+            if pattern_matches pat match_val ss state then
                 match cond with
                     | Some cond ->
                         let inner_state = (bind pat match_val) state in
                         let cond_eval, inner_state = (eval_expr cond) inner_state in
-                        if val_is_true cond_eval then
+                        if val_is_true cond_eval ss then
                             let (result, _) = (eval_expr ~tc:tail_call arm_expr) inner_state in
                             Some (result, state)
                         else
@@ -250,10 +258,10 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms state =
             printf "No patterns matched in match expression\n";
             assert false
 
-and eval_map_expr ?tc:(tail_call=false) map_pairs tail_map state =
+and eval_map_expr ?tc:(tail_call=false) map_pairs tail_map ss state =
     let fold_fn = fun (map_acc, state) (key_expr, val_expr) ->
-        let key_val, state = (eval_expr ~tc:tail_call key_expr) state in
-        let data_val, state = (eval_expr ~tc:tail_call val_expr) state in
+        let key_val, state = (eval_expr ~tc:tail_call key_expr ss) state in
+        let data_val, state = (eval_expr ~tc:tail_call val_expr ss) state in
         let key_hash = hash_value key_val in
         let new_data = match Map.find map_acc key_hash with
             | Some assoc_list -> (key_val, data_val)::assoc_list
@@ -263,7 +271,7 @@ and eval_map_expr ?tc:(tail_call=false) map_pairs tail_map state =
     in
     let tail_map, state = match tail_map with
         | Some e ->
-            let m, state = (eval_expr e) state in
+            let m, state = (eval_expr e ss) state in
             Some m, state
         | None -> None, state
     in
@@ -278,14 +286,14 @@ and eval_map_expr ?tc:(tail_call=false) map_pairs tail_map state =
         List.fold_left ~init:(start_map, state) ~f:fold_fn map_pairs
     in (Dictionary val_map, state)
 
-and eval_list_expr ?tc:(_tail_call=false) ls tail = fun s ->
+and eval_list_expr ?tc:(_tail_call=false) ls tail ss = fun s ->
     let eval_expr_list ~init =
         List.fold_left
         ~init:init
-        ~f:(fun (acc, s) e -> let (ev, s) = eval_expr e s in (ev::acc, s))
+        ~f:(fun (acc, s) e -> let (ev, s) = (eval_expr e ss) s in (ev::acc, s))
     in
     let eval_prepend ls tail =
-        let (tail_eval, s) = (eval_expr tail) s in
+        let (tail_eval, s) = (eval_expr tail ss) s in
         match tail_eval with
             | ValList tail_ls ->
                 let (eval_ls, state) = eval_expr_list ~init:(tail_ls, s) (List.rev ls) in
@@ -300,8 +308,10 @@ and eval_list_expr ?tc:(_tail_call=false) ls tail = fun s ->
             let (eval_ls, state) = eval_expr_list ~init:([], s) ls in
             ValList (List.rev eval_ls), state
 
-and eval_expr: expr -> ?tc:bool -> state -> value * state = 
-    fun expr ?tc:(tail_call=false) -> 
+and eval_expr: expr -> static_state -> ?tc:bool -> state -> value * state = 
+    fun expr ss ?tc:(tail_call=false) -> 
+        let eval_prefix_op op e = eval_prefix_op op e ss in
+        let eval_op op lhs rhs = eval_op op lhs rhs ss in
         (* printf "Evaluating: %s\n" (string_of_expr expr); *)
         match expr with
         | Atomic v -> fun s -> v, s
@@ -326,11 +336,14 @@ and eval_expr: expr -> ?tc:bool -> state -> value * state =
         | Binary ({op = Mod; _} as e) -> eval_op val_mod e.lhs e.rhs
         | Binary ({op = _op; _}) -> assert false (* Invalid binary op *)
         | LambdaDef d -> eval_lambda_def d.lambda_def_expr d.lambda_def_args
-        | Let l -> fun s -> (eval_let l.assignee l.assigned_expr) s
-        | TupleExpr ls -> fun s -> eval_tuple_expr ls s
-        | LambdaCall l -> fun s -> (eval_lambda_call ~tc:tail_call l) s
-        | IfExpr i -> fun s -> (eval_if_expr ~tc:tail_call i) s
-        | BlockExpr ls -> fun s -> eval_block_expr ~tc:tail_call ls s
-        | MatchExpr m -> fun s -> eval_match_expr ~tc:tail_call m.match_val m.match_arms s
-        | MapExpr (ls, tail) -> fun s -> eval_map_expr ~tc:tail_call ls tail s
-        | ListExpr (ls, tail) -> eval_list_expr ls tail
+        | Let l -> fun s -> (eval_let l.assignee l.assigned_expr ss) s
+        | TupleExpr ls -> fun s -> (eval_tuple_expr ls ss) s
+        | LambdaCall l -> fun s -> (eval_lambda_call ~tc:tail_call l ss) s
+        | IfExpr i -> fun s -> (eval_if_expr ~tc:tail_call i ss) s
+        | BlockExpr ls -> fun s -> (eval_block_expr ~tc:tail_call ls ss) s
+        | MatchExpr m -> fun s -> (eval_match_expr ~tc:tail_call m.match_val m.match_arms ss) s
+        | MapExpr (ls, tail) -> fun s -> (eval_map_expr ~tc:tail_call ls tail ss) s
+        | ListExpr (ls, tail) -> eval_list_expr ls tail ss
+        | UnresolvedAtom n ->
+            printf "Found unresolved atom %s\n" n;
+            assert false
