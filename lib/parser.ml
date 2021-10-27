@@ -138,6 +138,7 @@ and expr_bp ls min_bp = match ls with
     | (LBracket::xs) -> parse_list_expr xs min_bp
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
+    | (StringTok s)::xs -> complete_expr (Atomic (StringVal s)) xs min_bp
     | (Operator op)::xs -> parse_prefix_expr op xs min_bp
     | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp
     | False::xs -> complete_expr (Atomic (Boolean false)) xs min_bp
@@ -227,6 +228,7 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
         assert false
     | (Ident s)::xs -> complete_pat (SinglePat s) xs in_list
     | (Number f)::xs -> complete_pat (NumberPat f) xs in_list
+    | (StringTok f)::xs -> complete_pat (StringPat f) xs in_list
     | Underscore::xs -> complete_pat WildcardPat xs in_list
     | _ ->
             printf "Expected pattern, got %s" (string_of_toks ls);
@@ -422,7 +424,7 @@ and parse: token list -> int -> expr * (token list) = fun s min_bp ->
         | LParen::_ -> expr_bp s 0
         | LBracket::_ -> expr_bp s 0
         | (Operator _)::_ -> expr_bp s 0
-        | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
+        | (True|False|Number _| Ident _| StringTok _)::_ -> expr_bp s min_bp
         | Let::xs -> parse_let xs
         | Fn::_ -> 
             let (lambda_parsed, xs) = parse_lambda s in

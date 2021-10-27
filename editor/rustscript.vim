@@ -56,6 +56,9 @@ syntax match rscIdentifier "\v[A-Za-z@!?][A-Za-z0-9@!?]*"
 syntax match rscIdentifier "\v_"
 highlight link rscIdentifier Identifier
 
+syntax match rscString "\v\".*\""
+highlight link rscString String
+
 " comments
 syntax match rscComment "#.*"
 highlight link rscComment Comment

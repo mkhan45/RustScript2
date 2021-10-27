@@ -29,10 +29,12 @@ type value =
     | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
     | Dictionary of (int, (value * value) list, Int.comparator_witness) Map.t
     | Atom of int
+    | StringVal of string
 
 and pattern =
     | SinglePat of string
     | NumberPat of float
+    | StringPat of string
     | UnresolvedAtomPat of string
     | AtomPat of int
     | TuplePat of pattern list
@@ -74,7 +76,8 @@ let rec string_of_val ss v =
     let string_of_val = string_of_val ss in
     match v with
     | Number n -> Float.to_string n
-    | Boolean b -> Bool.to_string b
+    | Boolean true -> "T"
+    | Boolean false -> "F"
     | Tuple ls -> "(" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ ")"
     | ValList ls -> "[" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ "]"
     | Lambda _ -> "Lambda"
@@ -87,6 +90,7 @@ let rec string_of_val ss v =
     | Atom n -> 
         let reverse_map = List.Assoc.inverse ss.static_atoms in
         sprintf ":%s" (List.Assoc.find_exn reverse_map ~equal:Int.equal n)
+    | StringVal s -> sprintf "\"%s\"" s
 
 let rec string_of_expr ss e = 
     let string_of_expr = string_of_expr ss in
@@ -117,6 +121,7 @@ and string_of_list_pat = function
 
 and string_of_pat = function
     | SinglePat s -> s
+    | StringPat s -> sprintf "StringPat (\"%s\")" s
     | ListPat lp -> (string_of_list_pat lp)
     | MapPat _ -> "MapPat"
     | NumberPat f -> Float.to_string f

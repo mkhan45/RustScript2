@@ -1,11 +1,13 @@
 open Base
 open Stdio
+open Printf
 
 type token =
     | True
     | False
     | Number of float
     | Ident of string
+    | StringTok of string
     | Operator of Types.operator
     | Match
     | Let
@@ -72,6 +74,15 @@ and scan_ident ls =
                 tok::(scan_ls ls)
     in aux ls []
 
+and scan_string ls =
+    let rec aux ls acc = match ls with
+        | '"'::xs -> (StringTok (String.of_char_list (List.rev acc)))::(scan_ls xs)
+        | c::xs -> aux xs (c::acc)
+        | [] ->
+            printf "Unmatched quote";
+            assert false
+    in aux ls []
+
 and scan_ls = function
     | [] -> []
     | (' '|'\t')::xs -> scan_ls xs
@@ -109,6 +120,7 @@ and scan_ls = function
     | 'T'::xs -> True :: scan_ls xs
     | 'F'::xs -> False :: scan_ls xs
     | ':'::xs -> Colon :: scan_ls xs
+    | '"'::xs -> scan_string xs
     | d::_ as ls when Char.is_digit d -> scan_digit ls
     | i::_ as ls when Char.is_alpha i -> scan_ident ls
     | ls -> 
@@ -130,6 +142,7 @@ let scan s = s |> String.to_list |> scan_ls |> remove_comments
 let string_of_tok = function
     | Number f -> Float.to_string f
     | Ident s -> "(Ident " ^ s ^ ")"
+    | StringTok s -> sprintf "String (\"%s\")" s
     | Operator _ -> "Operator"
     | Let -> "Let"
     | Equal -> "Equal"
