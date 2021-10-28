@@ -67,6 +67,36 @@ let test_ls = [1, 1, 2, 3, 4, 4, 4, 5, 6, 1, 2, 2]
 inspect(run_len_encode(test_ls))
 ```
 
+#### Binary Search Tree
+```ex
+let insert = fn(root, key) => match root
+    | () -> %{val: key}
+    | %{val: root_val, right: right} when root_val < key ->
+	%{right: insert(right, key) | root}
+    | %{left: left} ->
+	%{left: insert(left, key) | root}
+
+let tree_to_ls_inorder = {
+    let loop = fn(root, acc) => match root
+	| () -> acc
+	| %{val: v, left: l, right: r} -> {
+	    let acc = loop(l, acc)
+	    let acc = [v | acc]
+	    let acc = loop(r, acc)
+	    acc
+	}
+
+    fn(bst) => reverse(loop(bst, []))
+}
+
+let construct_from_list = fn(ls) =>
+    fold((), fn(t, v) => insert(t, v), ls)
+
+let ls = [50, 30, 20, 65, 42, 20, 40, 70, 60, 80]
+let bst = construct_from_list(ls)
+inspect(tree_to_ls_inorder(bst)) # [20, 20, 30, 40, 42, 50, 60, 65, 70, 80]
+```
+
 #### Two Sum
 ```ex
 let two_sum = fn(nums, target) => {
@@ -75,8 +105,8 @@ let two_sum = fn(nums, target) => {
         | [(i, x) | xs] -> {
             let complement = target - x
             match m
-                | %{complement: ()} -> helper(%{x: i | m}, xs, target)
-                | %{complement: y} -> (y, i)
+                | %{complement => ()} -> helper(%{x: i | m}, xs, target)
+                | %{complement => y} -> (y, i)
         }
 
     helper(%{}, enumerate(nums), target)
