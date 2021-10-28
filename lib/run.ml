@@ -67,6 +67,10 @@ let enumerate_rev_rsc =
 
 let enumerate_rsc = "let enumerate = fn(ls) => reverse(enumerate_rev(ls))"
 
+let concat_rsc = "let concat = fn(ls) => fold(\"\", fn(a, b) => a + b, ls)"
+
+let concat_sep_rsc = "let concat_sep = fn(ls, sep) => fold(\"\", fn(a, b) => a + b + sep, ls)"
+
 let load_stdlib state =
     let ss = { static_atoms = [] } in
     let run_line_swap line state = run_line ss state line in
@@ -83,6 +87,8 @@ let load_stdlib state =
         |> run_line_swap length_rsc
         |> run_line_swap enumerate_rev_rsc
         |> run_line_swap enumerate_rsc
+        |> run_line_swap concat_rsc
+        |> run_line_swap concat_sep_rsc
 
 let default_state: state = Map.empty (module String) |> load_stdlib
 

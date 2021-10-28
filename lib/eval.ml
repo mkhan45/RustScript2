@@ -129,6 +129,17 @@ and fold_builtin (args, state) ss =
             printf "Expected (init, fn, ls) as arguments to fold\n";
             assert false
 
+and to_charlist_builtin (args, state) _ss =
+    match args with
+        | Tuple [StringVal s] ->
+            let chars = String.to_list s in
+            let char_strs = List.map ~f:String.of_char chars in
+            let val_ls = List.map ~f:(fun c -> StringVal c) char_strs in
+            ValList val_ls, state
+        | _ ->
+            printf "Expected a single string argument to to_charlist";
+            assert false
+
 and eval_op op lhs rhs ss = fun s ->
     let (lhs, s) = (eval_expr lhs ss) s in
     let (rhs, s) = (eval_expr rhs ss) s in
@@ -184,6 +195,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss =
                 | "inspect" -> inspect_builtin ((eval_expr call.call_args ss) state) ss
                 | "range_step" -> range_builtin ((eval_expr call.call_args ss) state)
                 | "fold" -> fold_builtin ((eval_expr call.call_args ss) state) ss
+                | "to_charlist" -> to_charlist_builtin ((eval_expr call.call_args ss) state) ss
                 | "get" ->
                     let (args, state) = (eval_expr call.call_args ss) state in begin
                     match args with
