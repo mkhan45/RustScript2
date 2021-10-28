@@ -5,6 +5,7 @@ open Base
 let val_add lhs rhs ss = match lhs, rhs with
     | Number lhs, Number rhs -> Number (lhs +. rhs)
     | ValList lhs, ValList rhs ->  ValList (lhs @ rhs)
+    | StringVal lhs, StringVal rhs ->  StringVal (lhs ^ rhs)
     | _ -> 
             printf "Invalid Add: lhs = %s, rhs = %s\n" (string_of_val ss lhs) (string_of_val ss rhs);
             assert false

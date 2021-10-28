@@ -18,13 +18,13 @@ let prefix_op_bp = 13
 let rec complete_expr lhs ls min_bp = match ls with
     | Percent::xs -> complete_expr lhs ((Operator Mod)::xs) min_bp
     | (Operator op)::xs ->
-            let (l_bp, r_bp) = binary_op_bp op
-            in
-            if l_bp < min_bp 
-                then (lhs, ls)
-                else let (rhs, rem) = parse xs r_bp in 
-                     let complete = Binary {op = op; lhs = lhs; rhs = rhs}
-                      in complete_expr complete rem min_bp
+            let (l_bp, r_bp) = binary_op_bp op in
+            if l_bp < min_bp then 
+                (lhs, ls)
+            else 
+                let (rhs, rem) = parse xs r_bp in 
+                let complete = Binary {op = op; lhs = lhs; rhs = rhs} in 
+                complete_expr complete rem min_bp
     | _ -> (lhs, ls)
 
 and parse_prefix_expr op xs min_bp =
@@ -32,21 +32,21 @@ and parse_prefix_expr op xs min_bp =
     let complete = Prefix {op = op; rhs = rhs} in
     complete_expr complete rem min_bp
 
-and parse_expr_tuple xs min_bp =
+and parse_paren_expr xs min_bp =
     let rec aux toks saw_comma acc = match toks with
         | RParen::rest -> acc, rest, saw_comma
-        | _ -> let nx, rest = parse toks 0 in begin
+        | _ -> let nx, rest = parse toks 0 in
             match rest with
                 | Comma::rest -> aux rest true (nx::acc)
                 | RParen::rest -> (nx::acc), rest, saw_comma
                 | _ -> assert false
-        end
-    in let expr_list, rest, saw_comma = aux xs false [] in begin
+
+    in let expr_list, rest, saw_comma = aux xs false [] in
         match expr_list, saw_comma with
             | _, true -> complete_expr (TupleExpr (List.rev expr_list)) rest min_bp
             | [], false -> complete_expr (TupleExpr []) rest min_bp
-            | _, false -> complete_expr (List.hd_exn expr_list) rest min_bp
-    end
+            | [paren_expr], false -> complete_expr (paren_expr) rest min_bp
+            | _, false -> assert false
 
 
 and parse_list_expr xs min_bp =
@@ -61,10 +61,10 @@ and parse_list_expr xs min_bp =
     and parse_range ls expr_list =
         let (end_, rest) = parse ls 0 in
         match expr_list, rest with
-            | [a; b], RBracket::rest ->
-                let step = (Binary {lhs = a; rhs = b; op = Neg}) in
+            | [snd; fst], RBracket::rest ->
+                let step = (Binary {lhs = snd; rhs = fst; op = Neg}) in
                 let call =
-                    LambdaCall {callee = "range_step"; call_args = TupleExpr [b;end_;step]}
+                    LambdaCall {callee = "range_step"; call_args = TupleExpr [fst;end_;step]}
                 in
                 complete_expr call rest min_bp
             | [start], RBracket::rest ->
@@ -76,6 +76,19 @@ and parse_list_expr xs min_bp =
                 printf "Invalid range expression:\n";
                 assert false
 
+    and parse_filter_clause ls = match ls with
+        | RBracket::xs -> None, xs
+        | If::rest -> begin match parse rest 0 with
+            | e, RBracket::more ->
+                Some e, more
+            | _ ->
+                printf "Invalid filter clause in list comprehension\n";
+                assert false
+        end
+        | _ ->
+            printf "Invalid list comprehension";
+            assert false
+
     and parse_listcomp ls expr_list =
         let arg_pat, rest = parse_pat ls in
         let arg_pat = TuplePat [arg_pat] in
@@ -85,20 +98,7 @@ and parse_list_expr xs min_bp =
                 let map_fn = LambdaDef {lambda_def_expr = map_expr; lambda_def_args = arg_pat} in
                 let map_args = TupleExpr [map_fn; ls_expr] in
                 let mapped_ls = LambdaCall {callee = "map_rev"; call_args = map_args} in
-                let filter_expr, more = match rest with
-                    | RBracket::more -> 
-                        None, more
-                    | If::rest -> begin match parse rest 0 with
-                        | e, RBracket::more ->
-                            Some e, more
-                        | _ ->
-                            printf "Invalid filter clause in list comprehension\n";
-                            assert false
-                    end
-                    | _ ->
-                        printf "Invalid list comprehension\n";
-                        assert false
-                in
+                let filter_expr, more = parse_filter_clause rest in
                 begin match filter_expr with
                     | Some e ->
                         let filter_fn = LambdaDef {lambda_def_expr = e; lambda_def_args = arg_pat} in
@@ -134,10 +134,11 @@ and parse_list_expr xs min_bp =
     aux xs []
 
 and expr_bp ls min_bp = match ls with
-    | (LParen::xs) -> parse_expr_tuple xs min_bp
+    | (LParen::xs) -> parse_paren_expr xs min_bp
     | (LBracket::xs) -> parse_list_expr xs min_bp
     | (Number f)::xs -> complete_expr (Atomic (Number f)) xs min_bp
     | (Ident n)::xs -> complete_expr (Ident n) xs min_bp
+    | (StringTok s)::xs -> complete_expr (Atomic (StringVal s)) xs min_bp
     | (Operator op)::xs -> parse_prefix_expr op xs min_bp
     | True::xs -> complete_expr (Atomic (Boolean true)) xs min_bp
     | False::xs -> complete_expr (Atomic (Boolean false)) xs min_bp
@@ -227,6 +228,7 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
         assert false
     | (Ident s)::xs -> complete_pat (SinglePat s) xs in_list
     | (Number f)::xs -> complete_pat (NumberPat f) xs in_list
+    | (StringTok f)::xs -> complete_pat (StringPat f) xs in_list
     | Underscore::xs -> complete_pat WildcardPat xs in_list
     | _ ->
             printf "Expected pattern, got %s" (string_of_toks ls);
@@ -422,7 +424,7 @@ and parse: token list -> int -> expr * (token list) = fun s min_bp ->
         | LParen::_ -> expr_bp s 0
         | LBracket::_ -> expr_bp s 0
         | (Operator _)::_ -> expr_bp s 0
-        | (True|False|Number _| Ident _)::_ -> expr_bp s min_bp
+        | (True|False|Number _| Ident _| StringTok _)::_ -> expr_bp s min_bp
         | Let::xs -> parse_let xs
         | Fn::_ -> 
             let (lambda_parsed, xs) = parse_lambda s in

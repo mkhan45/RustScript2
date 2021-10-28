@@ -20,8 +20,7 @@ let tree_to_ls_inorder = {
 	| %{val: v, left: l, right: r} -> {
 	    let acc = loop(l, acc)
 	    let acc = [v | acc]
-	    let acc = loop(r, acc)
-	    acc
+	    loop(r, acc)
 	}
 
     fn(bst) => reverse(loop(bst, []))
@@ -32,3 +31,4 @@ let construct_from_list = fn(ls) =>
 
 let ls = [50, 30, 20, 65, 42, 20, 40, 70, 60, 80]
 let bst = construct_from_list(ls)
+inspect(bst)
