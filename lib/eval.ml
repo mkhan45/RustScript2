@@ -181,15 +181,22 @@ and unwrap_thunk thunk state ss = match thunk with
 
 and eval_lambda_call ?tc:(tail_call=false) call ss =
     fun (state: state) -> match Map.find state call.callee with
-        | Some(Lambda lambda_val) -> begin
+        | Some(Lambda lambda_val) ->
             let (evaled, _) = (eval_expr call.call_args ss) state in
             let thunk = Thunk {thunk_fn = lambda_val; thunk_args = evaled; thunk_fn_name = call.callee} in
-            if tail_call 
-                then (thunk, state)
-                else 
-                    let res, _ = unwrap_thunk thunk state ss in
-                    (res, state)
-        end
+            if tail_call then 
+                (thunk, state)
+            else 
+                let res, _ = unwrap_thunk thunk state ss in
+                (res, state)
+        | Some(Dictionary dict) ->
+            let (evaled, state) = (eval_expr call.call_args ss) state in begin
+                match evaled with
+                    | Tuple [key] -> dict_get dict key ss, state
+                    | _ ->
+                        printf "Expected a single key\n";
+                        assert false
+            end
         | None -> begin
             match call.callee with
                 | "inspect" -> inspect_builtin ((eval_expr call.call_args ss) state) ss
