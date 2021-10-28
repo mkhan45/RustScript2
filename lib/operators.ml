@@ -39,6 +39,7 @@ let rec val_eq lhs rhs ss = match lhs, rhs with
             | _ -> Boolean false
     end
     | Atom lhs, Atom rhs -> Boolean (Int.equal lhs rhs)
+    | StringVal lhs, StringVal rhs -> Boolean (String.equal lhs rhs)
     | _ -> Boolean false
 
 let val_eq_bool l r ss = val_is_true (val_eq l r ss) ss

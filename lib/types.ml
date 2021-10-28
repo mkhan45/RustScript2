@@ -137,6 +137,7 @@ let rec hash_value = function
     | Boolean b -> Hashtbl.hash (1, b)
     | Tuple ls -> Hashtbl.hash (2, List.map ~f:hash_value ls)
     | Atom i -> Hashtbl.hash (3, i)
+    | StringVal s -> Hashtbl.hash (4, s)
     | _ ->
         printf "Tried to hash an unhashable type";
         assert false
