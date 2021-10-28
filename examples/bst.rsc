@@ -9,7 +9,7 @@ let sort = fn(ls) => match ls
 
 let insert = fn(root, key) => match root
     | () -> %{val: key}
-    | %{val: root_val, right: right} when root_val < key ->
+    | %{right: right} when root(:val) < key ->
 	%{right: insert(right, key) | root}
     | %{left: left} ->
 	%{left: insert(left, key) | root}
