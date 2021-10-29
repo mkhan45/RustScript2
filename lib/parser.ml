@@ -226,6 +226,7 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
     | Percent::_ -> 
         printf "Expected LBrace\n";
         assert false
+    | Colon::(Ident s)::xs -> complete_pat (UnresolvedAtomPat s) xs in_list
     | (Ident s)::xs -> complete_pat (SinglePat s) xs in_list
     | (Number f)::xs -> complete_pat (NumberPat f) xs in_list
     | (StringTok f)::xs -> complete_pat (StringPat f) xs in_list

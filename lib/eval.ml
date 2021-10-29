@@ -16,6 +16,8 @@ let rec bind lhs rhs ss =
             fun state -> state
     | StringPat lhs, StringVal rhs when String.equal lhs rhs ->
             fun state -> state
+    | AtomPat lhs, Atom rhs when Int.equal lhs rhs ->
+            fun state -> state
     | OrPat (l, r), _ -> fun state ->
             if (pattern_matches l rhs state) then (bind l rhs) state else (bind r rhs) state
     | AsPat (pat, n), _ -> fun state ->
@@ -72,6 +74,7 @@ and pattern_matches pat value ss state =
         | OrPat (lhs, rhs), value -> (pattern_matches lhs value state) || (pattern_matches rhs value state)
         | NumberPat lhs, Number rhs -> Float.equal lhs rhs
         | StringPat lhs, StringVal rhs -> String.equal lhs rhs
+        | AtomPat lhs, Atom rhs -> Int.equal lhs rhs
         | ((TuplePat lhs_ls), (Tuple rhs_ls))|(ListPat (FullPat lhs_ls), ValList rhs_ls) ->
             if list_equal_len lhs_ls rhs_ls then
                 let zipped = List.zip_exn lhs_ls rhs_ls in
