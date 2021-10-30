@@ -52,24 +52,23 @@ let op_bp = fn(op) => match op
     | :add | :sub -> (1, 2)
     | :mul | :div -> (3, 4)
 
-let expr_bp = fn(toks, min_bp) => {
-    let complete_expr = fn(lhs, ls, min_bp) => match ls
-	| [(:number, _) | _] | [] -> (lhs, ls)
-	| [op | xs] -> {
-	    let (l_bp, r_bp) = op_bp(op)
-	    if l_bp < min_bp then {
-		(lhs, ls)
-	    } else {
-		let (rhs, rest) = expr_bp(xs, r_bp)
-		let complete = %{op: op, lhs: lhs, rhs: rhs}
-		complete_expr(complete, rest, min_bp)
-	    }
+let complete_expr = fn(lhs, ls, min_bp) => match ls
+    | [(:number, _) | _] | [] -> (lhs, ls)
+    | [op | xs] -> {
+	let (l_bp, r_bp) = op_bp(op)
+	if l_bp < min_bp then {
+	    (lhs, ls)
+	} else {
+	    let (rhs, rest) = expr_bp(xs, r_bp)
+	    let complete = %{op: op, lhs: lhs, rhs: rhs}
+	    complete_expr(complete, rest, min_bp)
 	}
+    }
 
-    match toks
+let expr_bp = fn(toks, min_bp) => match toks
 	| [(:number, _) as n | xs] -> complete_expr(n, xs, min_bp)
 	| _ -> let () = 1
-}
+
 
 let eval = fn(expr) => match expr
     | %{op: :add, lhs: l, rhs: r} -> eval(l) + eval(r)

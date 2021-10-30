@@ -169,7 +169,10 @@ and eval_lambda_def e args =
 
 and unwrap_thunk thunk state ss = match thunk with
     | Thunk {thunk_fn = thunk_fn; thunk_args = thunk_args; thunk_fn_name = thunk_fn_name} ->
-            let inner_state = (bind thunk_fn.lambda_args thunk_args ss) thunk_fn.enclosed_state in
+            let inner_state = 
+                Map.merge_skewed state thunk_fn.enclosed_state ~combine:(fun ~key:_ _ v -> v)
+            in
+            let inner_state = (bind thunk_fn.lambda_args thunk_args ss) inner_state in
             let inner_state = Map.set inner_state ~key:thunk_fn_name ~data:(Lambda thunk_fn) in
             let (new_thunk, _) = (eval_expr ~tc:true thunk_fn.lambda_expr ss) inner_state in
             unwrap_thunk new_thunk state ss
