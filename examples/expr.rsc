@@ -78,6 +78,8 @@ let eval = fn(expr) => match expr
     | (:number, n) -> n
     | _ -> expr
 
-let tokens = scan("8 + 2 / 4 * 5 - 7 / 8")
-let (expr, remaining) = expr_bp(tokens, 0)
-inspect(eval(expr))
+let eval_str = fn(s) => {
+    let tokens = scan(s)
+    let (expr, _) = expr_bp(tokens, 0)
+    eval(expr)
+}
