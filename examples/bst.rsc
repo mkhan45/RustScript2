@@ -31,4 +31,3 @@ let construct_from_list = fn(ls) =>
 
 let ls = [50, 30, 20, 65, 42, 20, 40, 70, 60, 80]
 let bst = construct_from_list(ls)
-inspect(bst)

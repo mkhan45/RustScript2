@@ -7,12 +7,13 @@ let digits = to_charlist("0123456789")
 
 let digit_map = {
     let enumerated = enumerate(digits)
-    fold(%{}, fn(m, (i, d)) => %{d: i | m}, enumerated)
+    fold(%{}, fn(m, (i, d)) => %{d => i | m}, enumerated)
 }
 
 let is_digit = fn(c) => contains(digits, c)
 
 let chars_to_number = fn(chars) => {
+    let chars = reverse(chars)
     let loop = fn(ls, acc, multiplier) => match ls
 	| [] -> acc
 	| [c | cs] -> {
@@ -60,7 +61,7 @@ let expr_bp = fn(toks, min_bp) => {
 		(lhs, ls)
 	    } else {
 		let (rhs, rest) = expr_bp(xs, r_bp)
-		let complete = %{:op: op, :lhs: lhs, :rhs: rhs}
+		let complete = %{op: op, lhs: lhs, rhs: rhs}
 		complete_expr(complete, rest, min_bp)
 	    }
 	}

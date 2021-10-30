@@ -1,8 +1,8 @@
 let (to_number, to_letter) = {
     let letter_arr = to_charlist("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     let enumerated = enumerate(letter_arr)
-    let to_number = fold(%{}, fn(m, (i, l)) => %{l: i | m}, enumerated)
-    let to_letter = fold(%{}, fn(m, (i, l)) => %{i: l | m}, enumerated)
+    let to_number = fold(%{}, fn(m, (i, l)) => %{l => i | m}, enumerated)
+    let to_letter = fold(%{}, fn(m, (i, l)) => %{i => l | m}, enumerated)
     (to_number, to_letter)
 }
 

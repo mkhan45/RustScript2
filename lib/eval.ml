@@ -159,13 +159,6 @@ and eval_ident name = fun state ->
             printf "Error: variable not found: %s\n" name;
             assert false
 
-and eval_map_key name ss = fun state ->
-    match Map.find state name with
-        | Some v -> v, state
-        | None ->
-            let e = Preprocess.resolve_atoms ss (UnresolvedAtom name) in
-            (eval_expr e ss) state
-
 and eval_let lhs rhs ss = fun state ->
     let (evaled, new_state) = (eval_expr rhs ss) state in
     let new_state = (bind lhs evaled ss) new_state in
@@ -375,7 +368,6 @@ and eval_expr: expr -> static_state -> ?tc:bool -> state -> value * state =
         | MatchExpr m -> fun s -> (eval_match_expr ~tc:tail_call m.match_val m.match_arms ss) s
         | MapExpr (ls, tail) -> fun s -> (eval_map_expr ~tc:tail_call ls tail ss) s
         | ListExpr (ls, tail) -> eval_list_expr ls tail ss
-        | MapKey k -> eval_map_key k ss
         | UnresolvedAtom n ->
             printf "Found unresolved atom %s\n" n;
             assert false
