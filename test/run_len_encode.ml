@@ -6,7 +6,7 @@ open Util
 
 let () =
     let ss, state = 
-        default_state |> run_file (test_file "run_len_encode.rsc") in
+        test_state () |> run_file (test_file "run_len_encode.rsc") in
 
     assert_equal_expressions 
     "run_len_encode(test_ls)" 

@@ -238,6 +238,18 @@ and parse_let ls =
                 let (rhs, rest) = parse xs 0 in
                 let let_expr: expr = Let {assignee = pat; assigned_expr = rhs}
                 in (let_expr, rest)
+        | LParen::_ -> begin match pat with
+            | SinglePat fn_name ->
+                let (fn_args, xs) = parse_pat xs in begin
+                match xs with
+                    | Equal::xs ->
+                        let (fn_expr, rest) = parse xs 0 in
+                        let def = FnDef {fn_name; fn_def_func = {fn_args; fn_expr}} in
+                        (def, rest)
+                    | _ -> assert false
+                end
+            | _ -> assert false
+        end
         | _ -> assert false
 
 and parse_args toks =

@@ -18,6 +18,7 @@ and find_atoms: expr -> (string * int) list -> (string * int) list =
     | Binary b     -> atoms |> find_atoms b.lhs |> find_atoms b.rhs
     | Prefix p     -> atoms |> find_atoms p.rhs
     | Let l        -> atoms |> find_atoms l.assigned_expr |> find_pat_atoms l.assignee
+    | FnDef d      -> atoms |> find_atoms d.fn_def_func.fn_expr |> find_pat_atoms d.fn_def_func.fn_args
     | LambdaDef d  -> atoms |> find_atoms d.lambda_def_expr |> find_pat_atoms d.lambda_def_args
     | LambdaCall c -> atoms |> find_atoms c.call_args
     | IfExpr i     -> atoms |> find_atoms i.cond |> find_atoms i.then_expr |> find_atoms i.else_expr
@@ -67,6 +68,10 @@ and resolve_atoms ss e =
             let lambda_def_expr = resolve d.lambda_def_expr in
             let lambda_def_args = resolve_pat_atoms ss d.lambda_def_args in
             LambdaDef { lambda_def_expr; lambda_def_args }
+        | FnDef d ->
+            let fn_expr = resolve d.fn_def_func.fn_expr in
+            let fn_args = resolve_pat_atoms ss d.fn_def_func.fn_args in
+            FnDef { d with fn_def_func = {fn_expr; fn_args} }
         | LambdaCall c ->
             let call_args = resolve c.call_args in
             LambdaCall { call_args; callee = c.callee }
@@ -96,3 +101,10 @@ and resolve_atoms ss e =
             let tail = Option.map ~f:resolve tail in
             ListExpr (ls, tail)
         | UnresolvedAtom s -> Atomic (Atom (List.Assoc.find_exn ss.static_atoms ~equal:String.equal s))
+
+let find_expr_functions acc e = match e with
+    | FnDef d -> (d.fn_name, d.fn_def_func)::acc
+    | _ -> acc
+
+let find_block_funcs expr_ls acc =
+    List.fold_left ~init:acc ~f:find_expr_functions expr_ls

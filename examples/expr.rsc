@@ -1,18 +1,19 @@
-let contains = fn(ls, el) => match ls
+let contains(ls, el) = match ls
     | [] -> F
     | [x | xs] when x == el -> T
     | [_ | xs] -> contains(xs, el)
 
-let digits = to_charlist("0123456789")
+let digits() = to_charlist("0123456789")
 
-let digit_map = {
-    let enumerated = enumerate(digits)
-    fold(%{}, fn(m, (i, d)) => %{d => i | m}, enumerated)
-}
 
-let is_digit = fn(c) => contains(digits, c)
+let is_digit(c) = contains(digits(), c)
 
-let chars_to_number = fn(chars) => {
+let chars_to_number(chars) = {
+    let digit_map = {
+	let enumerated = enumerate(digits())
+	fold(%{}, fn(m, (i, d)) => %{d => i | m}, enumerated)
+    }
+
     let chars = reverse(chars)
     let loop = fn(ls, acc, multiplier) => match ls
 	| [] -> acc
@@ -24,7 +25,7 @@ let chars_to_number = fn(chars) => {
     loop(chars, 0, 1)
 }
 
-let scan = fn(str) => {
+let scan(str) = {
     let char_ls = to_charlist(str)
     
     let loop_number = fn(ls, acc) => match ls
@@ -48,11 +49,11 @@ let scan = fn(str) => {
     loop(to_charlist(str), [])
 }
 
-let op_bp = fn(op) => match op
+let op_bp(op) = match op
     | :add | :sub -> (1, 2)
     | :mul | :div -> (3, 4)
 
-let complete_expr = fn(lhs, ls, min_bp) => match ls
+let complete_expr(lhs, ls, min_bp) = match ls
     | [(:number, _) | _] | [] -> (lhs, ls)
     | [op | xs] -> {
 	let (l_bp, r_bp) = op_bp(op)
@@ -65,7 +66,7 @@ let complete_expr = fn(lhs, ls, min_bp) => match ls
 	}
     }
 
-let expr_bp = fn(toks, min_bp) => match toks
+let expr_bp(toks, min_bp) = match toks
 	| [(:number, _) as n | xs] -> complete_expr(n, xs, min_bp)
 	| _ -> let () = 1
 

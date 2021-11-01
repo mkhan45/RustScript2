@@ -26,6 +26,7 @@ type value =
     | Tuple of value list
     | ValList of value list
     | Lambda of lambda
+    | Fn of func
     | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
     | Dictionary of (int, (value * value) list, Int.comparator_witness) Map.t
     | Atom of int
@@ -48,11 +49,13 @@ and list_pattern =
     | FullPat of pattern list
     | HeadTailPat of (pattern list) * pattern
 
-and static_state = { static_atoms: (string * int) list }
+(* TODO: Make static_block_funcs a map *)
+and static_state = { static_atoms: (string * int) list; static_block_funcs: (string * func) list }
 and state = (string, value, String.comparator_witness) Map.t
 
 and lambda = {lambda_expr: expr; lambda_args: pattern; enclosed_state: state}
 and lambda_call = {callee: string; call_args: expr}
+and func = {fn_expr: expr; fn_args: pattern}
 and if_expr = {cond: expr; then_expr: expr; else_expr: expr}
 
 and expr =
@@ -63,6 +66,7 @@ and expr =
     | Let of {assignee: pattern; assigned_expr: expr}
     | LambdaDef of {lambda_def_expr: expr; lambda_def_args: pattern}
     | LambdaCall of lambda_call
+    | FnDef of {fn_name: string; fn_def_func: func}
     | IfExpr of if_expr
     | TupleExpr of expr list
     | BlockExpr of expr list
@@ -80,6 +84,7 @@ let rec string_of_val ss v =
     | Tuple ls -> "(" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ ")"
     | ValList ls -> "[" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ "]"
     | Lambda _ -> "Lambda"
+    | Fn _ -> "Fn"
     | Thunk _ -> "Thunk"
     | Dictionary d ->
         let string_of_pair = fun (k, v) -> sprintf "%s: %s" (string_of_val k) (string_of_val v) in
@@ -101,6 +106,7 @@ let rec string_of_expr ss e =
     | Binary (_ as b) -> sprintf "{lhs: %s, rhs: %s}" (string_of_expr b.lhs) (string_of_expr b.rhs)
     | Let (_ as l) -> sprintf "Let %s = %s" (string_of_pat l.assignee) (string_of_expr l.assigned_expr)
     | LambdaDef _ -> "Lambda"
+    | FnDef _ -> "FnDef"
     | LambdaCall call -> sprintf "{Call: %s, args: %s}" call.callee (string_of_expr call.call_args)
     | TupleExpr ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_expr ls))
     | ListExpr (ls, tail) -> 

@@ -164,15 +164,17 @@ and eval_let lhs rhs ss = fun state ->
     let new_state = (bind lhs evaled ss) new_state in
     (Tuple [], new_state)
 
+and eval_fn_def name {fn_expr; fn_args} ss = fun state ->
+    let fn = Fn {fn_expr; fn_args} in
+    let new_state = (bind (SinglePat name) fn ss) state in
+    (Tuple [], new_state)
+
 and eval_lambda_def e args =
     fun s -> (Lambda {lambda_expr = e; lambda_args = args; enclosed_state = s}), s
 
 and unwrap_thunk thunk state ss = match thunk with
     | Thunk {thunk_fn = thunk_fn; thunk_args = thunk_args; thunk_fn_name = thunk_fn_name} ->
-            let inner_state = 
-                Map.merge_skewed state thunk_fn.enclosed_state ~combine:(fun ~key:_ _ v -> v)
-            in
-            let inner_state = (bind thunk_fn.lambda_args thunk_args ss) inner_state in
+            let inner_state = (bind thunk_fn.lambda_args thunk_args ss) thunk_fn.enclosed_state in
             let inner_state = Map.set inner_state ~key:thunk_fn_name ~data:(Lambda thunk_fn) in
             let (new_thunk, _) = (eval_expr ~tc:true thunk_fn.lambda_expr ss) inner_state in
             unwrap_thunk new_thunk state ss
@@ -186,6 +188,19 @@ and eval_lambda_call ?tc:(tail_call=false) call ss =
             if tail_call then 
                 (thunk, state)
             else 
+                let res, _ = unwrap_thunk thunk state ss in
+                (res, state)
+        | Some(Fn fn_val) ->
+            let (evaled, _) = (eval_expr call.call_args ss) state in
+            let block_funcs = List.Assoc.map ss.static_block_funcs ~f:(fun f -> Fn f) in
+            let enclosed_state = Map.of_alist_exn (module String) block_funcs in
+            let pseudo_lambda = 
+                {lambda_expr = fn_val.fn_expr; lambda_args = fn_val.fn_args; enclosed_state }
+            in
+            let thunk = Thunk {thunk_fn = pseudo_lambda; thunk_args = evaled; thunk_fn_name = call.callee } in
+            if tail_call then
+                (thunk, state)
+            else
                 let res, _ = unwrap_thunk thunk state ss in
                 (res, state)
         | Some(Dictionary dict) ->
@@ -217,7 +232,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss =
                             printf "get requires two arguments, a list, and a value";
                             assert false
                     end
-                | _ -> 
+                | _ ->
                     printf "Error: function not found: %s\n" call.callee;
                     assert false
         end
@@ -239,20 +254,23 @@ and eval_if_expr ?tc:(tail_call=false) if_expr ss = fun state ->
                 (eval_expr ~tc:tail_call if_expr.else_expr ss) state
         | _ -> assert false
 
-and eval_block_expr ?tc:(tail_call=false) ls ss state =
-    let (res, _) =
-        let len = List.length ls in
-        match List.split_n ls (len - 1) with
-            | exprs, [last_expr] ->
-                let block_state =
-                    List.fold_left 
-                        ~init:state 
-                        ~f:(fun line_state e -> let _, s = (eval_expr e ss) line_state in s) 
-                        exprs
-                in
-                (eval_expr ~tc:tail_call last_expr ss) block_state
-            | _ -> assert false
-    in (res, state)
+and eval_block_expr ?tc:(tail_call=false) ls ss =
+    let static_block_funcs = Preprocess.find_block_funcs ls ss.static_block_funcs in
+    let ss = { ss with static_block_funcs } in
+    fun state ->
+        let (res, _) =
+            let len = List.length ls in
+            match List.split_n ls (len - 1) with
+                | exprs, [last_expr] ->
+                    let block_state =
+                        List.fold_left 
+                            ~init:state 
+                            ~f:(fun line_state e -> let _, s = (eval_expr e ss) line_state in s) 
+                            exprs
+                    in
+                    (eval_expr ~tc:tail_call last_expr ss) block_state
+                | _ -> assert false
+        in (res, state)
     
 and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss state =
     let (match_val, state) = (eval_expr match_val ss) state in
@@ -364,6 +382,7 @@ and eval_expr: expr -> static_state -> ?tc:bool -> state -> value * state =
         | Binary ({op = _op; _}) -> assert false (* Invalid binary op *)
         | LambdaDef d -> eval_lambda_def d.lambda_def_expr d.lambda_def_args
         | Let l -> fun s -> (eval_let l.assignee l.assigned_expr ss) s
+        | FnDef d -> fun s -> (eval_fn_def d.fn_name d.fn_def_func ss) s
         | TupleExpr ls -> fun s -> (eval_tuple_expr ls ss) s
         | LambdaCall l -> fun s -> (eval_lambda_call ~tc:tail_call l ss) s
         | IfExpr i -> fun s -> (eval_if_expr ~tc:tail_call i ss) s
@@ -372,5 +391,5 @@ and eval_expr: expr -> static_state -> ?tc:bool -> state -> value * state =
         | MapExpr (ls, tail) -> fun s -> (eval_map_expr ~tc:tail_call ls tail ss) s
         | ListExpr (ls, tail) -> eval_list_expr ls tail ss
         | UnresolvedAtom n ->
-            printf "Found unresolved atom %s\n" n;
+            printf "Found unresolved atom :%s\n" n;
             assert false

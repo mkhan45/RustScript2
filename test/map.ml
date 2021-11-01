@@ -6,7 +6,7 @@ open Util
 
 let () =
     let ss, state = 
-        Map.empty (module String) |> run_file (test_file "map.rsc") in
+        test_state () |> run_file (test_file "map.rsc") in
 
     assert_equal_expressions "get(m, 1)" "2" ss state;
     assert_equal_expressions "get(m, 3)" "4" ss state;
@@ -24,7 +24,7 @@ let () =
     assert_equal_expressions "m(467)" "a" ss state;
 
     let ss, state = 
-        default_state |> run_file (test_file "caesar.rsc") in
+        test_state () |> run_file (test_file "caesar.rsc") in
 
     assert_equal_expressions "encode(\"HELLO WORLD\", 5)" "\"MJQQT BTWQI\"" ss state;
     assert_equal_expressions "decode(encode(\"HELLO WORLD\", 5), 5)" "\"HELLO WORLD\"" ss state;
