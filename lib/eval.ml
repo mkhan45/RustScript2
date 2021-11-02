@@ -35,7 +35,7 @@ let rec bind lhs rhs ss loc =
                         (location_to_string loc)
                         (string_of_pat lhs) (List.length lhs_ls)
                         (string_of_val ss rhs) (List.length rhs_ls);
-                    assert false
+                    Caml.exit 0
       end
     | (ListPat (HeadTailPat (head_pat_ls, tail_pat))), ValList rhs_ls -> fun s ->
             let (head_ls, tail_ls) = List.split_n rhs_ls (List.length head_pat_ls) in
@@ -55,7 +55,7 @@ let rec bind lhs rhs ss loc =
             (location_to_string loc)
             (string_of_pat lhs)
             (string_of_val ss rhs);
-        assert false
+        Caml.exit 0
 
 and dict_get dict key ss =
     (* Can probably be replaced by Base.Option functions *)
@@ -158,12 +158,12 @@ and eval_prefix_op op rhs ss = fun s ->
     let (rhs, s) = (eval_expr rhs ss) s in
     op rhs ss, s
 
-and eval_ident name = fun state ->
+and eval_ident name loc = fun state ->
     match Map.find state name with
         | Some value -> value, state
         | None ->
-            printf "Error: variable not found: %s\n" name;
-            assert false
+            printf "Error at %s: variable not found: %s\n" (location_to_string loc) name;
+            Caml.exit 0
 
 and eval_let lhs rhs ss loc = fun state ->
     let (evaled, new_state) = (eval_expr rhs ss) state in
@@ -239,10 +239,12 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                             assert false
                     end
                 | _ ->
-                    printf "Error: function not found: %s\n" call.callee;
-                    assert false
+                    printf "Error: function %s not found at %s\n" call.callee (location_to_string loc);
+                    Caml.exit 0
         end
-        | _ -> assert false
+        | _ ->
+            printf "Tried to call %s at %s\n" call.callee (location_to_string loc);
+            Caml.exit 0
 
 and eval_tuple_expr ls ss state =
     let (eval_ls, state) =
@@ -275,7 +277,7 @@ and eval_block_expr ?tc:(tail_call=false) ls ss =
                             exprs
                     in
                     (eval_expr ~tc:tail_call last_expr ss) block_state
-                | _ -> assert false
+                | _ -> assert false (* Unreachable *)
         in (res, state)
     
 and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss loc state =
@@ -306,8 +308,8 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss loc state =
         | Some((result, state)) -> 
             result, state
         | None ->
-            printf "No patterns matched in match expression\n";
-            assert false
+            printf "No patterns matched in match expression at %s\n" (location_to_string loc);
+            Caml.exit 0
 
 and eval_map_expr ?tc:(_tail_call=false) map_pairs tail_map ss state =
     let fold_fn = fun (map_acc, state) (key_expr, val_expr) ->
@@ -367,7 +369,7 @@ and eval_expr: (expr Located.t) -> static_state -> ?tc:bool -> state -> value * 
         (* printf "Evaluating: %s\n" (string_of_expr expr); *)
         match expr with
         | {data = Atomic v; _} -> fun s -> v, s
-        | {data = IdentExpr name; _} -> fun state -> eval_ident name state
+        | {data = IdentExpr name; location} -> fun state -> eval_ident name location state
         | {data = Prefix ({op = Head; _} as e); _} -> eval_prefix_op val_list_head e.rhs
         | {data = Prefix ({op = Tail; _} as e); _} -> eval_prefix_op val_list_tail e.rhs
         | {data = Prefix ({op = Neg; _} as e); _} -> eval_prefix_op val_negate e.rhs
