@@ -39,3 +39,10 @@ let concat(ls) = fold("", fn(a, b) => a + b, ls)
 let concat_sep = fn(ls, sep) => fold("", fn(a, b) => a + b + sep, ls)
 
 let sum(ls) = fold(0, fn(a, b) => a + b, ls)
+
+let foreach(ls, f) = match ls
+    | [] -> ()
+    | [x | xs] -> {
+	f(x)
+	foreach(xs, f)
+    }
