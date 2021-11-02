@@ -52,7 +52,7 @@ let rec resolve_pat_atoms ss p =
 and resolve_atoms ss e = 
     let resolve = resolve_atoms ss in
     match e with
-        | Atomic _ | Ident _ -> e
+        | Atomic _ | IdentExpr _ -> e
         | Binary b ->
             let lhs = resolve b.lhs in
             let rhs = resolve b.rhs in

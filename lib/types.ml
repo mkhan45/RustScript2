@@ -60,7 +60,7 @@ and if_expr = {cond: expr; then_expr: expr; else_expr: expr}
 
 and expr =
     | Atomic of value
-    | Ident of string
+    | IdentExpr of string
     | Binary of {lhs: expr; op: operator; rhs: expr}
     | Prefix of {op: operator; rhs: expr}
     | Let of {assignee: pattern; assigned_expr: expr}
@@ -101,7 +101,7 @@ let rec string_of_expr ss e =
     let string_of_val  = string_of_val ss in
     match e with
     | Atomic v -> string_of_val v
-    | Ident s -> s
+    | IdentExpr s -> s
     | Prefix (_ as p) -> sprintf "{rhs: %s}" (string_of_expr p.rhs)
     | Binary (_ as b) -> sprintf "{lhs: %s, rhs: %s}" (string_of_expr b.lhs) (string_of_expr b.rhs)
     | Let (_ as l) -> sprintf "Let %s = %s" (string_of_pat l.assignee) (string_of_expr l.assigned_expr)

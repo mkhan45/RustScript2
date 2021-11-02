@@ -360,7 +360,7 @@ and eval_expr: expr -> static_state -> ?tc:bool -> state -> value * state =
         (* printf "Evaluating: %s\n" (string_of_expr expr); *)
         match expr with
         | Atomic v -> fun s -> v, s
-        | Ident name -> fun state -> eval_ident name state
+        | IdentExpr name -> fun state -> eval_ident name state
         | Prefix ({op = Head; _} as e) -> eval_prefix_op val_list_head e.rhs
         | Prefix ({op = Tail; _} as e) -> eval_prefix_op val_list_tail e.rhs
         | Prefix ({op = Neg; _} as e) -> eval_prefix_op val_negate e.rhs

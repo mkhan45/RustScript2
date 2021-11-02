@@ -5,7 +5,7 @@ open Scanner
 
 let eval ss state s = 
     let (parsed, _remaining) = Parser.parse_str s in
-    let eval_closure = Eval.eval_expr parsed ss in
+    let eval_closure = Eval.eval_expr parsed.data ss in
     eval_closure state
 
 (* TODO: Make it support atoms *)
@@ -31,6 +31,7 @@ let run_file filename (ss, state) =
         let (parsed, remaining) = Parser.parse tokens 0 in
         List.rev (aux remaining [parsed])
     in
+    let expr_ls = List.map ~f:Located.extract expr_ls in
     let block = BlockExpr expr_ls in
     let static_atoms = Preprocess.find_atoms block ss.static_atoms in
     let ss = { ss with static_atoms } in
