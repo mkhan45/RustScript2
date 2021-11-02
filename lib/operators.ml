@@ -48,18 +48,22 @@ let val_neq lhs rhs ss = Boolean (not (val_is_true (val_eq lhs rhs ss) ss))
 
 let val_lt lhs rhs _ss = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs < 0)
+    | StringVal lhs, StringVal rhs -> Boolean (String.compare lhs rhs < 0)
     | _ -> assert false
 
 let val_gt lhs rhs _ss = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs > 0)
+    | StringVal lhs, StringVal rhs -> Boolean (String.compare lhs rhs > 0)
     | _ -> assert false
 
 let val_leq lhs rhs _ss = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs <= 0)
+    | StringVal lhs, StringVal rhs -> Boolean (String.compare lhs rhs <= 0)
     | _ -> assert false
 
 let val_geq lhs rhs _ss = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs >= 0)
+    | StringVal lhs, StringVal rhs -> Boolean (String.compare lhs rhs >= 0)
     | _ -> assert false
 
 let val_and lhs rhs _ss = match lhs, rhs with

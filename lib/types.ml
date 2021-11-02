@@ -2,6 +2,16 @@ open Base
 open Printf
 open Stdio
 
+type location = { line_num: int }
+let location_to_string location = sprintf "line %s" (Int.to_string location.line_num)
+
+module Located = struct
+    type 'a t = { location: location; data: 'a }
+
+    let locate location a = { location; data = a }
+    let extract {data; _} = data
+end
+
 type operator =
     | Add
     | Neg
@@ -40,7 +50,7 @@ and pattern =
     | AtomPat of int
     | TuplePat of pattern list
     | ListPat of list_pattern
-    | MapPat of (expr * pattern) list
+    | MapPat of ((expr Located.t) * pattern) list
     | OrPat of pattern * pattern
     | AsPat of pattern * string
     | WildcardPat
@@ -53,26 +63,26 @@ and list_pattern =
 and static_state = { static_atoms: (string * int) list; static_block_funcs: (string * func) list }
 and state = (string, value, String.comparator_witness) Map.t
 
-and lambda = {lambda_expr: expr; lambda_args: pattern; enclosed_state: state}
-and lambda_call = {callee: string; call_args: expr}
-and func = {fn_expr: expr; fn_args: pattern}
-and if_expr = {cond: expr; then_expr: expr; else_expr: expr}
+and lambda = {lambda_expr: expr Located.t; lambda_args: pattern; enclosed_state: state}
+and lambda_call = {callee: string; call_args: expr Located.t}
+and func = {fn_expr: expr Located.t; fn_args: pattern}
+and if_expr = {cond: expr Located.t; then_expr: expr Located.t; else_expr: expr Located.t}
 
 and expr =
     | Atomic of value
     | IdentExpr of string
-    | Binary of {lhs: expr; op: operator; rhs: expr}
-    | Prefix of {op: operator; rhs: expr}
-    | Let of {assignee: pattern; assigned_expr: expr}
-    | LambdaDef of {lambda_def_expr: expr; lambda_def_args: pattern}
+    | Binary of {lhs: expr Located.t; op: operator; rhs: expr Located.t}
+    | Prefix of {op: operator; rhs: expr Located.t}
+    | Let of {assignee: pattern; assigned_expr: expr Located.t}
+    | LambdaDef of {lambda_def_expr: expr Located.t; lambda_def_args: pattern}
     | LambdaCall of lambda_call
     | FnDef of {fn_name: string; fn_def_func: func}
     | IfExpr of if_expr
-    | TupleExpr of expr list
-    | BlockExpr of expr list
-    | MatchExpr of {match_val: expr; match_arms: (pattern * expr * expr option) list}
-    | MapExpr of ((expr * expr) list) * (expr option)
-    | ListExpr of (expr list) * (expr option)
+    | TupleExpr of (expr Located.t) list
+    | BlockExpr of (expr Located.t) list
+    | MatchExpr of {match_val: expr Located.t; match_arms: (pattern * (expr Located.t) * (expr Located.t) option) list}
+    | MapExpr of (((expr Located.t) * (expr Located.t)) list) * ((expr Located.t) option)
+    | ListExpr of ((expr Located.t) list) * ((expr Located.t) option)
     | UnresolvedAtom of string
 
 let rec string_of_val ss v = 
@@ -94,7 +104,10 @@ let rec string_of_val ss v =
     | Atom n -> 
         let reverse_map = List.Assoc.inverse ss.static_atoms in
         sprintf ":%s" (List.Assoc.find_exn reverse_map ~equal:Int.equal n)
-    | StringVal s -> sprintf "\"%s\"" s
+    | StringVal s -> s 
+                     |> String.substr_replace_all ~pattern:"\\n" ~with_:"\n"
+                     |> String.substr_replace_all ~pattern:"\\t" ~with_:"\t"
+                     |> sprintf "\"%s\"" 
 
 let rec string_of_expr ss e = 
     let string_of_expr = string_of_expr ss in
@@ -102,19 +115,22 @@ let rec string_of_expr ss e =
     match e with
     | Atomic v -> string_of_val v
     | IdentExpr s -> s
-    | Prefix (_ as p) -> sprintf "{rhs: %s}" (string_of_expr p.rhs)
-    | Binary (_ as b) -> sprintf "{lhs: %s, rhs: %s}" (string_of_expr b.lhs) (string_of_expr b.rhs)
-    | Let (_ as l) -> sprintf "Let %s = %s" (string_of_pat l.assignee) (string_of_expr l.assigned_expr)
+    | Prefix (_ as p) -> sprintf "{rhs: %s}" (string_of_expr p.rhs.data)
+    | Binary (_ as b) -> sprintf "{lhs: %s, rhs: %s}" (string_of_expr b.lhs.data) (string_of_expr b.rhs.data)
+    | Let (_ as l) -> sprintf "Let %s = %s" (string_of_pat l.assignee) (string_of_expr l.assigned_expr.data)
     | LambdaDef _ -> "Lambda"
     | FnDef _ -> "FnDef"
-    | LambdaCall call -> sprintf "{Call: %s, args: %s}" call.callee (string_of_expr call.call_args)
-    | TupleExpr ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_expr ls))
+    | LambdaCall call -> sprintf "{Call: %s, args: %s}" call.callee (string_of_expr call.call_args.data)
+    | TupleExpr ls -> 
+            sprintf "(%s)" (String.concat ~sep:", " (ls |> List.map ~f:Located.extract |> List.map ~f:string_of_expr))
     | ListExpr (ls, tail) -> 
         sprintf "[%s|%s]"
-        (String.concat ~sep:", " (List.map ~f:string_of_expr ls))
+        (String.concat ~sep:", " (ls |> List.map ~f:Located.extract |> List.map ~f:string_of_expr))
         (if Option.is_none tail then "None" else "Tail")
     | IfExpr _ -> "IfExpr"
-    | BlockExpr ls -> sprintf "{\n\t%s\n}" (String.concat ~sep:"\n\t" (List.map ~f:string_of_expr ls))
+    | BlockExpr ls -> 
+        sprintf "{\n\t%s\n}" 
+        (String.concat ~sep:"\n\t" (ls |> List.map ~f:Located.extract |> List.map ~f:string_of_expr))
     | MatchExpr _ -> "MatchExpr"
     | MapExpr _ -> "Map"
     | UnresolvedAtom _ -> "UnresolvedAtom"

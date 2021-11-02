@@ -5,8 +5,8 @@ open Operators
 
 (* Throughout, static state is abbreviated as ss *)
 
-let rec bind lhs rhs ss = 
-    let bind lhs rhs = bind lhs rhs ss in
+let rec bind lhs rhs ss loc = 
+    let bind lhs rhs = bind lhs rhs ss loc in
     let pattern_matches lhs rhs = pattern_matches lhs rhs ss in
     (* printf "Binding %s to %s\n" (string_of_pat lhs) (string_of_val rhs); *)
     match lhs, rhs with
@@ -31,7 +31,8 @@ let rec bind lhs rhs ss =
                     List.fold_left ~init:state ~f:(fun state (k, v) -> (bind k v) state) zipped
                 | _ ->
                     printf "\n";
-                    printf "Tried to bind %s of len %d to %s of len %d\n"
+                    printf "Error at %s, Tried to bind %s of len %d to %s of len %d\n"
+                        (location_to_string loc)
                         (string_of_pat lhs) (List.length lhs_ls)
                         (string_of_val ss rhs) (List.length rhs_ls);
                     assert false
@@ -49,7 +50,12 @@ let rec bind lhs rhs ss =
         let fold_step state (k, v) = (bind v k) state in
         List.fold_left ~init:s ~f:fold_step fetched_pairs
     | WildcardPat, _ -> fun state -> state
-    | _ -> assert false
+    | _ -> 
+        printf "Error at %s, Tried to bind %s to %s"
+            (location_to_string loc)
+            (string_of_pat lhs)
+            (string_of_val ss rhs);
+        assert false
 
 and dict_get dict key ss =
     (* Can probably be replaced by Base.Option functions *)
@@ -113,12 +119,12 @@ and range_builtin (args, state) =
             printf "Expected three integer arguments to range_step";
             assert false
 
-and fold_builtin (args, state) ss =
+and fold_builtin (args, state) ss loc =
     match args with
         | Tuple [init; Lambda fn; ValList ls] ->
             let call_fn = fun args ->
                 let lambda_call = Thunk {thunk_fn = fn; thunk_args= args; thunk_fn_name = ""} in
-                let res, _ = unwrap_thunk lambda_call state ss in
+                let res, _ = unwrap_thunk lambda_call state ss loc in
                 res
             in
             let fold_result = 
@@ -159,28 +165,28 @@ and eval_ident name = fun state ->
             printf "Error: variable not found: %s\n" name;
             assert false
 
-and eval_let lhs rhs ss = fun state ->
+and eval_let lhs rhs ss loc = fun state ->
     let (evaled, new_state) = (eval_expr rhs ss) state in
-    let new_state = (bind lhs evaled ss) new_state in
+    let new_state = (bind lhs evaled ss loc) new_state in
     (Tuple [], new_state)
 
-and eval_fn_def name {fn_expr; fn_args} ss = fun state ->
+and eval_fn_def name {fn_expr; fn_args} ss loc = fun state ->
     let fn = Fn {fn_expr; fn_args} in
-    let new_state = (bind (SinglePat name) fn ss) state in
+    let new_state = (bind (SinglePat name) fn ss loc) state in
     (Tuple [], new_state)
 
 and eval_lambda_def e args =
     fun s -> (Lambda {lambda_expr = e; lambda_args = args; enclosed_state = s}), s
 
-and unwrap_thunk thunk state ss = match thunk with
+and unwrap_thunk thunk state ss loc = match thunk with
     | Thunk {thunk_fn = thunk_fn; thunk_args = thunk_args; thunk_fn_name = thunk_fn_name} ->
-            let inner_state = (bind thunk_fn.lambda_args thunk_args ss) thunk_fn.enclosed_state in
+            let inner_state = (bind thunk_fn.lambda_args thunk_args ss loc) thunk_fn.enclosed_state in
             let inner_state = Map.set inner_state ~key:thunk_fn_name ~data:(Lambda thunk_fn) in
             let (new_thunk, _) = (eval_expr ~tc:true thunk_fn.lambda_expr ss) inner_state in
-            unwrap_thunk new_thunk state ss
+            unwrap_thunk new_thunk state ss loc
     | value -> value, state
 
-and eval_lambda_call ?tc:(tail_call=false) call ss =
+and eval_lambda_call ?tc:(tail_call=false) call ss loc =
     fun (state: state) -> match Map.find state call.callee with
         | Some(Lambda lambda_val) ->
             let (evaled, _) = (eval_expr call.call_args ss) state in
@@ -188,7 +194,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss =
             if tail_call then 
                 (thunk, state)
             else 
-                let res, _ = unwrap_thunk thunk state ss in
+                let res, _ = unwrap_thunk thunk state ss loc in
                 (res, state)
         | Some(Fn fn_val) ->
             let (evaled, _) = (eval_expr call.call_args ss) state in
@@ -201,7 +207,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss =
             if tail_call then
                 (thunk, state)
             else
-                let res, _ = unwrap_thunk thunk state ss in
+                let res, _ = unwrap_thunk thunk state ss loc in
                 (res, state)
         | Some(Dictionary dict) ->
             let (evaled, state) = (eval_expr call.call_args ss) state in begin
@@ -215,7 +221,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss =
             match call.callee with
                 | "inspect" -> inspect_builtin ((eval_expr call.call_args ss) state) ss
                 | "range_step" -> range_builtin ((eval_expr call.call_args ss) state)
-                | "fold" -> fold_builtin ((eval_expr call.call_args ss) state) ss
+                | "fold" -> fold_builtin ((eval_expr call.call_args ss) state) ss loc
                 | "to_charlist" -> to_charlist_builtin ((eval_expr call.call_args ss) state) ss
                 | "get" ->
                     let (args, state) = (eval_expr call.call_args ss) state in begin
@@ -255,7 +261,7 @@ and eval_if_expr ?tc:(tail_call=false) if_expr ss = fun state ->
         | _ -> assert false
 
 and eval_block_expr ?tc:(tail_call=false) ls ss =
-    let static_block_funcs = Preprocess.find_block_funcs ls ss.static_block_funcs in
+    let static_block_funcs = Preprocess.find_block_funcs (ls |> List.map ~f:Located.extract) ss.static_block_funcs in
     let ss = { ss with static_block_funcs } in
     fun state ->
         let (res, _) =
@@ -272,7 +278,7 @@ and eval_block_expr ?tc:(tail_call=false) ls ss =
                 | _ -> assert false
         in (res, state)
     
-and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss state =
+and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss loc state =
     let (match_val, state) = (eval_expr match_val ss) state in
     let eval_expr expr ?tc:(tc=false) = eval_expr expr ss ~tc:tc in
     let bind lhs rhs = bind lhs rhs ss in
@@ -281,7 +287,7 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss state =
             if pattern_matches pat match_val ss state then
                 match cond with
                     | Some cond ->
-                        let inner_state = (bind pat match_val) state in
+                        let inner_state = (bind pat match_val loc) state in
                         let cond_eval, inner_state = (eval_expr cond) inner_state in
                         if val_is_true cond_eval ss then
                             let (result, _) = (eval_expr ~tc:tail_call arm_expr) inner_state in
@@ -289,7 +295,7 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss state =
                         else
                             None
                     | None ->
-                        let inner_state = (bind pat match_val) state in
+                        let inner_state = (bind pat match_val loc) state in
                         let (result, _) = (eval_expr ~tc:tail_call arm_expr) inner_state in
                         Some(result, state)
             else
@@ -353,43 +359,45 @@ and eval_list_expr ?tc:(_tail_call=false) ls tail ss = fun s ->
             let (eval_ls, state) = eval_expr_list ~init:([], s) ls in
             ValList (List.rev eval_ls), state
 
-and eval_expr: expr -> static_state -> ?tc:bool -> state -> value * state = 
+and eval_expr: (expr Located.t) -> static_state -> ?tc:bool -> state -> value * state = 
+    let open Located in
     fun expr ss ?tc:(tail_call=false) -> 
         let eval_prefix_op op e = eval_prefix_op op e ss in
         let eval_op op lhs rhs = eval_op op lhs rhs ss in
         (* printf "Evaluating: %s\n" (string_of_expr expr); *)
         match expr with
-        | Atomic v -> fun s -> v, s
-        | IdentExpr name -> fun state -> eval_ident name state
-        | Prefix ({op = Head; _} as e) -> eval_prefix_op val_list_head e.rhs
-        | Prefix ({op = Tail; _} as e) -> eval_prefix_op val_list_tail e.rhs
-        | Prefix ({op = Neg; _} as e) -> eval_prefix_op val_negate e.rhs
-        | Prefix ({op = Not; _} as e) -> eval_prefix_op val_negate_bool e.rhs
-        | Prefix ({op = _op; _}) -> assert false (* Invalid prefix op *)
-        | Binary ({op = Add; _} as e) -> eval_op val_add e.lhs e.rhs
-        | Binary ({op = Neg; _} as e) -> eval_op val_sub e.lhs e.rhs
-        | Binary ({op = Mul; _} as e) -> eval_op val_mul e.lhs e.rhs
-        | Binary ({op = Div; _} as e) -> eval_op val_div e.lhs e.rhs
-        | Binary ({op = EQ; _} as e) -> eval_op val_eq e.lhs e.rhs
-        | Binary ({op = NEQ; _} as e) -> eval_op val_neq e.lhs e.rhs
-        | Binary ({op = LEQ; _} as e) -> eval_op val_leq e.lhs e.rhs
-        | Binary ({op = GEQ; _} as e) -> eval_op val_geq e.lhs e.rhs
-        | Binary ({op = LT; _} as e) -> eval_op val_lt e.lhs e.rhs
-        | Binary ({op = GT; _} as e) -> eval_op val_gt e.lhs e.rhs
-        | Binary ({op = And; _} as e) -> eval_op val_and e.lhs e.rhs
-        | Binary ({op = Or; _} as e) -> eval_op val_or e.lhs e.rhs
-        | Binary ({op = Mod; _} as e) -> eval_op val_mod e.lhs e.rhs
-        | Binary ({op = _op; _}) -> assert false (* Invalid binary op *)
-        | LambdaDef d -> eval_lambda_def d.lambda_def_expr d.lambda_def_args
-        | Let l -> fun s -> (eval_let l.assignee l.assigned_expr ss) s
-        | FnDef d -> fun s -> (eval_fn_def d.fn_name d.fn_def_func ss) s
-        | TupleExpr ls -> fun s -> (eval_tuple_expr ls ss) s
-        | LambdaCall l -> fun s -> (eval_lambda_call ~tc:tail_call l ss) s
-        | IfExpr i -> fun s -> (eval_if_expr ~tc:tail_call i ss) s
-        | BlockExpr ls -> fun s -> (eval_block_expr ~tc:tail_call ls ss) s
-        | MatchExpr m -> fun s -> (eval_match_expr ~tc:tail_call m.match_val m.match_arms ss) s
-        | MapExpr (ls, tail) -> fun s -> (eval_map_expr ~tc:tail_call ls tail ss) s
-        | ListExpr (ls, tail) -> eval_list_expr ls tail ss
-        | UnresolvedAtom n ->
+        | {data = Atomic v; _} -> fun s -> v, s
+        | {data = IdentExpr name; _} -> fun state -> eval_ident name state
+        | {data = Prefix ({op = Head; _} as e); _} -> eval_prefix_op val_list_head e.rhs
+        | {data = Prefix ({op = Tail; _} as e); _} -> eval_prefix_op val_list_tail e.rhs
+        | {data = Prefix ({op = Neg; _} as e); _} -> eval_prefix_op val_negate e.rhs
+        | {data = Prefix ({op = Not; _} as e); _} -> eval_prefix_op val_negate_bool e.rhs
+        | {data = Prefix ({op = _op; _}); _} -> assert false (* Invalid prefix op *)
+        | {data = Binary ({op = Add; _} as e); _} -> eval_op val_add e.lhs e.rhs
+        | {data = Binary ({op = Neg; _} as e); _} -> eval_op val_sub e.lhs e.rhs
+        | {data = Binary ({op = Mul; _} as e); _} -> eval_op val_mul e.lhs e.rhs
+        | {data = Binary ({op = Div; _} as e); _} -> eval_op val_div e.lhs e.rhs
+        | {data = Binary ({op = EQ; _} as e); _} -> eval_op val_eq e.lhs e.rhs
+        | {data = Binary ({op = NEQ; _} as e); _} -> eval_op val_neq e.lhs e.rhs
+        | {data = Binary ({op = LEQ; _} as e); _} -> eval_op val_leq e.lhs e.rhs
+        | {data = Binary ({op = GEQ; _} as e); _} -> eval_op val_geq e.lhs e.rhs
+        | {data = Binary ({op = LT; _} as e); _} -> eval_op val_lt e.lhs e.rhs
+        | {data = Binary ({op = GT; _} as e); _} -> eval_op val_gt e.lhs e.rhs
+        | {data = Binary ({op = And; _} as e); _} -> eval_op val_and e.lhs e.rhs
+        | {data = Binary ({op = Or; _} as e); _} -> eval_op val_or e.lhs e.rhs
+        | {data = Binary ({op = Mod; _} as e); _} -> eval_op val_mod e.lhs e.rhs
+        | {data = Binary ({op = _op; _}); _} -> assert false (* Invalid binary op *)
+        | {data = LambdaDef d; _} -> eval_lambda_def d.lambda_def_expr d.lambda_def_args
+        | {data = Let l; location} -> fun s -> (eval_let l.assignee l.assigned_expr ss location) s
+        | {data = FnDef d; location} -> fun s -> (eval_fn_def d.fn_name d.fn_def_func ss location) s
+        | {data = TupleExpr ls; _} -> fun s -> (eval_tuple_expr ls ss) s
+        | {data = LambdaCall l; location} -> fun s -> (eval_lambda_call ~tc:tail_call l ss) location s
+        | {data = IfExpr i; _} -> fun s -> (eval_if_expr ~tc:tail_call i ss) s
+        | {data = BlockExpr ls; _} -> fun s -> (eval_block_expr ~tc:tail_call ls ss) s
+        | {data = MatchExpr m; location} -> 
+            fun s -> (eval_match_expr ~tc:tail_call m.match_val m.match_arms ss location) s
+        | {data = MapExpr (ls, tail); _} -> fun s -> (eval_map_expr ~tc:tail_call ls tail ss) s
+        | {data = ListExpr (ls, tail); _} -> eval_list_expr ls tail ss
+        | {data = UnresolvedAtom n; _} ->
             printf "Found unresolved atom :%s\n" n;
             assert false

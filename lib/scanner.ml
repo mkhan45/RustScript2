@@ -1,14 +1,7 @@
 open Base
 open Stdio
 open Printf
-
-module Located = struct
-    type 'a t = { line_num: int; data: 'a }
-
-    let locate line_num a = { line_num; data = a }
-    let extract {data; _} = data
-    let location_to_string {line_num; _} = sprintf "line %s" (Int.to_string line_num)
-end
+open Types
 
 type token =
     | True
@@ -60,7 +53,7 @@ let rec scan_digit ls line =
     in 
     let chars, scanned = aux ls [] false in
     let f = chars |> List.rev |> String.of_char_list |> Float.of_string in
-    (Number f |> Located.locate line)::scanned
+    (Number f |> Located.locate {line_num = line})::scanned
 
 and scan_ident ls line =
     let rec aux ls acc = match ls with
@@ -79,12 +72,13 @@ and scan_ident ls line =
                    | "as" -> As
                    | _ -> Ident n
                 in
-                (tok |> Located.locate line)::(scan_ls ls line)
+                (tok |> Located.locate {line_num = line})::(scan_ls ls line)
     in aux ls []
 
 and scan_string ls line =
     let rec aux ls acc = match ls with
-        | '"'::xs -> (StringTok (String.of_char_list (List.rev acc)) |> Located.locate line)::(scan_ls xs line)
+        | '"'::xs -> 
+            (StringTok (String.of_char_list (List.rev acc)) |> Located.locate {line_num = line})::(scan_ls xs line)
         | c::xs -> aux xs (c::acc)
         | [] ->
             printf "Unmatched quote";
@@ -99,40 +93,74 @@ and skip_until_newline = function
 and scan_ls: char list -> int -> (token Located.t) list = fun ls line -> match ls with
     | [] -> []
     | (' '|'\t')::xs -> scan_ls xs line
-    | '\n'::xs -> (Newline |> Located.locate line) :: scan_ls xs (line + 1)
-    | '='::'>'::xs -> (Arrow |> Located.locate line):: scan_ls xs line
-    | '-'::'>'::xs -> (MatchArrow |> Located.locate line) :: scan_ls xs line
-    | '+'::xs -> (Operator Add |> Located.locate line) :: scan_ls xs line
-    | '-'::xs -> (Operator Neg |> Located.locate line) :: scan_ls xs line
-    | '*'::xs -> (Operator Mul |> Located.locate line) :: scan_ls xs line
-    | '/'::xs -> (Operator Div |> Located.locate line) :: scan_ls xs line
-    | '<'::'='::xs -> (Operator LEQ |> Located.locate line) :: scan_ls xs line
-    | '<'::xs -> (Operator LT |> Located.locate line) :: scan_ls xs line
-    | '>'::'='::xs -> (Operator GEQ |> Located.locate line) :: scan_ls xs line
-    | '>'::xs -> (Operator GT |> Located.locate line) :: scan_ls xs line
-    | '&'::'&'::xs -> (Operator And |> Located.locate line) :: scan_ls xs line
-    | '|'::'|'::xs -> (Operator Or |> Located.locate line) :: scan_ls xs line
-    | '='::'='::xs -> (Operator EQ |> Located.locate line) :: scan_ls xs line
-    | '!'::'='::xs -> (Operator NEQ |> Located.locate line) :: scan_ls xs line
-    | '%'::xs -> (Percent |> Located.locate line) :: scan_ls xs line
-    | '^'::xs -> (Operator Head |> Located.locate line) :: scan_ls xs line
-    | '$'::xs -> (Operator Tail |> Located.locate line) :: scan_ls xs line
-    | '!'::xs -> (Operator Not |> Located.locate line) :: scan_ls xs line
-    | '.'::'.'::xs -> (DotDot |> Located.locate line) :: scan_ls xs line
-    | '('::xs -> (LParen |> Located.locate line) :: scan_ls xs line
-    | ')'::xs -> (RParen |> Located.locate line) :: scan_ls xs line
-    | '{'::xs -> (LBrace |> Located.locate line) :: scan_ls xs line
-    | '}'::xs -> (RBrace |> Located.locate line) :: scan_ls xs line
-    | '['::xs -> (LBracket |> Located.locate line) :: scan_ls xs line
-    | ']'::xs -> (RBracket |> Located.locate line) :: scan_ls xs line
-    | '='::xs -> (Equal |> Located.locate line) :: scan_ls xs line
-    | '_'::xs -> (Underscore |> Located.locate line) :: scan_ls xs line
-    | ','::xs -> (Comma |> Located.locate line) :: scan_ls xs line
-    | '#'::xs -> scan_ls (skip_until_newline xs) (line + 1)
-    | '|'::xs -> (Pipe |> Located.locate line) :: scan_ls xs line
-    | 'T'::xs -> (True |> Located.locate line) :: scan_ls xs line
-    | 'F'::xs -> (False |> Located.locate line) :: scan_ls xs line
-    | ':'::xs -> (Colon |> Located.locate line) :: scan_ls xs line
+    | '\n'::xs -> 
+        (Newline |> Located.locate {line_num = line}) :: scan_ls xs (line + 1)
+    | '='::'>'::xs -> 
+        (Arrow |> Located.locate {line_num = line}):: scan_ls xs line
+    | '-'::'>'::xs -> 
+        (MatchArrow |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '+'::xs -> 
+        (Operator Add |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '-'::xs -> 
+        (Operator Neg |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '*'::xs -> 
+        (Operator Mul |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '/'::xs -> 
+        (Operator Div |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '<'::'='::xs -> 
+        (Operator LEQ |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '<'::xs -> 
+        (Operator LT |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '>'::'='::xs -> 
+        (Operator GEQ |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '>'::xs -> 
+        (Operator GT |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '&'::'&'::xs -> 
+        (Operator And |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '|'::'|'::xs -> 
+        (Operator Or |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '='::'='::xs -> 
+        (Operator EQ |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '!'::'='::xs -> 
+        (Operator NEQ |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '%'::xs -> 
+        (Percent |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '^'::xs -> 
+        (Operator Head |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '$'::xs -> 
+        (Operator Tail |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '!'::xs -> 
+        (Operator Not |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '.'::'.'::xs -> 
+        (DotDot |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '('::xs -> 
+        (LParen |> Located.locate {line_num = line}) :: scan_ls xs line
+    | ')'::xs -> 
+        (RParen |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '{'::xs -> 
+        (LBrace |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '}'::xs -> 
+        (RBrace |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '['::xs -> 
+        (LBracket |> Located.locate {line_num = line}) :: scan_ls xs line
+    | ']'::xs -> 
+        (RBracket |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '='::xs -> 
+        (Equal |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '_'::xs -> 
+        (Underscore |> Located.locate {line_num = line}) :: scan_ls xs line
+    | ','::xs -> 
+        (Comma |> Located.locate {line_num = line}) :: scan_ls xs line
+    | '#'::xs -> 
+        scan_ls (skip_until_newline xs) (line + 1)
+    | '|'::xs -> 
+        (Pipe |> Located.locate {line_num = line}) :: scan_ls xs line
+    | 'T'::xs -> 
+        (True |> Located.locate {line_num = line}) :: scan_ls xs line
+    | 'F'::xs -> 
+        (False |> Located.locate {line_num = line}) :: scan_ls xs line
+    | ':'::xs -> 
+        (Colon |> Located.locate {line_num = line}) :: scan_ls xs line
     | '"'::xs -> scan_string xs line
     | d::_ as ls when Char.is_digit d -> scan_digit ls line
     | i::_ as ls when Char.is_alpha i -> scan_ident ls line
