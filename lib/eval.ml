@@ -103,10 +103,50 @@ and inspect_builtin (args, state) ss =
     match args with
         | Tuple [v] ->
             printf "%s\n" (string_of_val ss v);
-            (v, state)
+            v, state
         | _ ->
             printf "Expected only one argument to inspect";
             assert false
+
+and print_builtin (args, state) _ss loc =
+    match args with
+        | Tuple [StringVal s] ->
+            s |> escape_string |> printf "%s";
+            Stdio.Out_channel.flush Stdio.stdout;
+            (Tuple [], state)
+        | _ ->
+            printf "Expected one string argument to print at %s\n" (location_to_string loc);
+            Caml.exit 0
+
+(* Better as a builtin since concatenating strings is expensive *)
+and println_builtin (args, state) _ss loc =
+    match args with
+        | Tuple [StringVal s] ->
+            s |> escape_string |> printf "%s\n";
+            Stdio.Out_channel.flush Stdio.stdout;
+            (Tuple [], state)
+        | _ ->
+            printf "Expected one string argument to println at %s\n" (location_to_string loc);
+            Caml.exit 0
+
+and to_string_builtin (args, state) ss loc =
+    match args with
+        | Tuple [v] ->
+            (StringVal (string_of_val ss v)), state
+        | _ ->
+            printf "Expected only one argument to to_string at %s\n" (location_to_string loc);
+            Caml.exit 0
+
+and scanln_builtin (args, state) _ss loc =
+    match args with
+        | Tuple [] -> begin
+            match Stdio.In_channel.input_line ~fix_win_eol:true Stdio.stdin with
+            | Some line -> (StringVal line), state
+            | None -> Tuple [], state
+        end
+        | _ ->
+            printf "Expected () as an argument to scan_line at %s\n" (location_to_string loc);
+            Caml.exit 0
 
 and range_builtin (args, state) =
     match args with
@@ -220,6 +260,10 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
         | None -> begin
             match call.callee with
                 | "inspect" -> inspect_builtin ((eval_expr call.call_args ss) state) ss
+                | "print" -> print_builtin ((eval_expr call.call_args ss) state) ss loc
+                | "println" -> println_builtin ((eval_expr call.call_args ss) state) ss loc
+                | "scanln" -> scanln_builtin ((eval_expr call.call_args ss) state) ss loc
+                | "to_string" -> to_string_builtin ((eval_expr call.call_args ss) state) ss loc
                 | "range_step" -> range_builtin ((eval_expr call.call_args ss) state)
                 | "fold" -> fold_builtin ((eval_expr call.call_args ss) state) ss loc
                 | "to_charlist" -> to_charlist_builtin ((eval_expr call.call_args ss) state) ss

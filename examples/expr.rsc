@@ -71,7 +71,7 @@ let expr_bp(toks, min_bp) = match toks
 	| _ -> let () = 1
 
 
-let eval = fn(expr) => match expr
+let eval(expr) = match expr
     | %{op: :add, lhs: l, rhs: r} -> eval(l) + eval(r)
     | %{op: :sub, lhs: l, rhs: r} -> eval(l) - eval(r)
     | %{op: :mul, lhs: l, rhs: r} -> eval(l) * eval(r)
@@ -79,8 +79,22 @@ let eval = fn(expr) => match expr
     | (:number, n) -> n
     | _ -> expr
 
-let eval_str = fn(s) => {
+let eval_str(s) = {
     let tokens = scan(s)
     let (expr, _) = expr_bp(tokens, 0)
     eval(expr)
 }
+
+#let loop() = {
+#    print("Enter an expression to evaluate: ")
+#
+#    match scanln ()
+#	| () -> println("\nNo line scanned, exiting")
+#	| "exit" -> println("exiting")
+#	| line -> {
+#	    let res = eval_str(line)
+#	    println(to_string(res))
+#	    loop()
+#	}
+#}
+#loop()

@@ -85,6 +85,11 @@ and expr =
     | ListExpr of ((expr Located.t) list) * ((expr Located.t) option)
     | UnresolvedAtom of string
 
+let escape_string s =
+    s 
+    |> String.substr_replace_all ~pattern:"\\n" ~with_:"\n"
+    |> String.substr_replace_all ~pattern:"\\t" ~with_:"\t"
+
 let rec string_of_val ss v = 
     let string_of_val = string_of_val ss in
     match v with
@@ -104,10 +109,7 @@ let rec string_of_val ss v =
     | Atom n -> 
         let reverse_map = List.Assoc.inverse ss.static_atoms in
         sprintf ":%s" (List.Assoc.find_exn reverse_map ~equal:Int.equal n)
-    | StringVal s -> s 
-                     |> String.substr_replace_all ~pattern:"\\n" ~with_:"\n"
-                     |> String.substr_replace_all ~pattern:"\\t" ~with_:"\t"
-                     |> sprintf "\"%s\"" 
+    | StringVal s -> s |> escape_string |> sprintf "\"%s\"" 
 
 let rec string_of_expr ss e = 
     let string_of_expr = string_of_expr ss in
