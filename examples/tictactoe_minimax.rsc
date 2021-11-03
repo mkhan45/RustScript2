@@ -49,7 +49,9 @@ let is_winner(board, turn) = {
     ])
 }
 
-let max_value(board, turn) = {
+let is_tied(board) = !any([sq == :empty for sq in board])
+
+let minimax(board, turn, alpha, beta) = {
     if is_winner(board, turn) then {
 	(1, board)
     } else if is_winner(board, switch_turn(turn)) then {
@@ -57,54 +59,38 @@ let max_value(board, turn) = {
     } else if !any([sq == :empty for sq in board]) then {
 	(0, board)
     } else {
-	let possible_positions = [i for (i, p) in enumerate_rev(board) if p == :empty]
-	let init = (-99999, board)
-	let fold_step = fn((max_val, max_board), position) => {
-	    let current_board = set_nth(board, position, turn)
-	    let (min_val, next_state) = min_value(current_board, switch_turn(turn))
-	    if min_val > max_val then 
-		(min_val, next_state)
-	    else
-		(max_val, max_board)
-	}
+	let possible_moves = [set_nth(board, i, turn) for (i, p) in enumerate(board) if p == :empty]
+	let opposite_turn = switch_turn(turn)
 
-	fold(init, fold_step, possible_positions)
+	let loop = fn(possible_moves, best_move, alpha, beta) => match possible_moves
+	    | [] -> (alpha, best_move)
+	    | [nboard | possible_moves] -> {
+		let score = alpha
+		
+		let (score, nmove) = minimax(nboard, opposite_turn, -alpha - 1, -alpha)
+		let (score, nmove) = if (alpha < score) && (score < beta) then {
+		    minimax(nboard, opposite_turn, -beta, -score)
+		} else {
+		    (score, nmove)
+		}
+
+		let score = -score
+
+		if score > alpha then
+		    loop(possible_moves, nboard, score, beta)
+		else if alpha >= beta then
+		    (score, nboard)
+		else
+		    loop(possible_moves, best_move, alpha, beta)
+	    }
+	
+	loop(possible_moves, ^possible_moves, -999, 999)
     }
 }
 
-let min_value(board, turn) = {
-    if is_winner(board, turn) then {
-	(-1, board)
-    } else if is_winner(board, switch_turn(turn)) then {
-	(1, board)
-    } else if !any([sq == :empty for sq in board]) then {
-	(0, board)
-    } else {
-	let possible_positions = [i for (i, p) in enumerate(board) if p == :empty]
-	let init = (99999, board)
-	let fold_step = fn((min_val, min_board), position) => {
-	    let current_board = set_nth(board, position, turn)
-	    let (max_val, next_state) = max_value(current_board, switch_turn(turn))
-	    if max_val > min_val then 
-		(max_val, next_state)
-	    else
-		(min_val, min_board)
-	}
-
-	fold(init, fold_step, possible_positions)
-    }
-}
-
-let minimax(board, turn, goal_turn) =
-    if turn == goal_turn then
-	max_value(board, turn)
-    else
-	min_value(board, turn)
-
-let loop(board, turn) = {
+let loop(board, turn, player) = {
     println("===========\n")
     print_board(board)
-    print("\nChoose a position for " + square_to_string(turn) + ": ")
 
     let get_position = fn() => match string_to_num(scanln())
 	| (:ok, n) when nth(board, n) != :empty -> {
@@ -117,20 +103,32 @@ let loop(board, turn) = {
 	    get_position()
 	}
 
-    let position = get_position()
-    let new_board = set_nth(board, position, turn)
-
+    let new_board = if turn == player then {
+	print("\nChoose a position for " + square_to_string(turn) + ": ")
+	let position = get_position()
+	set_nth(board, position, player)
+    } else {
+	let (_, ai_board) = minimax(board, turn, -999999, 999999)
+	ai_board
+    }
+	
     if is_winner(new_board, turn) then {
 	println(square_to_string(turn) + " Wins!")
 	print_board(new_board)
+    } else if is_tied(new_board) then {
+	println("You tied!")
+	print_board(new_board)
     } else {
-	loop(set_nth(board, position, turn), switch_turn(turn))
+	loop(new_board, switch_turn(turn), player)
     }
 }
 
-# loop(empty_board(), :x)
 let board = empty_board()
-let board = set_nth(board, 0, :x)
-let board = set_nth(board, 1, :y)
-let board = set_nth(board, 2, :x)
-inspect(minimax(board, :x, :x))
+let board = set_nth(board, 4, :x)
+let board = set_nth(board, 0, :o)
+loop(board, :x, :x)
+#let board = empty_board()
+#print_board(board)
+#let (_, board) = minimax(board, :x, :x)
+#println("===========")
+#print_board(board)

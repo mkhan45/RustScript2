@@ -296,7 +296,14 @@ and parse_args toks =
                     match rest with
                         | {data = Comma; _}::rest -> aux rest (nx::acc)
                         | {data = RParen; _}::rest -> (nx::acc), rest
-                        | _ -> assert false
+                        | {data; location}::_ ->
+                            printf "Error: expected a ), got %s at %s"
+                                (string_of_tok data)
+                                (location_to_string location);
+                            Caml.exit 0
+                        | [] ->
+                            printf "Error: missing parentheses in argument list at end of file";
+                            Caml.exit 0
                 end
             in
             let (parsed, remaining) = aux xs []

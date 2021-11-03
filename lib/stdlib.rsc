@@ -76,3 +76,6 @@ let drop(n, ls) =
 	drop(n - 1, $ls)
 
 let slice(ls, start, end) = take(end - start, drop(start, ls))
+
+let max(a, b) = if a > b then a else b
+let min(a, b) = if a < b then a else b

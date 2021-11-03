@@ -49,10 +49,15 @@ let val_eq_bool l r ss loc = val_is_true (val_eq l r ss loc) ss loc
 
 let val_neq lhs rhs ss loc = Boolean (not (val_is_true (val_eq lhs rhs ss loc) ss loc))
 
-let val_lt lhs rhs _ss _loc = match lhs, rhs with
+let val_lt lhs rhs ss loc = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs < 0)
     | StringVal lhs, StringVal rhs -> Boolean (String.compare lhs rhs < 0)
-    | _ -> assert false
+    | _ ->
+        printf "Invalid <: lhs = %s, rhs = %s, at %s\n" 
+            (string_of_val ss lhs)
+            (string_of_val ss rhs)
+            (location_to_string loc);
+        Caml.exit 0
 
 let val_gt lhs rhs _ss _loc = match lhs, rhs with
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs > 0)

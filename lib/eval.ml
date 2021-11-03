@@ -262,7 +262,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
             if tail_call then 
                 (thunk, state)
             else 
-                let res, _ = unwrap_thunk thunk state ss loc in
+                let res, _ = unwrap_thunk thunk state ss lambda_val.lambda_expr.location in
                 (res, state)
         | Some(Fn fn_val) ->
             let (evaled, _) = (eval_expr call.call_args ss) state in
@@ -275,7 +275,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
             if tail_call then
                 (thunk, state)
             else
-                let res, _ = unwrap_thunk thunk state ss loc in
+                let res, _ = unwrap_thunk thunk state ss fn_val.fn_expr.location in
                 (res, state)
         | Some(Dictionary dict) ->
             let (evaled, state) = (eval_expr call.call_args ss) state in begin
