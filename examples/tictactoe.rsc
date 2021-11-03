@@ -42,11 +42,9 @@ let is_winner(board, turn) = {
     let diags = [[nth(board, i) for i in [0, 4, 8]], [nth(board, i) for i in [2, 4, 6]]]
 
     let sets = flatten([rows, cols, diags])
+
     any([
-	all([
-	    sq == turn
-	    for sq in set
-	])
+	all([sq == turn for sq in set])
 	for set in sets
     ])
 }
@@ -56,10 +54,14 @@ let loop(board, turn) = {
     print_board(board)
     print("\nChoose a position for " + square_to_string(turn) + ": ")
 
-    let get_position () = match string_to_num(scanln())
+    let get_position = fn() => match string_to_num(scanln())
+	| (:ok, n) when nth(board, n) != :empty -> {
+	    print("That position is already taken, enter another: ")
+	    get_position()
+	}
 	| (:ok, n) when (0 <= n) && (n <= 8) -> n
 	| _ -> {
-	    println("\nError: enter a number from 0 to 9")
+	    print("Error: position must be a number from 0 to 9: ")
 	    get_position()
 	}
 
@@ -68,7 +70,7 @@ let loop(board, turn) = {
 
     if is_winner(new_board, turn) then {
 	println(square_to_string(turn) + " Wins!")
-	print_board(board)
+	print_board(new_board)
     } else {
 	loop(set_nth(board, position, turn), switch_turn(turn))
     }
