@@ -7,7 +7,7 @@ open Operators
 
 let rec bind lhs rhs ss loc = 
     let bind lhs rhs = bind lhs rhs ss loc in
-    let pattern_matches lhs rhs = pattern_matches lhs rhs ss in
+    let pattern_matches lhs rhs = pattern_matches lhs rhs ss loc in
     (* printf "Binding %s to %s\n" (string_of_pat lhs) (string_of_val rhs); *)
     match lhs, rhs with
     | SinglePat s, _ -> fun state ->
@@ -45,7 +45,7 @@ let rec bind lhs rhs ss loc =
     | MapPat kv_pairs, Dictionary rhs -> fun s ->
         let fetched_pairs = kv_pairs
             |> List.map ~f:(fun (k, v) -> let ev_k, _ = (eval_expr k ss) s in ev_k, v)
-            |> List.map ~f:(fun (k, v) -> dict_get rhs k ss, v)
+            |> List.map ~f:(fun (k, v) -> dict_get rhs k ss loc, v)
         in
         let fold_step state (k, v) = (bind v k) state in
         List.fold_left ~init:s ~f:fold_step fetched_pairs
@@ -57,11 +57,11 @@ let rec bind lhs rhs ss loc =
             (string_of_val ss rhs);
         Caml.exit 0
 
-and dict_get dict key ss =
+and dict_get dict key ss loc =
     (* Can probably be replaced by Base.Option functions *)
     match Map.find dict (hash_value key) with
         | Some found_values ->
-            let res = List.Assoc.find found_values ~equal:(fun a b -> val_eq_bool a b ss) key in
+            let res = List.Assoc.find found_values ~equal:(fun a b -> val_eq_bool a b ss loc) key in
             Option.value ~default:(Tuple []) res
         | _ -> Tuple []
 
@@ -70,8 +70,8 @@ and list_equal_len lhs rhs = match lhs, rhs with
     | [], _ | _, [] -> false
     | _::xs, _::ys -> list_equal_len xs ys
 
-and pattern_matches pat value ss state =
-    let pattern_matches pat value = pattern_matches pat value ss in
+and pattern_matches: pattern -> value -> static_state -> location -> state -> bool = fun pat value ss loc state ->
+    let pattern_matches pat value = pattern_matches pat value ss loc in
     let eval_expr expr ?tc:(tc=false) = eval_expr expr ss ~tc:tc in
     match pat, value with
         | WildcardPat, _ -> true
@@ -94,7 +94,7 @@ and pattern_matches pat value ss state =
         | (MapPat kv_pairs, Dictionary rhs) ->
             let fetched_pairs = kv_pairs
                 |> List.map ~f:(fun (k, v) -> let ev_k, _ = (eval_expr k) state in ev_k, v)
-                |> List.map ~f:(fun (k, v) -> dict_get rhs k ss, v)
+                |> List.map ~f:(fun (k, v) -> dict_get rhs k ss loc, v)
             in
             List.for_all ~f:(fun (k, v) -> pattern_matches v k state) fetched_pairs
         | _ -> false
@@ -186,6 +186,22 @@ and fold_builtin (args, state) ss loc =
                 ls
             in
             fold_result, state
+        | Tuple [init; Fn fn; ValList ls] ->
+            let call_fn = fun args ->
+                let block_funcs = List.Assoc.map ss.static_block_funcs ~f:(fun f -> Fn f) in
+                let enclosed_state = Map.of_alist_reduce (module String) block_funcs ~f:(fun a _ -> a) in
+                let pseudo_lambda = {lambda_expr = fn.fn_expr; lambda_args = fn.fn_args; enclosed_state } in
+                let lambda_call = Thunk {thunk_fn = pseudo_lambda; thunk_args= args; thunk_fn_name = ""} in
+                let res, _ = unwrap_thunk lambda_call state ss loc in
+                res
+            in
+            let fold_result = 
+                List.fold 
+                ~init:init
+                ~f:(fun acc v -> call_fn (Tuple [acc; v]))
+                ls
+            in
+            fold_result, state
         | _ ->
             printf "Expected (init, fn, ls) as arguments to fold\n";
             assert false
@@ -201,14 +217,14 @@ and to_charlist_builtin (args, state) _ss =
             printf "Expected a single string argument to to_charlist";
             assert false
 
-and eval_op op lhs rhs ss = fun s ->
+and eval_op op lhs rhs ss loc = fun s ->
     let (lhs, s) = (eval_expr lhs ss) s in
     let (rhs, s) = (eval_expr rhs ss) s in
-    op lhs rhs ss, s
+    op lhs rhs ss loc, s
     
-and eval_prefix_op op rhs ss = fun s ->
+and eval_prefix_op op rhs ss loc = fun s ->
     let (rhs, s) = (eval_expr rhs ss) s in
-    op rhs ss, s
+    op rhs ss loc, s
 
 and eval_ident name loc = fun state ->
     match Map.find state name with
@@ -264,7 +280,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
         | Some(Dictionary dict) ->
             let (evaled, state) = (eval_expr call.call_args ss) state in begin
                 match evaled with
-                    | Tuple [key] -> dict_get dict key ss, state
+                    | Tuple [key] -> dict_get dict key ss loc, state
                     | _ ->
                         printf "Expected a single key\n";
                         assert false
@@ -286,7 +302,9 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                         | Tuple [Dictionary m; key] -> begin
                             match Map.find m (hash_value key) with
                                 | Some found_values -> 
-                                    let res = List.Assoc.find found_values ~equal:(fun a b -> val_eq_bool a b ss) key in
+                                    let res = 
+                                        List.Assoc.find found_values ~equal:(fun a b -> val_eq_bool a b ss loc) key 
+                                    in
                                     let v = Option.value ~default:(Tuple []) res in
                                     v, state
                                 | None -> (Tuple [], state)
@@ -343,12 +361,12 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss loc state =
     let bind lhs rhs = bind lhs rhs ss in
     let result_state_opt = List.find_map ~f:(
         fun (pat, arm_expr, cond) -> 
-            if pattern_matches pat match_val ss state then
+            if pattern_matches pat match_val ss loc state then
                 match cond with
                     | Some cond ->
                         let inner_state = (bind pat match_val loc) state in
                         let cond_eval, inner_state = (eval_expr cond) inner_state in
-                        if val_is_true cond_eval ss then
+                        if val_is_true cond_eval ss loc then
                             let (result, _) = (eval_expr ~tc:tail_call arm_expr) inner_state in
                             Some (result, state)
                         else
@@ -368,13 +386,13 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss loc state =
             printf "No patterns matched in match expression at %s\n" (location_to_string loc);
             Caml.exit 0
 
-and eval_map_expr ?tc:(_tail_call=false) map_pairs tail_map ss state =
+and eval_map_expr ?tc:(_tail_call=false) map_pairs tail_map ss loc state =
     let fold_fn = fun (map_acc, state) (key_expr, val_expr) ->
         let key_val, state = (eval_expr key_expr ss) state in
         let data_val, state = (eval_expr val_expr ss) state in
         let key_hash = hash_value key_val in
         let new_data = match Map.find map_acc key_hash with
-            | Some assoc_list -> List.Assoc.add assoc_list ~equal:(fun l r -> val_eq_bool l r ss) key_val data_val
+            | Some assoc_list -> List.Assoc.add assoc_list ~equal:(fun l r -> val_eq_bool l r ss loc) key_val data_val
             | None -> [(key_val, data_val)]
         in
         (Map.set map_acc ~key:key_hash ~data:new_data, state)
@@ -427,26 +445,26 @@ and eval_expr: (expr Located.t) -> static_state -> ?tc:bool -> state -> value * 
         match expr with
         | {data = Atomic v; _} -> fun s -> v, s
         | {data = IdentExpr name; location} -> fun state -> eval_ident name location state
-        | {data = Prefix ({op = Head; _} as e); _} -> eval_prefix_op val_list_head e.rhs
-        | {data = Prefix ({op = Tail; _} as e); _} -> eval_prefix_op val_list_tail e.rhs
-        | {data = Prefix ({op = Neg; _} as e); _} -> eval_prefix_op val_negate e.rhs
-        | {data = Prefix ({op = Not; _} as e); _} -> eval_prefix_op val_negate_bool e.rhs
+        | {data = Prefix ({op = Head; _} as e); location} -> eval_prefix_op val_list_head e.rhs location
+        | {data = Prefix ({op = Tail; _} as e); location} -> eval_prefix_op val_list_tail e.rhs location
+        | {data = Prefix ({op = Neg; _} as e); location} -> eval_prefix_op val_negate e.rhs location
+        | {data = Prefix ({op = Not; _} as e); location} -> eval_prefix_op val_negate_bool e.rhs location
         | {data = Prefix ({op = _op; _}); location} -> 
             printf "Invalid prefix op at %s\n" (location_to_string location);
             Caml.exit 0
-        | {data = Binary ({op = Add; _} as e); _} -> eval_op val_add e.lhs e.rhs
-        | {data = Binary ({op = Neg; _} as e); _} -> eval_op val_sub e.lhs e.rhs
-        | {data = Binary ({op = Mul; _} as e); _} -> eval_op val_mul e.lhs e.rhs
-        | {data = Binary ({op = Div; _} as e); _} -> eval_op val_div e.lhs e.rhs
-        | {data = Binary ({op = EQ; _} as e); _} -> eval_op val_eq e.lhs e.rhs
-        | {data = Binary ({op = NEQ; _} as e); _} -> eval_op val_neq e.lhs e.rhs
-        | {data = Binary ({op = LEQ; _} as e); _} -> eval_op val_leq e.lhs e.rhs
-        | {data = Binary ({op = GEQ; _} as e); _} -> eval_op val_geq e.lhs e.rhs
-        | {data = Binary ({op = LT; _} as e); _} -> eval_op val_lt e.lhs e.rhs
-        | {data = Binary ({op = GT; _} as e); _} -> eval_op val_gt e.lhs e.rhs
-        | {data = Binary ({op = And; _} as e); _} -> eval_op val_and e.lhs e.rhs
-        | {data = Binary ({op = Or; _} as e); _} -> eval_op val_or e.lhs e.rhs
-        | {data = Binary ({op = Mod; _} as e); _} -> eval_op val_mod e.lhs e.rhs
+        | {data = Binary ({op = Add; _} as e); location} -> eval_op val_add e.lhs e.rhs location
+        | {data = Binary ({op = Neg; _} as e); location} -> eval_op val_sub e.lhs e.rhs location
+        | {data = Binary ({op = Mul; _} as e); location} -> eval_op val_mul e.lhs e.rhs location
+        | {data = Binary ({op = Div; _} as e); location} -> eval_op val_div e.lhs e.rhs location
+        | {data = Binary ({op = EQ; _} as e); location} -> eval_op val_eq e.lhs e.rhs location
+        | {data = Binary ({op = NEQ; _} as e); location} -> eval_op val_neq e.lhs e.rhs location
+        | {data = Binary ({op = LEQ; _} as e); location} -> eval_op val_leq e.lhs e.rhs location
+        | {data = Binary ({op = GEQ; _} as e); location} -> eval_op val_geq e.lhs e.rhs location
+        | {data = Binary ({op = LT; _} as e); location} -> eval_op val_lt e.lhs e.rhs location
+        | {data = Binary ({op = GT; _} as e); location} -> eval_op val_gt e.lhs e.rhs location
+        | {data = Binary ({op = And; _} as e); location} -> eval_op val_and e.lhs e.rhs location
+        | {data = Binary ({op = Or; _} as e); location} -> eval_op val_or e.lhs e.rhs location
+        | {data = Binary ({op = Mod; _} as e); location} -> eval_op val_mod e.lhs e.rhs location
         | {data = Binary ({op = _op; _}); _} -> assert false (* Invalid binary op *)
         | {data = LambdaDef d; _} -> eval_lambda_def d.lambda_def_expr d.lambda_def_args
         | {data = Let l; location} -> fun s -> (eval_let l.assignee l.assigned_expr ss location) s
@@ -457,7 +475,7 @@ and eval_expr: (expr Located.t) -> static_state -> ?tc:bool -> state -> value * 
         | {data = BlockExpr ls; _} -> fun s -> (eval_block_expr ~tc:tail_call ls ss) s
         | {data = MatchExpr m; location} -> 
             fun s -> (eval_match_expr ~tc:tail_call m.match_val m.match_arms ss location) s
-        | {data = MapExpr (ls, tail); _} -> fun s -> (eval_map_expr ~tc:tail_call ls tail ss) s
+        | {data = MapExpr (ls, tail); location} -> fun s -> (eval_map_expr ~tc:tail_call ls tail ss location) s
         | {data = ListExpr (ls, tail); _} -> eval_list_expr ls tail ss
         | {data = UnresolvedAtom n; _} ->
             printf "Found unresolved atom :%s\n" n;

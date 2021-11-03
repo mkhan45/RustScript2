@@ -123,18 +123,18 @@ and parse_list_expr xs min_bp =
             | [map_expr], {data = In; location}::rest ->
                 let ls_expr, rest = parse rest 0 in
                 let map_fn = LambdaDef {lambda_def_expr = map_expr; lambda_def_args = arg_pat} in
-                let map_args = TupleExpr [map_fn |> locate location; ls_expr.data |> locate location] in
-                let mapped_ls = LambdaCall {callee = "map_rev"; call_args = map_args |> locate location} in
                 let filter_expr, more = parse_filter_clause rest in
                 let locate = locate location in
                 begin match filter_expr with
                     | Some e ->
                         let filter_fn = LambdaDef {lambda_def_expr = e; lambda_def_args = arg_pat} in
-                        let filter_args = TupleExpr [filter_fn |> locate; mapped_ls |> locate] in
-                        LambdaCall {callee = "filter_rev"; call_args = filter_args |> locate} |> locate, more
+                        let filter_args = TupleExpr [filter_fn |> locate; ls_expr] in
+                        let filtered_ls = LambdaCall {callee = "filter_rev"; call_args = filter_args |> locate} in
+                        let map_args = TupleExpr [map_fn |> locate; filtered_ls |> locate] in
+                        LambdaCall {callee = "map_rev"; call_args = map_args |> locate} |> locate, more
                     | None ->
-                        let reverse_args = TupleExpr [mapped_ls |> locate] in
-                        LambdaCall {callee = "reverse"; call_args = reverse_args |> locate} |> locate, more
+                        let map_args = TupleExpr [map_fn |> locate; ls_expr] in
+                        LambdaCall {callee = "map"; call_args = map_args |> locate} |> locate, more
                 end
             | _, {location; _}::_ ->
                 printf "Invalid list comprehension at %s\n" (location_to_string location);
@@ -349,7 +349,14 @@ and parse_if_expr = function
                         printf "Error parsing as else: ";
                         assert false
                 end
-            | _ -> assert false
+            | {data; location}::_ ->
+                printf "Error parsing if expression at %s: expected Then, got %s\n" 
+                    (location_to_string location)
+                    (string_of_tok data);
+                Caml.exit 0
+            | [] ->
+                printf "Error parsing if expression at end of file";
+                Caml.exit 0
     end
     | _ -> assert false
 
