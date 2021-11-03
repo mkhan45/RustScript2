@@ -39,6 +39,7 @@ and parse_paren_expr xs min_bp =
         | {data = RParen; location}::rest -> acc, rest, saw_comma, location
         | _ -> 
             let nx, rest = parse toks 0 in
+            let rest = skip_newlines rest in
             match rest with
                 | {data = Comma; _}::rest -> aux rest true (nx::acc)
                 | {data = RParen; location}::rest -> (nx::acc), rest, saw_comma, location
@@ -93,7 +94,9 @@ and parse_list_expr xs min_bp =
                 printf "Invalid range expression at end of file\n";
                 assert false
 
-    and parse_filter_clause ls = match ls with
+    and parse_filter_clause ls = 
+        let ls = skip_newlines ls in
+        match ls with
         | {data = RBracket; _}::xs -> None, xs
         | {data = If; _}::rest -> begin match parse rest 0 with
             | e, {data = RBracket; _}::more ->
@@ -107,14 +110,15 @@ and parse_list_expr xs min_bp =
         end
         | {location; _}::_ ->
             printf "Invalid list comprehension at %s\n" (location_to_string location);
-            assert false
+            Caml.exit 0
         | [] ->
             printf "Invalid list comprehension at end of file\n";
-            assert false
+            Caml.exit 0
 
     and parse_listcomp ls expr_list =
         let arg_pat, rest = parse_pat ls in
         let arg_pat = TuplePat [arg_pat] in
+        let rest = skip_newlines rest in
         match expr_list, rest with
             | [map_expr], {data = In; location}::rest ->
                 let ls_expr, rest = parse rest 0 in
@@ -134,10 +138,10 @@ and parse_list_expr xs min_bp =
                 end
             | _, {location; _}::_ ->
                 printf "Invalid list comprehension at %s\n" (location_to_string location);
-                assert false
+                Caml.exit 0
             | _ ->
                 printf "Invalid list comprehension end of file\n";
-                assert false
+                Caml.exit 0
 
     and aux toks acc = match toks with
         | {data = RBracket; location}::rest -> 
@@ -145,6 +149,7 @@ and parse_list_expr xs min_bp =
             let parsed_list = ListExpr ((List.rev expr_list), tail) in
             complete_expr (parsed_list |> locate location) rest min_bp
         | _ -> let nx, rest = parse toks 0 in
+            let rest = skip_newlines rest in
             match rest with
                 | {data = Comma; _}::rest -> aux rest (nx::acc)
                 | {data = RBracket; location}::rest -> 
@@ -156,10 +161,10 @@ and parse_list_expr xs min_bp =
                 | {data = For; _}::rest -> parse_listcomp rest (nx::acc)
                 | {location; _}::_ -> 
                     printf "Invalid list expression at %s\n" (location_to_string location);
-                    assert false
+                    Caml.exit 0
                 | [] ->
                     printf "Invalid list expression at end of file\n";
-                    assert false
+                    Caml.exit 0
     in 
     aux xs []
 
@@ -412,7 +417,7 @@ and parse_map = function
         printf "Expected LBrace\n";
         assert false
 
-and parse_match_expr ls =
+and parse_match_expr ls loc =
     let (match_val, rest) = parse ls 0 in
     let rest = skip_newlines rest in
     let rec parse_match_arms toks acc = match toks with
@@ -451,8 +456,8 @@ and parse_match_expr ls =
     if (not (phys_equal match_arms [])) then
         MatchExpr {match_val = match_val; match_arms = match_arms}, rest
     else begin
-        printf "No match arms in match expression\n";
-        assert false
+        printf "No match arms in match expression at %s\n" (location_to_string loc);
+        Caml.exit 0
     end
 
 and parse: (token Located.t) list -> int -> (expr Located.t) * ((token Located.t) list) = fun s min_bp ->
@@ -483,7 +488,7 @@ and parse: (token Located.t) list -> int -> (expr Located.t) * ((token Located.t
             let (if_parsed, xs) = parse_if_expr s in
             complete_expr (if_parsed |> locate location) xs min_bp
         | {data = Match; location}::xs -> 
-            let (match_parsed, xs) = parse_match_expr xs in
+            let (match_parsed, xs) = parse_match_expr xs location in
             complete_expr (match_parsed |> locate location) xs min_bp
         | {location; _}::_ -> 
             printf "Expected expression at %s\n" (location_to_string location);

@@ -137,6 +137,18 @@ and to_string_builtin (args, state) ss loc =
             printf "Expected only one argument to to_string at %s\n" (location_to_string loc);
             Caml.exit 0
 
+and string_to_num_builtin (args, state) _ss loc = 
+    match args with
+        | Tuple [StringVal s] -> begin
+            try
+                Tuple [Atom 0; Number (Float.of_string s)], state
+            with
+                | _ -> Atom 1, state
+        end
+        | _ ->
+            printf "Expected one string argument to string_to_num at %s\n" (location_to_string loc);
+            Caml.exit 0
+
 and scanln_builtin (args, state) _ss loc =
     match args with
         | Tuple [] -> begin
@@ -239,7 +251,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
         | Some(Fn fn_val) ->
             let (evaled, _) = (eval_expr call.call_args ss) state in
             let block_funcs = List.Assoc.map ss.static_block_funcs ~f:(fun f -> Fn f) in
-            let enclosed_state = Map.of_alist_exn (module String) block_funcs in
+            let enclosed_state = Map.of_alist_reduce (module String) block_funcs ~f:(fun a _ -> a) in
             let pseudo_lambda = 
                 {lambda_expr = fn_val.fn_expr; lambda_args = fn_val.fn_args; enclosed_state }
             in
@@ -264,6 +276,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                 | "println" -> println_builtin ((eval_expr call.call_args ss) state) ss loc
                 | "scanln" -> scanln_builtin ((eval_expr call.call_args ss) state) ss loc
                 | "to_string" -> to_string_builtin ((eval_expr call.call_args ss) state) ss loc
+                | "string_to_num" -> string_to_num_builtin ((eval_expr call.call_args ss) state) ss loc
                 | "range_step" -> range_builtin ((eval_expr call.call_args ss) state)
                 | "fold" -> fold_builtin ((eval_expr call.call_args ss) state) ss loc
                 | "to_charlist" -> to_charlist_builtin ((eval_expr call.call_args ss) state) ss
@@ -418,7 +431,9 @@ and eval_expr: (expr Located.t) -> static_state -> ?tc:bool -> state -> value * 
         | {data = Prefix ({op = Tail; _} as e); _} -> eval_prefix_op val_list_tail e.rhs
         | {data = Prefix ({op = Neg; _} as e); _} -> eval_prefix_op val_negate e.rhs
         | {data = Prefix ({op = Not; _} as e); _} -> eval_prefix_op val_negate_bool e.rhs
-        | {data = Prefix ({op = _op; _}); _} -> assert false (* Invalid prefix op *)
+        | {data = Prefix ({op = _op; _}); location} -> 
+            printf "Invalid prefix op at %s\n" (location_to_string location);
+            Caml.exit 0
         | {data = Binary ({op = Add; _} as e); _} -> eval_op val_add e.lhs e.rhs
         | {data = Binary ({op = Neg; _} as e); _} -> eval_op val_sub e.lhs e.rhs
         | {data = Binary ({op = Mul; _} as e); _} -> eval_op val_mul e.lhs e.rhs

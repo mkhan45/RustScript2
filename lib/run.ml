@@ -43,7 +43,8 @@ let run_file filename (ss, state) =
     ss, List.fold_left ~init:state ~f:fold_step expr_ls
 
 let default_state () = 
-    run_file "./lib/stdlib.rsc" ({static_atoms = []; static_block_funcs = []}, (Map.empty (module String)))
+    let static_atoms = [("ok", 0); ("err", 1)] in
+    run_file "./lib/stdlib.rsc" ({static_atoms; static_block_funcs = []}, (Map.empty (module String)))
 
 let test_state () = 
     run_file "../../../lib/stdlib.rsc" ({static_atoms = []; static_block_funcs = []}, (Map.empty (module String)))

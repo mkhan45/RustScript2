@@ -39,6 +39,8 @@ let concat(ls) = fold("", fn(a, b) => a + b, ls)
 let concat_sep = fn(ls, sep) => fold("", fn(a, b) => a + b + sep, ls)
 
 let sum(ls) = fold(0, fn(a, b) => a + b, ls)
+let any(ls) = fold(F, fn(a, b) => a || b, ls)
+let all(ls) = fold(T, fn(a, b) => a && b, ls)
 
 let foreach(ls, f) = match ls
     | [] -> ()
@@ -46,3 +48,31 @@ let foreach(ls, f) = match ls
 	f(x)
 	foreach(xs, f)
     }
+
+# copied from https://github.com/janestreet/base/blob/0f626a86991b020348eac9aa0244d59da43ae02c/src/list.ml#L1060
+let split_at(n, ls) = 
+    if n <= 0 then {
+	([], ls)
+    } else {
+	let loop(n, xs, acc) =
+	    if n == 0 then 
+		(reverse(acc), xs)
+	    else match xs
+		| [] -> (ls, acc)
+		| [x | xs] -> loop(n - 1, xs, [x | acc])
+	
+	loop(n, ls, [])
+    }
+
+let take(n, ls) = {
+    let (res, _) = split_at(n, ls)
+    res
+}
+
+let drop(n, ls) =
+    if n <= 0 then
+	ls
+    else
+	drop(n - 1, $ls)
+
+let slice(ls, start, end) = take(end - start, drop(start, ls))
