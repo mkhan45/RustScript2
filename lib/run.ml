@@ -3,17 +3,28 @@ open Stdio
 open Types
 open Scanner
 
+let static_assoc_dedup ls =
+    let ls = List.stable_sort ls ~compare:(fun (k1, _) (k2, _) -> String.compare k1 k2) in
+    let rec loop ls = match ls with
+        | (k1, _)::(((k2, _)::_) as xs) when String.equal k1 k2 -> 
+            loop xs
+        | x::xs -> x::(loop xs)
+        | [] -> []
+    in
+    loop ls
+
 let eval: static_state -> state -> string -> (value * state) * static_state = fun ss state s ->
     let (parsed, _remaining) = Parser.parse_str s in
     let static_atoms =
         Preprocess.find_atoms parsed.data ss.static_atoms
-            |> List.dedup_and_sort ~compare:(fun (k1, _) (k2, _) -> String.compare k1 k2)
+            |> static_assoc_dedup
     in
     let static_idents =
         Preprocess.find_idents parsed.data ss.static_idents
-            |> List.dedup_and_sort ~compare:(fun (k1, _) (k2, _) -> String.compare k1 k2)
+            |> static_assoc_dedup
     in
     let ss = { ss with static_atoms; static_idents } in
+    let parsed = parsed |> Preprocess.resolve_atoms ss |> Preprocess.resolve_idents ss in
     let eval_closure = Eval.eval_expr parsed ss in
     (eval_closure state), ss
 
@@ -26,7 +37,7 @@ let run_line ss state line =
             Out_channel.flush Stdio.stdout;
             new_state
 
-let rec run_file filename (ss, state) =
+let run_file filename (ss, state) =
     let in_stream = In_channel.create filename in
     let in_string = In_channel.input_all in_stream in
     let tokens = in_string |> Scanner.scan |> skip_newlines in
@@ -60,16 +71,6 @@ let rec run_file filename (ss, state) =
     let ss = { ss with static_block_funcs } in
     let fold_step = fun state e -> let _, s = (Eval.eval_expr e ss) state in s in
     ss, List.fold_left ~init:state ~f:fold_step expr_ls
-
-and static_assoc_dedup ls =
-    let ls = List.stable_sort ls ~compare:(fun (k1, _) (k2, _) -> String.compare k1 k2) in
-    let rec loop ls = match ls with
-        | (k1, _)::(((k2, _)::_) as xs) when String.equal k1 k2 -> 
-            loop xs
-        | x::xs -> x::(loop xs)
-        | [] -> []
-    in
-    loop ls
 
 let base_static_atoms () = [("ok", 0); ("err", 1)]
 

@@ -85,16 +85,16 @@ let eval_str(s) = {
     eval(expr)
 }
 
-#let loop() = {
-#    print("Enter an expression to evaluate: ")
-#
-#    match scanln ()
-#	| () -> println("\nNo line scanned, exiting")
-#	| "exit" -> println("exiting")
-#	| line -> {
-#	    let res = eval_str(line)
-#	    println(to_string(res))
-#	    loop()
-#	}
-#}
+let loop() = {
+    print("Enter an expression to evaluate: ")
+
+    match scanln ()
+	| () -> println("\nNo line scanned, exiting")
+	| "exit" -> println("exiting")
+	| line -> {
+	    let res = eval_str(line)
+	    println(to_string(res))
+	    loop()
+	}
+}
 #loop()

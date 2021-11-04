@@ -34,14 +34,13 @@ let switch_turn(turn) = match turn
     | :x -> :o
     | :o -> :x
 
+let flatten(ls) = fold([], fn(a, b) => a + b, ls)
 let get_rows(board) = [slice(board, 3 * i, 3 * i + 3) for i in [0..3]]
 let get_cols(board) = [[nth(board, 3 * i + j) for i in [0..3]] for j in [0..3]]
 let get_diags(board) = [[nth(board, i) for i in [0, 4, 8]], [nth(board, i) for i in [2, 4, 6]]]
 let get_sets(board) = flatten([get_set(board) for get_set in [get_rows, get_cols, get_diags]])
 
 let is_winner(board, turn) = {
-    let flatten(ls) = fold([], fn(a, b) => a + b, ls)
-
     let sets = get_sets(board)
 
     any([
@@ -90,17 +89,17 @@ let minimax(board, turn, alpha, beta) = {
 }
 
 let ai_move(board, turn) = {
-    let num_filled = length([sq for sq in board if sq == :empty])
+    let num_filled = length([sq for sq in board if sq != :empty])
     if (num_filled == 0) || ((num_filled == 1) && (nth(board, 4) == :empty)) then {
-	4
-    } else if num_filled < 3 then {
+	set_nth(board, 4, turn)
+    } else if num_filled < 4 then {
 	let sets = get_sets(board)
 	let set_indices = get_sets([0..9])
 	let zip_inner = fn(xs, ys) => match (xs, ys)
 	    | ([], []) -> []
 	    | ([x | xs], [y | ys]) -> [zip_rev(x, y) | zip_inner(xs, ys)]
 
-	let indexed_sets = zip(set_indices, sets)
+	let indexed_sets = zip_inner(set_indices, sets)
 
 	let opposite_turn = switch_turn(turn)
 
@@ -120,11 +119,13 @@ let ai_move(board, turn) = {
 	    }
 	
 	let block_move = loop(indexed_sets)
+	inspect((:block_move, block_move))
 	if block_move != () then {
 	    set_nth(board, block_move, turn)
 	} else {
 	    let corners = [0, 2, 6, 8]
-	    let corner_move = find(fn(sq) => sq == :empty, corners)
+	    let corner_move = find(fn(sq) => nth(board, sq) == :empty, corners)
+	    inspect((:corner_move, corner_move))
 	    set_nth(board, corner_move, turn)
 	}
 
@@ -155,8 +156,6 @@ let loop(board, turn, player) = {
 	set_nth(board, position, player)
     } else {
 	ai_move(board, turn)
-	#let (_, ai_board) = minimax(board, turn, -999999, 999999)
-	#ai_board
     }
 	
     if is_winner(new_board, turn) then {
@@ -170,10 +169,7 @@ let loop(board, turn, player) = {
     }
 }
 
-println("here")
 let board = empty_board()
-#let board = set_nth(board, 4, :x)
-#let board = set_nth(board, 0, :o)
 loop(board, :x, :x)
 #let board = empty_board()
 #print_board(board)

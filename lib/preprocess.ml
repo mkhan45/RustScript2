@@ -1,6 +1,12 @@
 open Base
 open Types
 
+let assoc_add ls x = 
+    if List.Assoc.mem ls ~equal:String.equal x then
+        ls
+    else
+        (x, List.length ls)::ls
+
 let rec find_pat_atoms pat atoms = match pat with
     | SinglePat _ | NumberPat _ | AtomPat _ | StringPat _ | WildcardPat  -> atoms
     | TuplePat ls -> List.fold_left ~init:atoms ~f:(fun atoms pat -> find_pat_atoms pat atoms) ls
@@ -9,9 +15,7 @@ let rec find_pat_atoms pat atoms = match pat with
     | MapPat pairs -> List.fold_left ~init:atoms ~f:(fun a (e, p) -> a |> find_atoms e.data |> find_pat_atoms p) pairs
     | OrPat (l, r) -> atoms |> find_pat_atoms l |> find_pat_atoms r
     | AsPat (p, _) -> atoms |> find_pat_atoms p
-    | UnresolvedAtomPat s -> match List.Assoc.find atoms ~equal:String.equal s with
-        | Some _ -> atoms
-        | None -> (s, List.length atoms)::atoms
+    | UnresolvedAtomPat s -> assoc_add atoms s
 
 and find_atoms: expr -> (string * int) list -> (string * int) list = 
     fun expr atoms -> match expr with
@@ -33,10 +37,7 @@ and find_atoms: expr -> (string * int) list -> (string * int) list =
     | MapExpr (m, _)  -> 
         List.fold_left ~init:atoms ~f:(fun atoms (a, b) -> atoms |> find_atoms a.data |> find_atoms b.data) m
     | ListExpr (ls, _) -> List.fold_left ~init:atoms ~f:(fun atoms e -> atoms |> find_atoms e.data) ls
-    | UnresolvedAtom s -> begin match List.Assoc.find atoms ~equal:String.equal s with
-        | Some _ -> atoms
-        | None -> (s, List.length atoms)::atoms
-    end
+    | UnresolvedAtom s -> assoc_add atoms s
     | _ -> atoms
 
 let rec resolve_pat_atoms ss p =
@@ -112,7 +113,7 @@ and resolve_atoms: static_state -> expr Located.t -> expr Located.t = fun ss e -
                     Caml.exit 0
 
 let rec find_pat_idents pat idents = match pat with
-    | SinglePat (UnresolvedIdent s) -> (s, List.length idents)::idents
+    | SinglePat (UnresolvedIdent s) -> assoc_add idents s
     | NumberPat _ | AtomPat _ | StringPat _ | WildcardPat -> idents
     | TuplePat ls -> List.fold_left ~init:idents ~f:(fun idents pat -> find_pat_idents pat idents) ls
     | ListPat (FullPat ls) -> List.fold_left ~init:idents ~f:(fun idents pat -> find_pat_idents pat idents) ls
@@ -124,7 +125,7 @@ let rec find_pat_idents pat idents = match pat with
 
 and find_idents: expr -> (string * int) list -> (string * int) list =
     fun expr idents -> match expr with
-    | IdentExpr (UnresolvedIdent s)  -> (s, List.length idents)::idents
+    | IdentExpr (UnresolvedIdent s)  -> assoc_add idents s
     | Binary b     -> idents |> find_idents b.lhs.data |> find_idents b.rhs.data
     | Prefix p     -> idents |> find_idents p.rhs.data
     | Let l        -> idents |> find_idents l.assigned_expr.data |> find_pat_idents l.assignee
@@ -136,7 +137,7 @@ and find_idents: expr -> (string * int) list -> (string * int) list =
     | LambdaDef d  -> idents |> find_idents d.lambda_def_expr.data |> find_pat_idents d.lambda_def_args
     | LambdaCall {callee = UnresolvedIdent s; call_args } -> 
             let idents = idents |> find_idents call_args.data in
-            (s, List.length idents)::idents
+            assoc_add idents s
     | LambdaCall {call_args; _} -> idents |> find_idents call_args.data
     | IfExpr i     -> idents |> find_idents i.cond.data |> find_idents i.then_expr.data |> find_idents i.else_expr.data
     | TupleExpr ls -> List.fold_left ~init:idents ~f:(fun idents e -> idents |> find_idents e.data) ls
@@ -243,7 +244,7 @@ and resolve_idents: static_state -> expr Located.t -> expr Located.t = fun ss e 
 let find_expr_functions ss acc e = match e with
     | FnDef {fn_name = UnresolvedIdent fn_name; fn_def_func} -> 
         (fn_name |> List.Assoc.find_exn ss.static_idents ~equal:String.equal, fn_def_func)::acc
-    | FnDef {fn_name = ResolvedIdent i; fn_def_func} -> 
+    | FnDef {fn_name = ResolvedIdent i; fn_def_func} ->
         (i, fn_def_func)::acc
     | _ -> acc
 

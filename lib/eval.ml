@@ -107,6 +107,7 @@ and inspect_builtin (args, state) ss =
     match args with
         | Tuple [v] ->
             printf "%s\n" (string_of_val ss v);
+            Stdio.Out_channel.flush Stdio.stdout;
             v, state
         | _ ->
             printf "Expected only one argument to inspect";
@@ -207,8 +208,10 @@ and fold_builtin (args, state) ss loc =
             in
             fold_result, state
         | _ ->
-            printf "Expected (init, fn, ls) as arguments to fold\n";
-            assert false
+            printf "Expected (init, fn, ls) as arguments to fold at %s, got %s\n" 
+                (location_to_string loc)
+                (string_of_val ss args);
+            Caml.exit 0
 
 and to_charlist_builtin (args, state) _ss =
     match args with

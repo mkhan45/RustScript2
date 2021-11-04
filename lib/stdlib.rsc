@@ -27,7 +27,7 @@ let zip_rev(l1, l2) = {
     helper([], l1, l2)
 }
 
-let zip(ls) = reverse(zip_rev(ls))
+let zip(l1, l2) = reverse(zip_rev(l1, l2))
 
 let length(ls) = fold(0, fn(l, _) => l + 1, ls)
 
