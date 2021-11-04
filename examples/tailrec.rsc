@@ -3,3 +3,5 @@ let sum = fn(n, acc) => {
         then acc
         else sum(n - 1, acc + n)
 }
+
+inspect(sum(100, 0))

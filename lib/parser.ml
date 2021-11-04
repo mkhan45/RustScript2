@@ -79,12 +79,18 @@ and parse_list_expr xs min_bp =
             | [snd; fst], {data = RBracket; location}::rest ->
                 let step = (Binary {lhs = snd; rhs = fst; op = Neg}) |> locate location in
                 let call =
-                    LambdaCall {callee = "range_step"; call_args = TupleExpr [fst;end_;step] |> locate location}
+                    LambdaCall {
+                        callee = UnresolvedIdent "range_step"; 
+                        call_args = TupleExpr [fst;end_;step] |> locate location
+                    }
                 in
                 complete_expr (call |> locate location) rest min_bp
             | [start], {data = RBracket; location}::rest ->
                 let call =
-                    LambdaCall {callee = "range"; call_args = TupleExpr [start;end_] |> locate location}
+                    LambdaCall {
+                        callee = UnresolvedIdent "range"; 
+                        call_args = TupleExpr [start;end_] |> locate location
+                    }
                 in
                 complete_expr (call |> locate location) rest min_bp
             | _, {location; _}::_ ->
@@ -129,12 +135,22 @@ and parse_list_expr xs min_bp =
                     | Some e ->
                         let filter_fn = LambdaDef {lambda_def_expr = e; lambda_def_args = arg_pat} in
                         let filter_args = TupleExpr [filter_fn |> locate; ls_expr] in
-                        let filtered_ls = LambdaCall {callee = "filter_rev"; call_args = filter_args |> locate} in
+                        let filtered_ls = LambdaCall {
+                            callee = UnresolvedIdent "filter_rev"; 
+                            call_args = filter_args |> locate
+                        } 
+                        in
                         let map_args = TupleExpr [map_fn |> locate; filtered_ls |> locate] in
-                        LambdaCall {callee = "map_rev"; call_args = map_args |> locate} |> locate, more
+                        LambdaCall {
+                            callee = UnresolvedIdent "map_rev"; 
+                            call_args = map_args |> locate
+                        } |> locate, more
                     | None ->
                         let map_args = TupleExpr [map_fn |> locate; ls_expr] in
-                        LambdaCall {callee = "map"; call_args = map_args |> locate} |> locate, more
+                        LambdaCall {
+                            callee = UnresolvedIdent "map"; 
+                            call_args = map_args |> locate
+                        } |> locate, more
                 end
             | _, {location; _}::_ ->
                 printf "Invalid list comprehension at %s\n" (location_to_string location);
@@ -172,7 +188,7 @@ and expr_bp ls min_bp = match ls with
     | ({data = LParen; _}::xs) -> parse_paren_expr xs min_bp
     | ({data = LBracket; _}::xs) -> parse_list_expr xs min_bp
     | ({data = Number f; location})::xs -> complete_expr (Atomic (Number f) |> locate location) xs min_bp
-    | ({data = Ident n; location})::xs -> complete_expr (IdentExpr n |> locate location) xs min_bp
+    | ({data = Ident n; location})::xs -> complete_expr (IdentExpr (UnresolvedIdent n) |> locate location) xs min_bp
     | ({data = StringTok s; location})::xs -> complete_expr (Atomic (StringVal s) |> locate location) xs min_bp
     | ({data = Operator op; _})::xs -> parse_prefix_expr op xs min_bp
     | {data = True; location}::xs -> complete_expr (Atomic (Boolean true) |> locate location) xs min_bp
@@ -230,7 +246,7 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
                 | {data = Colon; _}::more ->
                     let val_pat, more = parse_pat more in
                     let key = match key with
-                        | ({data = IdentExpr n; location}) -> UnresolvedAtom n |> locate location
+                        | ({data = IdentExpr (UnresolvedIdent n); location}) -> UnresolvedAtom n |> locate location
                         | _ -> assert false
                     in
                     (key, val_pat), more
@@ -258,7 +274,7 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
         printf "Expected LBrace\n";
         assert false
     | {data = Colon; _}::({data = Ident s; _})::xs -> complete_pat (UnresolvedAtomPat s) xs in_list
-    | ({data = Ident s; _})::xs -> complete_pat (SinglePat s) xs in_list
+    | ({data = Ident s; _})::xs -> complete_pat (SinglePat (UnresolvedIdent s)) xs in_list
     | ({data = Number f; _})::xs -> complete_pat (NumberPat f) xs in_list
     | ({data = StringTok f; _})::xs -> complete_pat (StringPat f) xs in_list
     | {data = Underscore; _}::xs -> complete_pat WildcardPat xs in_list
@@ -337,7 +353,7 @@ and parse_lambda_call = function
             match parse_args xs with
                 | args, rest ->
                         let call_args = TupleExpr args |> locate location in
-                        (LambdaCall {callee = lambda_name; call_args = call_args}, rest)
+                        (LambdaCall {callee = UnresolvedIdent lambda_name; call_args = call_args}, rest)
     end
     | _ -> assert false
 
@@ -384,7 +400,7 @@ and parse_map = function
                 | {data = Colon; _}::xs ->
                     let xs = skip_newlines xs in
                     let key = match key_expr with
-                        | {data = IdentExpr n; _} -> UnresolvedAtom n
+                        | {data = IdentExpr (UnresolvedIdent n); _} -> UnresolvedAtom n
                         | _ ->
                             printf "Only use colon in maps with atom keys";
                             assert false

@@ -5,13 +5,16 @@ open Operators
 
 (* Throughout, static state is abbreviated as ss *)
 
-let rec bind lhs rhs ss loc = 
+let rec bind: pattern -> value -> static_state -> location -> state -> state = fun lhs rhs ss loc ->
     let bind lhs rhs = bind lhs rhs ss loc in
     let pattern_matches lhs rhs = pattern_matches lhs rhs ss loc in
     (* printf "Binding %s to %s\n" (string_of_pat lhs) (string_of_val rhs); *)
     match lhs, rhs with
-    | SinglePat s, _ -> fun state ->
-            Map.set state ~key:s ~data:rhs;
+    | SinglePat (UnresolvedIdent s), _ -> fun _ ->
+            printf "Error: found unresolved SinglePat %s at %s\n" s (location_to_string loc);
+            Caml.exit 0;
+    | SinglePat (ResolvedIdent i), _ -> fun state ->
+            Map.set state ~key:i ~data:rhs
     | NumberPat lhs, Number rhs when Float.equal lhs rhs -> 
             fun state -> state
     | StringPat lhs, StringVal rhs when String.equal lhs rhs ->
@@ -21,7 +24,8 @@ let rec bind lhs rhs ss loc =
     | OrPat (l, r), _ -> fun state ->
             if (pattern_matches l rhs state) then (bind l rhs) state else (bind r rhs) state
     | AsPat (pat, n), _ -> fun state ->
-            let state = bind (SinglePat n) rhs state in
+            let ident_id = List.Assoc.find_exn ss.static_idents ~equal:String.equal n in
+            let state = bind (SinglePat (ResolvedIdent ident_id)) rhs state in
             bind pat rhs state
     | ((TuplePat lhs_ls) as lhs, ((Tuple rhs_ls) as rhs))|
       ((ListPat (FullPat lhs_ls)) as lhs, ((ValList rhs_ls) as rhs)) -> fun state -> begin
@@ -33,7 +37,7 @@ let rec bind lhs rhs ss loc =
                     printf "\n";
                     printf "Error at %s, Tried to bind %s of len %d to %s of len %d\n"
                         (location_to_string loc)
-                        (string_of_pat lhs) (List.length lhs_ls)
+                        (string_of_pat ss lhs) (List.length lhs_ls)
                         (string_of_val ss rhs) (List.length rhs_ls);
                     Caml.exit 0
       end
@@ -53,7 +57,7 @@ let rec bind lhs rhs ss loc =
     | _ -> 
         printf "Error at %s, Tried to bind %s to %s"
             (location_to_string loc)
-            (string_of_pat lhs)
+            (string_of_pat ss lhs)
             (string_of_val ss rhs);
         Caml.exit 0
 
@@ -175,7 +179,7 @@ and fold_builtin (args, state) ss loc =
     match args with
         | Tuple [init; Lambda fn; ValList ls] ->
             let call_fn = fun args ->
-                let lambda_call = Thunk {thunk_fn = fn; thunk_args= args; thunk_fn_name = ""} in
+                let lambda_call = Thunk {thunk_fn = fn; thunk_args= args; thunk_fn_name = ResolvedIdent 0} in
                 let res, _ = unwrap_thunk lambda_call state ss loc in
                 res
             in
@@ -189,9 +193,9 @@ and fold_builtin (args, state) ss loc =
         | Tuple [init; Fn fn; ValList ls] ->
             let call_fn = fun args ->
                 let block_funcs = List.Assoc.map ss.static_block_funcs ~f:(fun f -> Fn f) in
-                let enclosed_state = Map.of_alist_reduce (module String) block_funcs ~f:(fun a _ -> a) in
+                let enclosed_state = Map.of_alist_reduce (module Int) block_funcs ~f:(fun a _ -> a) in
                 let pseudo_lambda = {lambda_expr = fn.fn_expr; lambda_args = fn.fn_args; enclosed_state } in
-                let lambda_call = Thunk {thunk_fn = pseudo_lambda; thunk_args= args; thunk_fn_name = ""} in
+                let lambda_call = Thunk {thunk_fn = pseudo_lambda; thunk_args= args; thunk_fn_name = ResolvedIdent 0} in
                 let res, _ = unwrap_thunk lambda_call state ss loc in
                 res
             in
@@ -226,11 +230,13 @@ and eval_prefix_op op rhs ss loc = fun s ->
     let (rhs, s) = (eval_expr rhs ss) s in
     op rhs ss loc, s
 
-and eval_ident name loc = fun state ->
+and eval_ident ss name loc = fun state ->
     match Map.find state name with
         | Some value -> value, state
         | None ->
-            printf "Error at %s: variable not found: %s\n" (location_to_string loc) name;
+            printf "Error at %s: variable not found: %s\n" 
+                (location_to_string loc) 
+                (name |> List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal);
             Caml.exit 0
 
 and eval_let lhs rhs ss loc = fun state ->
@@ -241,21 +247,32 @@ and eval_let lhs rhs ss loc = fun state ->
 and eval_fn_def name {fn_expr; fn_args} ss loc = fun state ->
     let fn = Fn {fn_expr; fn_args} in
     let new_state = (bind (SinglePat name) fn ss loc) state in
+    (* (match name with *)
+    (*     | ResolvedIdent i -> printf "Defining resolved %d\n" i *)
+    (*     | UnresolvedIdent n -> printf "Defining unresolved %s\n" n *)
+    (* ); *)
     (Tuple [], new_state)
 
 and eval_lambda_def e args =
     fun s -> (Lambda {lambda_expr = e; lambda_args = args; enclosed_state = s}), s
 
 and unwrap_thunk thunk state ss loc = match thunk with
-    | Thunk {thunk_fn = thunk_fn; thunk_args = thunk_args; thunk_fn_name = thunk_fn_name} ->
+    | Thunk {thunk_fn; thunk_args; thunk_fn_name = ResolvedIdent thunk_fn_name_id} ->
             let inner_state = (bind thunk_fn.lambda_args thunk_args ss loc) thunk_fn.enclosed_state in
-            let inner_state = Map.set inner_state ~key:thunk_fn_name ~data:(Lambda thunk_fn) in
+            let inner_state = Map.set inner_state ~key:thunk_fn_name_id ~data:(Lambda thunk_fn) in
             let (new_thunk, _) = (eval_expr ~tc:true thunk_fn.lambda_expr ss) inner_state in
             unwrap_thunk new_thunk state ss loc
+    | Thunk {thunk_fn_name = UnresolvedIdent n; _} ->
+            printf "Error: found unresolved ident %s at %s\n" n (location_to_string loc);
+            Caml.exit 0
     | value -> value, state
 
 and eval_lambda_call ?tc:(tail_call=false) call ss loc =
-    fun (state: state) -> match Map.find state call.callee with
+    let callee_id = match call.callee with
+        | UnresolvedIdent n -> List.Assoc.find_exn ss.static_idents ~equal:String.equal n
+        | ResolvedIdent i -> i
+    in
+    fun (state: state) -> match Map.find state callee_id with
         | Some(Lambda lambda_val) ->
             let (evaled, _) = (eval_expr call.call_args ss) state in
             let thunk = Thunk {thunk_fn = lambda_val; thunk_args = evaled; thunk_fn_name = call.callee} in
@@ -267,7 +284,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
         | Some(Fn fn_val) ->
             let (evaled, _) = (eval_expr call.call_args ss) state in
             let block_funcs = List.Assoc.map ss.static_block_funcs ~f:(fun f -> Fn f) in
-            let enclosed_state = Map.of_alist_reduce (module String) block_funcs ~f:(fun a _ -> a) in
+            let enclosed_state = Map.of_alist_reduce (module Int) block_funcs ~f:(fun a _ -> a) in
             let pseudo_lambda = 
                 {lambda_expr = fn_val.fn_expr; lambda_args = fn_val.fn_args; enclosed_state }
             in
@@ -287,16 +304,16 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
             end
         | None -> begin
             match call.callee with
-                | "inspect" -> inspect_builtin ((eval_expr call.call_args ss) state) ss
-                | "print" -> print_builtin ((eval_expr call.call_args ss) state) ss loc
-                | "println" -> println_builtin ((eval_expr call.call_args ss) state) ss loc
-                | "scanln" -> scanln_builtin ((eval_expr call.call_args ss) state) ss loc
-                | "to_string" -> to_string_builtin ((eval_expr call.call_args ss) state) ss loc
-                | "string_to_num" -> string_to_num_builtin ((eval_expr call.call_args ss) state) ss loc
-                | "range_step" -> range_builtin ((eval_expr call.call_args ss) state)
-                | "fold" -> fold_builtin ((eval_expr call.call_args ss) state) ss loc
-                | "to_charlist" -> to_charlist_builtin ((eval_expr call.call_args ss) state) ss
-                | "get" ->
+                | ResolvedIdent 0 -> inspect_builtin ((eval_expr call.call_args ss) state) ss
+                | ResolvedIdent 1 -> print_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 2 -> println_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 3 -> scanln_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 4 -> to_string_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 5 -> string_to_num_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 6 -> range_builtin ((eval_expr call.call_args ss) state)
+                | ResolvedIdent 7 -> fold_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 8 -> to_charlist_builtin ((eval_expr call.call_args ss) state) ss
+                | ResolvedIdent 9 ->
                     let (args, state) = (eval_expr call.call_args ss) state in begin
                     match args with
                         | Tuple [Dictionary m; key] -> begin
@@ -313,13 +330,23 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                             printf "get requires two arguments, a list, and a value";
                             assert false
                     end
-                | _ ->
-                    printf "Error: function %s not found at %s\n" call.callee (location_to_string loc);
+                | UnresolvedIdent s ->
+                    printf "Error: unresolved function %s not found at %s\n" s (location_to_string loc);
+                    Caml.exit 0
+                | ResolvedIdent i ->
+                    let name = List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal i in
+                    Map.iter_keys state ~f:(fun k -> printf "key: %d\n" k);
+                    printf "Error: resolved function %s (id %d) not found at %s\n" name i (location_to_string loc);
                     Caml.exit 0
         end
-        | _ ->
-            printf "Tried to call %s at %s\n" call.callee (location_to_string loc);
-            Caml.exit 0
+        | _ -> match call.callee with
+            | UnresolvedIdent s ->
+                printf "Error: tried to call %s not found at %s\n" s (location_to_string loc);
+                Caml.exit 0
+            | ResolvedIdent i ->
+                let name = List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal i in
+                printf "Error: tried to call %s not found at %s\n" name (location_to_string loc);
+                Caml.exit 0
 
 and eval_tuple_expr ls ss state =
     let (eval_ls, state) =
@@ -338,7 +365,9 @@ and eval_if_expr ?tc:(tail_call=false) if_expr ss = fun state ->
         | _ -> assert false
 
 and eval_block_expr ?tc:(tail_call=false) ls ss =
-    let static_block_funcs = Preprocess.find_block_funcs (ls |> List.map ~f:Located.extract) ss.static_block_funcs in
+    let static_block_funcs = 
+        Preprocess.find_block_funcs ss (ls |> List.map ~f:Located.extract) ss.static_block_funcs 
+    in
     let ss = { ss with static_block_funcs } in
     fun state ->
         let (res, _) =
@@ -444,7 +473,12 @@ and eval_expr: (expr Located.t) -> static_state -> ?tc:bool -> state -> value * 
         (* printf "Evaluating: %s\n" (string_of_expr expr); *)
         match expr with
         | {data = Atomic v; _} -> fun s -> v, s
-        | {data = IdentExpr name; location} -> fun state -> eval_ident name location state
+        | {data = IdentExpr (UnresolvedIdent name); location} ->
+            printf "Error: Found unresolved ident %s at %s\n"
+                name
+                (location_to_string location);
+            Caml.exit 0
+        | {data = IdentExpr (ResolvedIdent i); location} -> eval_ident ss i location
         | {data = Prefix ({op = Head; _} as e); location} -> eval_prefix_op val_list_head e.rhs location
         | {data = Prefix ({op = Tail; _} as e); location} -> eval_prefix_op val_list_tail e.rhs location
         | {data = Prefix ({op = Neg; _} as e); location} -> eval_prefix_op val_negate e.rhs location

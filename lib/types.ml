@@ -37,13 +37,13 @@ type value =
     | ValList of value list
     | Lambda of lambda
     | Fn of func
-    | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: string}
+    | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: ident}
     | Dictionary of (int, (value * value) list, Int.comparator_witness) Map.t
     | Atom of int
     | StringVal of string
 
 and pattern =
-    | SinglePat of string
+    | SinglePat of ident
     | NumberPat of float
     | StringPat of string
     | UnresolvedAtomPat of string
@@ -60,23 +60,31 @@ and list_pattern =
     | HeadTailPat of (pattern list) * pattern
 
 (* TODO: Make static_block_funcs a map *)
-and static_state = { static_atoms: (string * int) list; static_block_funcs: (string * func) list }
-and state = (string, value, String.comparator_witness) Map.t
+and static_state = { 
+        static_atoms: (string * int) list; 
+        static_idents: (string * int) list;
+        static_block_funcs: (int * func) list
+    }
+
+and state = (int, value, Int.comparator_witness) Map.t
 
 and lambda = {lambda_expr: expr Located.t; lambda_args: pattern; enclosed_state: state}
-and lambda_call = {callee: string; call_args: expr Located.t}
+and lambda_call = {callee: ident; call_args: expr Located.t}
 and func = {fn_expr: expr Located.t; fn_args: pattern}
 and if_expr = {cond: expr Located.t; then_expr: expr Located.t; else_expr: expr Located.t}
+and ident = 
+    | UnresolvedIdent of string
+    | ResolvedIdent of int
 
 and expr =
     | Atomic of value
-    | IdentExpr of string
+    | IdentExpr of ident
     | Binary of {lhs: expr Located.t; op: operator; rhs: expr Located.t}
     | Prefix of {op: operator; rhs: expr Located.t}
     | Let of {assignee: pattern; assigned_expr: expr Located.t}
     | LambdaDef of {lambda_def_expr: expr Located.t; lambda_def_args: pattern}
     | LambdaCall of lambda_call
-    | FnDef of {fn_name: string; fn_def_func: func}
+    | FnDef of {fn_name: ident; fn_def_func: func}
     | IfExpr of if_expr
     | TupleExpr of (expr Located.t) list
     | BlockExpr of (expr Located.t) list
@@ -112,17 +120,23 @@ let rec string_of_val ss v =
     | StringVal s -> s |> escape_string |> sprintf "\"%s\"" 
 
 let rec string_of_expr ss e = 
+    let string_of_pat = string_of_pat ss in
     let string_of_expr = string_of_expr ss in
     let string_of_val  = string_of_val ss in
     match e with
     | Atomic v -> string_of_val v
-    | IdentExpr s -> s
+    | IdentExpr (UnresolvedIdent s) -> s
+    | IdentExpr (ResolvedIdent i) -> List.Assoc.find_exn (ss.static_idents |> List.Assoc.inverse) ~equal:Int.equal i
     | Prefix (_ as p) -> sprintf "{rhs: %s}" (string_of_expr p.rhs.data)
     | Binary (_ as b) -> sprintf "{lhs: %s, rhs: %s}" (string_of_expr b.lhs.data) (string_of_expr b.rhs.data)
     | Let (_ as l) -> sprintf "Let %s = %s" (string_of_pat l.assignee) (string_of_expr l.assigned_expr.data)
     | LambdaDef _ -> "Lambda"
     | FnDef _ -> "FnDef"
-    | LambdaCall call -> sprintf "{Call: %s, args: %s}" call.callee (string_of_expr call.call_args.data)
+    | LambdaCall ({callee = UnresolvedIdent name; _} as call) -> 
+            sprintf "{Call: %s, args: %s}" name (string_of_expr call.call_args.data)
+    | LambdaCall ({callee = ResolvedIdent i; _} as call) -> 
+            let name = List.Assoc.find_exn (ss.static_idents |> List.Assoc.inverse) ~equal:Int.equal i in
+            sprintf "{Call: %s, args: %s}" name (string_of_expr call.call_args.data)
     | TupleExpr ls -> 
             sprintf "(%s)" (String.concat ~sep:", " (ls |> List.map ~f:Located.extract |> List.map ~f:string_of_expr))
     | ListExpr (ls, tail) -> 
@@ -137,17 +151,19 @@ let rec string_of_expr ss e =
     | MapExpr _ -> "Map"
     | UnresolvedAtom _ -> "UnresolvedAtom"
 
-and string_of_list_pat = function
-    | FullPat ls -> "[" ^ (String.concat ~sep:", " (List.map ~f:string_of_pat ls)) ^ "]"
+and string_of_list_pat ss pat = match pat with
+    | FullPat ls -> "[" ^ (String.concat ~sep:", " (List.map ~f:(string_of_pat ss) ls)) ^ "]"
     | HeadTailPat (_hd, _tl) -> assert false (* TODO *)
 
-and string_of_pat = function
-    | SinglePat s -> s
+and string_of_pat ss pat = match pat with
+    | SinglePat (UnresolvedIdent s) -> s
+    | SinglePat (ResolvedIdent i) ->
+        List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal i
     | StringPat s -> sprintf "StringPat (\"%s\")" s
-    | ListPat lp -> (string_of_list_pat lp)
+    | ListPat lp -> (string_of_list_pat ss lp)
     | MapPat _ -> "MapPat"
     | NumberPat f -> Float.to_string f
-    | TuplePat ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:string_of_pat ls))
+    | TuplePat ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:(string_of_pat ss) ls))
     | WildcardPat -> "_"
     | OrPat _ -> "OrPat"
     | AsPat _ -> "AsPat"

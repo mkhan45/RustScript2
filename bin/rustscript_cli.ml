@@ -6,14 +6,14 @@ open Stdio
 let rec repl state = 
     printf "> ";
     Out_channel.flush stdout;
-    let ss = {static_atoms = []; static_block_funcs = []} in
+    let ss = {static_atoms = []; static_idents = []; static_block_funcs = []} in
     match In_channel.input_line ~fix_win_eol:true stdin with
     | Some "\n" -> ()
     | None -> ()
     | Some line -> 
         match Rustscript.Run.eval ss state line with
-            | (Tuple [], new_state) -> repl new_state
-            | (evaled, new_state) ->
+            | (Tuple [], new_state), _ss -> repl new_state
+            | (evaled, new_state), _ss ->
                     printf "%s\n" (Rustscript.Types.string_of_val ss evaled);
                     Out_channel.flush stdout;
                     repl new_state

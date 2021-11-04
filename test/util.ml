@@ -6,8 +6,8 @@ open Rustscript.Types
 let test_file filename = Printf.sprintf "../../../examples/%s" filename
 
 let assert_equal_expressions lhs rhs ss state =
-    let (lhs_res, _) = eval ss state lhs in
-    let (rhs_res, _) = eval ss state rhs in
+    let (lhs_res, _), ss = eval ss state lhs in
+    let (rhs_res, _), ss = eval ss state rhs in
     match (Rustscript.Operators.val_eq lhs_res rhs_res ss {line_num = 0}) with
         | Boolean true -> assert true
         | _ ->
