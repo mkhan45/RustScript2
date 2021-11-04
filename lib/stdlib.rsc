@@ -10,6 +10,10 @@ let filter_rev(f, ls) = {
 
 let filter(f, ls) = reverse(filter_rev(f, ls))
 
+let find(f, ls) = match ls
+    | [] -> ()
+    | [x | xs] -> if f(x) then x else f(xs)
+
 let map_rev(f, ls) = fold([], fn(ls, x) => [f(x)|ls], ls)
 let map(f, ls) = reverse(map_rev(f, ls))
 let range(a, b) = range_step(a, b, 1)

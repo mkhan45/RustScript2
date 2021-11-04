@@ -34,14 +34,15 @@ let switch_turn(turn) = match turn
     | :x -> :o
     | :o -> :x
 
+let get_rows(board) = [slice(board, 3 * i, 3 * i + 3) for i in [0..3]]
+let get_cols(board) = [[nth(board, 3 * i + j) for i in [0..3]] for j in [0..3]]
+let get_diags(board) = [[nth(board, i) for i in [0, 4, 8]], [nth(board, i) for i in [2, 4, 6]]]
+let get_sets(board) = flatten([get_set(board) for get_set in [get_rows, get_cols, get_diags]])
+
 let is_winner(board, turn) = {
     let flatten(ls) = fold([], fn(a, b) => a + b, ls)
 
-    let rows = ([slice(board, 3 * i, 3 * i + 3) for i in [0..3]])
-    let cols = ([[nth(board, 3 * i + j) for i in [0..3]] for j in [0..3]])
-    let diags = [[nth(board, i) for i in [0, 4, 8]], [nth(board, i) for i in [2, 4, 6]]]
-
-    let sets = flatten([rows, cols, diags])
+    let sets = get_sets(board)
 
     any([
 	all([sq == turn for sq in set])
@@ -67,7 +68,7 @@ let minimax(board, turn, alpha, beta) = {
 	    | [nboard | possible_moves] -> {
 		let score = alpha
 		
-		let (score, nmove) = minimax(nboard, opposite_turn, -alpha - 1, -alpha)
+		let (score, nmove) = minimax(nboard, opposite_turn, -beta, -alpha)
 		let (score, nmove) = if (alpha < score) && (score < beta) then {
 		    minimax(nboard, opposite_turn, -beta, -score)
 		} else {
@@ -85,6 +86,51 @@ let minimax(board, turn, alpha, beta) = {
 	    }
 	
 	loop(possible_moves, ^possible_moves, -999, 999)
+    }
+}
+
+let ai_move(board, turn) = {
+    let num_filled = length([sq for sq in board if sq == :empty])
+    if (num_filled == 0) || ((num_filled == 1) && (nth(board, 4) == :empty)) then {
+	4
+    } else if num_filled < 3 then {
+	let sets = get_sets(board)
+	let set_indices = get_sets([0..9])
+	let zip_inner = fn(xs, ys) => match (xs, ys)
+	    | ([], []) -> []
+	    | ([x | xs], [y | ys]) -> [zip_rev(x, y) | zip_inner(xs, ys)]
+
+	let indexed_sets = zip(set_indices, sets)
+
+	let opposite_turn = switch_turn(turn)
+
+	# find the missing position if a set is missing only one
+	let loop = fn(sets) => match sets
+	    | [] -> ()
+	    | [set | sets] -> {
+		if length([i for (i, sq) in set if sq == opposite_turn]) == 2 then {
+		    let (missing_i, missing_sq) = ^[(i, sq) for (i, sq) in set if sq != opposite_turn]
+		    if missing_sq == :empty then
+			missing_i
+		    else
+			loop(sets)
+		} else {
+		    loop(sets)
+		}
+	    }
+	
+	let block_move = loop(indexed_sets)
+	if block_move != () then {
+	    set_nth(board, block_move, turn)
+	} else {
+	    let corners = [0, 2, 6, 8]
+	    let corner_move = find(fn(sq) => sq == :empty, corners)
+	    set_nth(board, corner_move, turn)
+	}
+
+    } else {
+	let (_, new_board) = minimax(board, turn, -999999, 999999)
+	new_board
     }
 }
 
@@ -108,8 +154,9 @@ let loop(board, turn, player) = {
 	let position = get_position()
 	set_nth(board, position, player)
     } else {
-	let (_, ai_board) = minimax(board, turn, -999999, 999999)
-	ai_board
+	ai_move(board, turn)
+	#let (_, ai_board) = minimax(board, turn, -999999, 999999)
+	#ai_board
     }
 	
     if is_winner(new_board, turn) then {
@@ -123,9 +170,10 @@ let loop(board, turn, player) = {
     }
 }
 
+println("here")
 let board = empty_board()
-let board = set_nth(board, 4, :x)
-let board = set_nth(board, 0, :o)
+#let board = set_nth(board, 4, :x)
+#let board = set_nth(board, 0, :o)
 loop(board, :x, :x)
 #let board = empty_board()
 #print_board(board)
