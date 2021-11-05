@@ -42,25 +42,25 @@ type token =
 let is_numeric d = Base.Char.is_digit d
 let is_identic c = Base.Char.is_alphanum c || phys_equal c '_'
 
-let rec scan_digit ls line =
+let rec scan_digit ls line_num filename =
     let rec aux ls acc saw_dot = match ls with
         | '.'::_ when saw_dot -> begin match acc with
-            | '.'::chars -> chars, scan_ls ('.'::ls) line, false
-            | _ -> acc, scan_ls ls line, true
+            | '.'::chars -> chars, scan_ls ('.'::ls) line_num filename, false
+            | _ -> acc, scan_ls ls line_num filename, true
         end
         | '.'::xs -> aux xs ('.'::acc) true
         | d::xs when (is_numeric d) -> aux xs (d::acc) saw_dot
-        | _ -> acc, scan_ls ls line, saw_dot
+        | _ -> acc, scan_ls ls line_num filename, saw_dot
     in 
     let chars, scanned, saw_dot = aux ls [] false in
     if saw_dot then
         let f = chars |> List.rev |> String.of_char_list |> Float.of_string in
-        (Number f |> Located.locate {line_num = line})::scanned
+        (Number f |> Located.locate {line_num; filename})::scanned
     else
         let i = chars |> List.rev |> String.of_char_list |> Int.of_string in
-        (Integer i |> Located.locate {line_num = line})::scanned
+        (Integer i |> Located.locate {line_num; filename})::scanned
 
-and scan_ident ls line =
+and scan_ident ls line_num filename =
     let rec aux ls acc = match ls with
         | c::xs when is_identic c -> aux xs (c::acc)
         | _ -> let n = (acc |> List.rev |> String.of_char_list) in
@@ -77,13 +77,14 @@ and scan_ident ls line =
                    | "as" -> As
                    | _ -> Ident n
                 in
-                (tok |> Located.locate {line_num = line})::(scan_ls ls line)
+                (tok |> Located.locate {line_num; filename})::(scan_ls ls line_num filename)
     in aux ls []
 
-and scan_string ls line =
+and scan_string ls line_num filename =
     let rec aux ls acc = match ls with
         | '"'::xs -> 
-            (StringTok (String.of_char_list (List.rev acc)) |> Located.locate {line_num = line})::(scan_ls xs line)
+            (StringTok (String.of_char_list (List.rev acc)) 
+            |> Located.locate {line_num; filename})::(scan_ls xs line_num filename)
         | c::xs -> aux xs (c::acc)
         | [] ->
             printf "Unmatched quote";
@@ -95,85 +96,87 @@ and skip_until_newline = function
     | '\n'::xs -> xs
     | _::xs -> skip_until_newline xs
 
-and scan_ls: char list -> int -> (token Located.t) list = fun ls line -> match ls with
+and scan_ls ls line filename =
+    let locate = Located.locate {line_num = line; filename = filename} in
+    match ls with
     | [] -> []
-    | (' '|'\t')::xs -> scan_ls xs line
+    | (' '|'\t')::xs -> scan_ls xs line filename
     | '\n'::xs -> 
-        (Newline |> Located.locate {line_num = line}) :: scan_ls xs (line + 1)
+        (Newline |> locate) :: scan_ls xs (line + 1) filename
     | '='::'>'::xs -> 
-        (Arrow |> Located.locate {line_num = line}):: scan_ls xs line
+        (Arrow |> locate):: scan_ls xs line filename
     | '-'::'>'::xs -> 
-        (MatchArrow |> Located.locate {line_num = line}) :: scan_ls xs line
+        (MatchArrow |> locate) :: scan_ls xs line filename
     | '+'::xs -> 
-        (Operator Add |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator Add |> locate) :: scan_ls xs line filename
     | '-'::xs -> 
-        (Operator Neg |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator Neg |> locate) :: scan_ls xs line filename
     | '*'::xs -> 
-        (Operator Mul |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator Mul |> locate) :: scan_ls xs line filename
     | '/'::xs -> 
-        (Operator Div |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator Div |> locate) :: scan_ls xs line filename
     | '<'::'='::xs -> 
-        (Operator LEQ |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator LEQ |> locate) :: scan_ls xs line filename
     | '<'::xs -> 
-        (Operator LT |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator LT |> locate) :: scan_ls xs line filename
     | '>'::'='::xs -> 
-        (Operator GEQ |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator GEQ |> locate) :: scan_ls xs line filename
     | '>'::xs -> 
-        (Operator GT |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator GT |> locate) :: scan_ls xs line filename
     | '&'::'&'::xs -> 
-        (Operator And |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator And |> locate) :: scan_ls xs line filename
     | '|'::'|'::xs -> 
-        (Operator Or |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator Or |> locate) :: scan_ls xs line filename
     | '='::'='::xs -> 
-        (Operator EQ |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator EQ |> locate) :: scan_ls xs line filename
     | '!'::'='::xs -> 
-        (Operator NEQ |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator NEQ |> locate) :: scan_ls xs line filename
     | '%'::xs -> 
-        (Percent |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Percent |> locate) :: scan_ls xs line filename
     | '^'::xs -> 
-        (Operator Head |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator Head |> locate) :: scan_ls xs line filename
     | '$'::xs -> 
-        (Operator Tail |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator Tail |> locate) :: scan_ls xs line filename
     | '!'::xs -> 
-        (Operator Not |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Operator Not |> locate) :: scan_ls xs line filename
     | '.'::'.'::xs -> 
-        (DotDot |> Located.locate {line_num = line}) :: scan_ls xs line
+        (DotDot |> locate) :: scan_ls xs line filename
     | '('::xs -> 
-        (LParen |> Located.locate {line_num = line}) :: scan_ls xs line
+        (LParen |> locate) :: scan_ls xs line filename
     | ')'::xs -> 
-        (RParen |> Located.locate {line_num = line}) :: scan_ls xs line
+        (RParen |> locate) :: scan_ls xs line filename
     | '{'::xs -> 
-        (LBrace |> Located.locate {line_num = line}) :: scan_ls xs line
+        (LBrace |> locate) :: scan_ls xs line filename
     | '}'::xs -> 
-        (RBrace |> Located.locate {line_num = line}) :: scan_ls xs line
+        (RBrace |> locate) :: scan_ls xs line filename
     | '['::xs -> 
-        (LBracket |> Located.locate {line_num = line}) :: scan_ls xs line
+        (LBracket |> locate) :: scan_ls xs line filename
     | ']'::xs -> 
-        (RBracket |> Located.locate {line_num = line}) :: scan_ls xs line
+        (RBracket |> locate) :: scan_ls xs line filename
     | '='::xs -> 
-        (Equal |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Equal |> locate) :: scan_ls xs line filename
     | '_'::xs -> 
-        (Underscore |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Underscore |> locate) :: scan_ls xs line filename
     | ','::xs -> 
-        (Comma |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Comma |> locate) :: scan_ls xs line filename
     | '#'::xs -> 
-        scan_ls (skip_until_newline xs) (line + 1)
+        scan_ls (skip_until_newline xs) (line + 1) filename
     | '|'::xs -> 
-        (Pipe |> Located.locate {line_num = line}) :: scan_ls xs line
+        (Pipe |> locate) :: scan_ls xs line filename
     | 'T'::xs -> 
-        (True |> Located.locate {line_num = line}) :: scan_ls xs line
+        (True |> locate) :: scan_ls xs line filename
     | 'F'::xs -> 
-        (False |> Located.locate {line_num = line}) :: scan_ls xs line
+        (False |> locate) :: scan_ls xs line filename
     | ':'::xs -> 
-        (Colon |> Located.locate {line_num = line}) :: scan_ls xs line
-    | '"'::xs -> scan_string xs line
-    | d::_ as ls when Char.is_digit d -> scan_digit ls line
-    | i::_ as ls when Char.is_alpha i -> scan_ident ls line
+        (Colon |> locate) :: scan_ls xs line filename
+    | '"'::xs -> scan_string xs line filename
+    | d::_ as ls when Char.is_digit d -> scan_digit ls line filename
+    | i::_ as ls when Char.is_alpha i -> scan_ident ls line filename
     | ls -> 
             printf "Scan Error: %s\n" (String.of_char_list ls); 
             assert false
 
-let scan s = s |> String.to_list |> (fun s -> scan_ls s 1)
+let scan s ~filename = s |> String.to_list |> (fun s -> scan_ls s 1 filename)
 
 let string_of_tok = function
     | Number f -> Float.to_string f

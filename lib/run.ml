@@ -14,7 +14,7 @@ let static_assoc_dedup ls =
     loop ls
 
 let eval: static_state -> state -> string -> (value * state) * static_state = fun ss state s ->
-    let (parsed, _remaining) = Parser.parse_str s in
+    let (parsed, _remaining) = Parser.parse_str s "repl" in
     let static_atoms =
         Preprocess.find_atoms parsed.data ss.static_atoms
             |> static_assoc_dedup
@@ -40,7 +40,7 @@ let run_line ss state line =
 let run_file filename (ss, state) =
     let in_stream = In_channel.create filename in
     let in_string = In_channel.input_all in_stream in
-    let tokens = in_string |> Scanner.scan |> skip_newlines in
+    let tokens = in_string |> Scanner.scan ~filename:filename |> skip_newlines in
     let expr_ls =
         let rec aux remaining acc = match (skip_newlines remaining) with
             | [] -> acc

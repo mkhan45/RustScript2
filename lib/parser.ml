@@ -529,4 +529,4 @@ and parse: (token Located.t) list -> int -> (expr Located.t) * ((token Located.t
             printf "Expected expression at end of file\n";
             assert false
 
-let parse_str s = parse (Scanner.scan s) 0
+let parse_str s filename = parse (Scanner.scan s ~filename:filename) 0

@@ -2,8 +2,8 @@ open Base
 open Printf
 open Stdio
 
-type location = { line_num: int }
-let location_to_string location = sprintf "line %s" (Int.to_string location.line_num)
+type location = { line_num: int; filename: string }
+let location_to_string location = sprintf "line %s of %s" (Int.to_string location.line_num) location.filename
 
 module Located = struct
     type 'a t = { location: location; data: 'a }
