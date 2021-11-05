@@ -10,7 +10,7 @@ let () =
         test_state () |> run_file (test_file "block.rsc") in
     assert_equal_expressions "a + b" "20" ss state;
     assert_equal_expressions "f(10, 5, 3)" "28" ss state;
-    assert_equal_expressions "c" (Float.to_string (5. +. (5. +. 10. *. 2.))) ss state;
+    assert_equal_expressions "c" (Int.to_string (5 + (5 + 10 * 2))) ss state;
 
     let ss, state = 
         test_state () |> run_file (test_file "fmap_tuple.rsc") in

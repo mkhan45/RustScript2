@@ -7,6 +7,7 @@ type token =
     | True
     | False
     | Number of float
+    | Integer of int
     | Ident of string
     | StringTok of string
     | Operator of Types.operator
@@ -44,16 +45,20 @@ let is_identic c = Base.Char.is_alphanum c || phys_equal c '_'
 let rec scan_digit ls line =
     let rec aux ls acc saw_dot = match ls with
         | '.'::_ when saw_dot -> begin match acc with
-            | '.'::chars -> chars, scan_ls ('.'::ls) line
-            | _ -> acc, scan_ls ls line
+            | '.'::chars -> chars, scan_ls ('.'::ls) line, false
+            | _ -> acc, scan_ls ls line, true
         end
         | '.'::xs -> aux xs ('.'::acc) true
         | d::xs when (is_numeric d) -> aux xs (d::acc) saw_dot
-        | _ -> acc, scan_ls ls line
+        | _ -> acc, scan_ls ls line, saw_dot
     in 
-    let chars, scanned = aux ls [] false in
-    let f = chars |> List.rev |> String.of_char_list |> Float.of_string in
-    (Number f |> Located.locate {line_num = line})::scanned
+    let chars, scanned, saw_dot = aux ls [] false in
+    if saw_dot then
+        let f = chars |> List.rev |> String.of_char_list |> Float.of_string in
+        (Number f |> Located.locate {line_num = line})::scanned
+    else
+        let i = chars |> List.rev |> String.of_char_list |> Int.of_string in
+        (Integer i |> Located.locate {line_num = line})::scanned
 
 and scan_ident ls line =
     let rec aux ls acc = match ls with
@@ -172,6 +177,7 @@ let scan s = s |> String.to_list |> (fun s -> scan_ls s 1)
 
 let string_of_tok = function
     | Number f -> Float.to_string f
+    | Integer i -> Int.to_string i
     | Ident s -> "(Ident " ^ s ^ ")"
     | StringTok s -> sprintf "String (\"%s\")" s
     | Operator _ -> "Operator"

@@ -8,7 +8,7 @@ let assoc_add ls x =
         (x, List.length ls)::ls
 
 let rec find_pat_atoms pat atoms = match pat with
-    | SinglePat _ | NumberPat _ | AtomPat _ | StringPat _ | WildcardPat  -> atoms
+    | SinglePat _ | NumberPat _ | IntegerPat _ | AtomPat _ | StringPat _ | WildcardPat  -> atoms
     | TuplePat ls -> List.fold_left ~init:atoms ~f:(fun atoms pat -> find_pat_atoms pat atoms) ls
     | ListPat (FullPat ls) -> List.fold_left ~init:atoms ~f:(fun atoms pat -> find_pat_atoms pat atoms) ls
     | ListPat (HeadTailPat (ls, tail)) -> atoms |> find_pat_atoms (ListPat (FullPat ls)) |> find_pat_atoms tail
@@ -44,7 +44,7 @@ let rec resolve_pat_atoms ss p =
     let resolve = resolve_pat_atoms ss in
     let resolve_expr = resolve_atoms ss in
     match p with
-    | SinglePat _ | NumberPat _ | AtomPat _ | WildcardPat | StringPat _ -> p
+    | SinglePat _ | NumberPat _ | IntegerPat _ | AtomPat _ | WildcardPat | StringPat _ -> p
     | TuplePat ls -> TuplePat (List.map ~f:resolve ls)
     | ListPat (FullPat ls) ->  ListPat (FullPat (List.map ~f:resolve ls))
     | ListPat (HeadTailPat (ls, p)) -> ListPat (HeadTailPat (List.map ~f:resolve ls, resolve p))
@@ -160,7 +160,7 @@ let rec resolve_pat_idents ss p =
     | SinglePat (UnresolvedIdent s) -> 
         SinglePat (ResolvedIdent (List.Assoc.find_exn ss.static_idents ~equal:String.equal s))
     | SinglePat (ResolvedIdent _) -> p
-    | NumberPat _ | AtomPat _ | WildcardPat | StringPat _ -> p
+    | NumberPat _ | IntegerPat _ | AtomPat _ | WildcardPat | StringPat _ -> p
     | TuplePat ls -> TuplePat (List.map ~f:resolve ls)
     | ListPat (FullPat ls) ->  ListPat (FullPat (List.map ~f:resolve ls))
     | ListPat (HeadTailPat (ls, p)) -> ListPat (HeadTailPat (List.map ~f:resolve ls, resolve p))

@@ -17,6 +17,8 @@ let rec bind: pattern -> value -> static_state -> location -> state -> state = f
             Map.set state ~key:i ~data:rhs
     | NumberPat lhs, Number rhs when Float.equal lhs rhs -> 
             fun state -> state
+    | IntegerPat lhs, Integer rhs when Int.equal lhs rhs -> 
+            fun state -> state
     | StringPat lhs, StringVal rhs when String.equal lhs rhs ->
             fun state -> state
     | AtomPat lhs, Atom rhs when Int.equal lhs rhs ->
@@ -83,6 +85,7 @@ and pattern_matches: pattern -> value -> static_state -> location -> state -> bo
         | AsPat (pat, _), _ -> pattern_matches pat value state
         | OrPat (lhs, rhs), value -> (pattern_matches lhs value state) || (pattern_matches rhs value state)
         | NumberPat lhs, Number rhs -> Float.equal lhs rhs
+        | IntegerPat lhs, Integer rhs -> Int.equal lhs rhs
         | StringPat lhs, StringVal rhs -> String.equal lhs rhs
         | AtomPat lhs, Atom rhs -> Int.equal lhs rhs
         | ((TuplePat lhs_ls), (Tuple rhs_ls))|(ListPat (FullPat lhs_ls), ValList rhs_ls) ->
@@ -154,6 +157,18 @@ and string_to_num_builtin (args, state) _ss loc =
             printf "Expected one string argument to string_to_num at %s\n" (location_to_string loc);
             Caml.exit 0
 
+and string_to_int_builtin (args, state) _ss loc = 
+    match args with
+        | Tuple [StringVal s] -> begin
+            try
+                Tuple [Atom 0; Integer (Int.of_string s)], state
+            with
+                | _ -> Atom 1, state
+        end
+        | _ ->
+            printf "Expected one string argument to string_to_num at %s\n" (location_to_string loc);
+            Caml.exit 0
+
 and scanln_builtin (args, state) _ss loc =
     match args with
         | Tuple [] -> begin
@@ -165,16 +180,17 @@ and scanln_builtin (args, state) _ss loc =
             printf "Expected () as an argument to scan_line at %s\n" (location_to_string loc);
             Caml.exit 0
 
-and range_builtin (args, state) =
+and range_builtin (args, state) ss loc =
     match args with
-        | Tuple [Number start; Number end_; Number step] 
-        when (Caml.Float.is_integer start) && (Caml.Float.is_integer end_) && (Caml.Float.is_integer step) ->
-            let caml_ls = List.range (Float.to_int start) (Float.to_int end_) ~stride:(Float.to_int step) in
-            let val_ls = List.map ~f:(fun n -> Number (Int.to_float n)) caml_ls in
+        | Tuple [Integer start; Integer end_; Integer step] ->
+            let caml_ls = List.range start end_ ~stride:step in
+            let val_ls = List.map ~f:(fun n -> Integer n) caml_ls in
             ValList val_ls, state
         | _ ->
-            printf "Expected three integer arguments to range_step";
-            assert false
+            printf "Expected three integer arguments to range_step at %s, got %s\n" 
+                (location_to_string loc)
+                (string_of_val ss args);
+            Caml.exit 0
 
 and fold_builtin (args, state) ss loc =
     match args with
@@ -313,10 +329,11 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                 | ResolvedIdent 3 -> scanln_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 4 -> to_string_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 5 -> string_to_num_builtin ((eval_expr call.call_args ss) state) ss loc
-                | ResolvedIdent 6 -> range_builtin ((eval_expr call.call_args ss) state)
-                | ResolvedIdent 7 -> fold_builtin ((eval_expr call.call_args ss) state) ss loc
-                | ResolvedIdent 8 -> to_charlist_builtin ((eval_expr call.call_args ss) state) ss
-                | ResolvedIdent 9 ->
+                | ResolvedIdent 6 -> string_to_int_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 7 -> range_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 8 -> fold_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 9 -> to_charlist_builtin ((eval_expr call.call_args ss) state) ss
+                | ResolvedIdent 10 ->
                     let (args, state) = (eval_expr call.call_args ss) state in begin
                     match args with
                         | Tuple [Dictionary m; key] -> begin

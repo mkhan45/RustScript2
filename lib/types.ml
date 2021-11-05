@@ -32,6 +32,7 @@ type operator =
 
 type value =
     | Number of float
+    | Integer of int
     | Boolean of bool
     | Tuple of value list
     | ValList of value list
@@ -45,6 +46,7 @@ type value =
 and pattern =
     | SinglePat of ident
     | NumberPat of float
+    | IntegerPat of int
     | StringPat of string
     | UnresolvedAtomPat of string
     | AtomPat of int
@@ -102,6 +104,7 @@ let rec string_of_val ss v =
     let string_of_val = string_of_val ss in
     match v with
     | Number n -> Float.to_string n
+    | Integer n -> Int.to_string n
     | Boolean true -> "T"
     | Boolean false -> "F"
     | Tuple ls -> "(" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ ")"
@@ -163,6 +166,7 @@ and string_of_pat ss pat = match pat with
     | ListPat lp -> (string_of_list_pat ss lp)
     | MapPat _ -> "MapPat"
     | NumberPat f -> Float.to_string f
+    | IntegerPat i -> Int.to_string i
     | TuplePat ls -> sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:(string_of_pat ss) ls))
     | WildcardPat -> "_"
     | OrPat _ -> "OrPat"
@@ -176,6 +180,7 @@ let rec hash_value = function
     | Tuple ls -> Hashtbl.hash (2, List.map ~f:hash_value ls)
     | Atom i -> Hashtbl.hash (3, i)
     | StringVal s -> Hashtbl.hash (4, s)
+    | Integer i -> Hashtbl.hash (5, i)
     | _ ->
         printf "Tried to hash an unhashable type";
         assert false

@@ -82,6 +82,7 @@ let base_static_idents () =
         "scanln";
         "to_string";
         "string_to_num";
+        "string_to_int";
         "range_step";
         "fold";
         "to_charlist";

@@ -139,7 +139,7 @@ let loop(board, turn, player) = {
     println("===========\n")
     print_board(board)
 
-    let get_position = fn() => match string_to_num(scanln())
+    let get_position = fn() => match string_to_int(scanln())
 	| (:ok, n) when nth(board, n) != :empty -> {
 	    print("That position is already taken, enter another: ")
 	    get_position()

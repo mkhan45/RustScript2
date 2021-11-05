@@ -188,6 +188,7 @@ and expr_bp ls min_bp = match ls with
     | ({data = LParen; _}::xs) -> parse_paren_expr xs min_bp
     | ({data = LBracket; _}::xs) -> parse_list_expr xs min_bp
     | ({data = Number f; location})::xs -> complete_expr (Atomic (Number f) |> locate location) xs min_bp
+    | ({data = Integer i; location})::xs -> complete_expr (Atomic (Integer i) |> locate location) xs min_bp
     | ({data = Ident n; location})::xs -> complete_expr (IdentExpr (UnresolvedIdent n) |> locate location) xs min_bp
     | ({data = StringTok s; location})::xs -> complete_expr (Atomic (StringVal s) |> locate location) xs min_bp
     | ({data = Operator op; _})::xs -> parse_prefix_expr op xs min_bp
@@ -276,6 +277,7 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
     | {data = Colon; _}::({data = Ident s; _})::xs -> complete_pat (UnresolvedAtomPat s) xs in_list
     | ({data = Ident s; _})::xs -> complete_pat (SinglePat (UnresolvedIdent s)) xs in_list
     | ({data = Number f; _})::xs -> complete_pat (NumberPat f) xs in_list
+    | ({data = Integer i; _})::xs -> complete_pat (IntegerPat i) xs in_list
     | ({data = StringTok f; _})::xs -> complete_pat (StringPat f) xs in_list
     | {data = Underscore; _}::xs -> complete_pat WildcardPat xs in_list
     | _ ->
@@ -507,7 +509,7 @@ and parse: (token Located.t) list -> int -> (expr Located.t) * ((token Located.t
         | {data = LParen; _}::_ -> expr_bp s 0
         | {data = LBracket; _}::_ -> expr_bp s 0
         | ({data = Operator _; _})::_ -> expr_bp s 0
-        | {data = (True|False|Number _| Ident _| StringTok _); _}::_ -> expr_bp s min_bp
+        | {data = (True|False|Number _|Integer _| Ident _| StringTok _); _}::_ -> expr_bp s min_bp
         | {data = Let; location}::xs -> 
             let l, remaining = parse_let xs in
             l |> locate location, remaining
