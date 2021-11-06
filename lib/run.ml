@@ -93,11 +93,15 @@ let base_static_idents () =
 let default_state () = 
     let static_atoms = base_static_atoms () in
     let static_idents = base_static_idents () in
-    run_file "./lib/stdlib.rsc" ({static_atoms; static_idents; static_block_funcs = []}, (Map.empty (module Int)))
+    let static_block_funcs = [] in
+    let call_stack = [] in
+    run_file "./lib/stdlib.rsc" ({static_atoms; static_idents; static_block_funcs; call_stack}, (Map.empty (module Int)))
 
 let test_state () = 
     let static_atoms = base_static_atoms () in
     let static_idents = base_static_idents () in
+    let static_block_funcs = [] in
+    let call_stack = [] in
     run_file 
         "../../../lib/stdlib.rsc" 
-        ({static_atoms; static_idents; static_block_funcs = []}, (Map.empty (module Int)))
+        ({static_atoms; static_idents; static_block_funcs; call_stack}, (Map.empty (module Int)))

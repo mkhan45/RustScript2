@@ -6,7 +6,7 @@ open Stdio
 let rec repl state = 
     printf "> ";
     Out_channel.flush stdout;
-    let ss = {static_atoms = []; static_idents = []; static_block_funcs = []} in
+    let ss = {static_atoms = []; static_idents = []; static_block_funcs = []; call_stack = []} in
     match In_channel.input_line ~fix_win_eol:true stdin with
     | Some "\n" -> ()
     | None -> ()

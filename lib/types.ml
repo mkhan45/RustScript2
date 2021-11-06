@@ -65,7 +65,8 @@ and list_pattern =
 and static_state = { 
         static_atoms: (string * int) list; 
         static_idents: (string * int) list;
-        static_block_funcs: (int * func) list
+        static_block_funcs: (int * func) list;
+        call_stack: ((int * location) * int) list;
     }
 
 and state = (int, value, Int.comparator_witness) Map.t
@@ -184,3 +185,10 @@ let rec hash_value = function
     | _ ->
         printf "Tried to hash an unhashable type";
         assert false
+
+let rec print_traceback ss = match ss.call_stack with
+    | [] -> ()
+    | ((call_id, call_loc), count)::xs ->
+        let fn_name = List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal call_id in
+        printf "%s at %s, called %d times\n" fn_name (location_to_string call_loc) count;
+        print_traceback {ss with call_stack = xs}

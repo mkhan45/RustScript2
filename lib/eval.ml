@@ -12,6 +12,7 @@ let rec bind: pattern -> value -> static_state -> location -> state -> state = f
     match lhs, rhs with
     | SinglePat (UnresolvedIdent s), _ -> fun _ ->
             printf "Error: found unresolved SinglePat %s at %s\n" s (location_to_string loc);
+            print_traceback ss;
             Caml.exit 0;
     | SinglePat (ResolvedIdent i), _ -> fun state ->
             Map.set state ~key:i ~data:rhs
@@ -41,6 +42,7 @@ let rec bind: pattern -> value -> static_state -> location -> state -> state = f
                         (location_to_string loc)
                         (string_of_pat ss lhs) (List.length lhs_ls)
                         (string_of_val ss rhs) (List.length rhs_ls);
+                    print_traceback ss;
                     Caml.exit 0
       end
     | (ListPat (HeadTailPat (head_pat_ls, tail_pat))), ValList rhs_ls -> fun s ->
@@ -57,10 +59,11 @@ let rec bind: pattern -> value -> static_state -> location -> state -> state = f
         List.fold_left ~init:s ~f:fold_step fetched_pairs
     | WildcardPat, _ -> fun state -> state
     | _ -> 
-        printf "Error at %s, Tried to bind %s to %s"
+        printf "Error at %s, Tried to bind %s to %s\n"
             (location_to_string loc)
             (string_of_pat ss lhs)
             (string_of_val ss rhs);
+        print_traceback ss;
         Caml.exit 0
 
 and dict_get dict key ss loc =
@@ -116,7 +119,7 @@ and inspect_builtin (args, state) ss =
             printf "Expected only one argument to inspect";
             assert false
 
-and print_builtin (args, state) _ss loc =
+and print_builtin (args, state) ss loc =
     match args with
         | Tuple [StringVal s] ->
             s |> escape_string |> printf "%s";
@@ -124,10 +127,11 @@ and print_builtin (args, state) _ss loc =
             (Tuple [], state)
         | _ ->
             printf "Expected one string argument to print at %s\n" (location_to_string loc);
+            print_traceback ss;
             Caml.exit 0
 
 (* Better as a builtin since concatenating strings is expensive *)
-and println_builtin (args, state) _ss loc =
+and println_builtin (args, state) ss loc =
     match args with
         | Tuple [StringVal s] ->
             s |> escape_string |> printf "%s\n";
@@ -135,6 +139,7 @@ and println_builtin (args, state) _ss loc =
             (Tuple [], state)
         | _ ->
             printf "Expected one string argument to println at %s\n" (location_to_string loc);
+            print_traceback ss;
             Caml.exit 0
 
 and to_string_builtin (args, state) ss loc =
@@ -143,9 +148,10 @@ and to_string_builtin (args, state) ss loc =
             (StringVal (string_of_val ss v)), state
         | _ ->
             printf "Expected only one argument to to_string at %s\n" (location_to_string loc);
+            print_traceback ss;
             Caml.exit 0
 
-and string_to_num_builtin (args, state) _ss loc = 
+and string_to_num_builtin (args, state) ss loc = 
     match args with
         | Tuple [StringVal s] -> begin
             try
@@ -155,9 +161,10 @@ and string_to_num_builtin (args, state) _ss loc =
         end
         | _ ->
             printf "Expected one string argument to string_to_num at %s\n" (location_to_string loc);
+            print_traceback ss;
             Caml.exit 0
 
-and string_to_int_builtin (args, state) _ss loc = 
+and string_to_int_builtin (args, state) ss loc = 
     match args with
         | Tuple [StringVal s] -> begin
             try
@@ -167,9 +174,10 @@ and string_to_int_builtin (args, state) _ss loc =
         end
         | _ ->
             printf "Expected one string argument to string_to_num at %s\n" (location_to_string loc);
+            print_traceback ss;
             Caml.exit 0
 
-and scanln_builtin (args, state) _ss loc =
+and scanln_builtin (args, state) ss loc =
     match args with
         | Tuple [] -> begin
             match Stdio.In_channel.input_line ~fix_win_eol:true Stdio.stdin with
@@ -178,6 +186,7 @@ and scanln_builtin (args, state) _ss loc =
         end
         | _ ->
             printf "Expected () as an argument to scan_line at %s\n" (location_to_string loc);
+            print_traceback ss;
             Caml.exit 0
 
 and range_builtin (args, state) ss loc =
@@ -190,6 +199,7 @@ and range_builtin (args, state) ss loc =
             printf "Expected three integer arguments to range_step at %s, got %s\n" 
                 (location_to_string loc)
                 (string_of_val ss args);
+            print_traceback ss;
             Caml.exit 0
 
 and fold_builtin (args, state) ss loc =
@@ -227,6 +237,7 @@ and fold_builtin (args, state) ss loc =
             printf "Expected (init, fn, ls) as arguments to fold at %s, got %s\n" 
                 (location_to_string loc)
                 (string_of_val ss args);
+            print_traceback ss;
             Caml.exit 0
 
 and to_charlist_builtin (args, state) _ss =
@@ -256,6 +267,7 @@ and eval_ident ss name loc = fun state ->
             printf "Error at %s: variable not found: %s\n" 
                 (location_to_string loc) 
                 (name |> List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal);
+            print_traceback ss;
             Caml.exit 0
 
 and eval_let lhs rhs ss loc = fun state ->
@@ -266,10 +278,6 @@ and eval_let lhs rhs ss loc = fun state ->
 and eval_fn_def name {fn_expr; fn_args} ss loc = fun state ->
     let fn = Fn {fn_expr; fn_args} in
     let new_state = (bind (SinglePat name) fn ss loc) state in
-    (* (match name with *)
-    (*     | ResolvedIdent i -> printf "Defining resolved %d\n" i *)
-    (*     | UnresolvedIdent n -> printf "Defining unresolved %s\n" n *)
-    (* ); *)
     (Tuple [], new_state)
 
 and eval_lambda_def e args =
@@ -279,10 +287,16 @@ and unwrap_thunk thunk state ss loc = match thunk with
     | Thunk {thunk_fn; thunk_args; thunk_fn_name = ResolvedIdent thunk_fn_name_id} ->
             let inner_state = (bind thunk_fn.lambda_args thunk_args ss loc) thunk_fn.enclosed_state in
             let inner_state = Map.set inner_state ~key:thunk_fn_name_id ~data:(Lambda thunk_fn) in
+            let call_stack = match ss.call_stack with
+                | ((id, loc), n)::xs when Int.equal id thunk_fn_name_id -> ((id, loc), n + 1)::xs
+                | _ -> ((thunk_fn_name_id, loc), 1)::ss.call_stack
+            in
+            let ss = { ss with call_stack } in
             let (new_thunk, _) = (eval_expr ~tc:true thunk_fn.lambda_expr ss) inner_state in
             unwrap_thunk new_thunk state ss loc
     | Thunk {thunk_fn_name = UnresolvedIdent n; _} ->
             printf "Error: found unresolved ident %s at %s\n" n (location_to_string loc);
+            print_traceback ss;
             Caml.exit 0
     | value -> value, state
 
@@ -352,20 +366,24 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                     end
                 | UnresolvedIdent s ->
                     printf "Error: unresolved function %s not found at %s\n" s (location_to_string loc);
+                    print_traceback ss;
                     Caml.exit 0
                 | ResolvedIdent i ->
                     let name = List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal i in
                     Map.iter_keys state ~f:(fun k -> printf "key: %d\n" k);
                     printf "Error: resolved function %s (id %d) not found at %s\n" name i (location_to_string loc);
+                    print_traceback ss;
                     Caml.exit 0
         end
         | _ -> match call.callee with
             | UnresolvedIdent s ->
                 printf "Error: tried to call %s not found at %s\n" s (location_to_string loc);
+                print_traceback ss;
                 Caml.exit 0
             | ResolvedIdent i ->
                 let name = List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal i in
                 printf "Error: tried to call %s not found at %s\n" name (location_to_string loc);
+                print_traceback ss;
                 Caml.exit 0
 
 and eval_tuple_expr ls ss state =
@@ -433,6 +451,7 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss loc state =
             result, state
         | None ->
             printf "No patterns matched in match expression at %s\n" (location_to_string loc);
+            print_traceback ss;
             Caml.exit 0
 
 and eval_map_expr ?tc:(_tail_call=false) map_pairs tail_map ss loc state =
@@ -497,6 +516,7 @@ and eval_expr: (expr Located.t) -> static_state -> ?tc:bool -> state -> value * 
             printf "Error: Found unresolved ident %s at %s\n"
                 name
                 (location_to_string location);
+            print_traceback ss;
             Caml.exit 0
         | {data = IdentExpr (ResolvedIdent i); location} -> eval_ident ss i location
         | {data = Prefix ({op = Head; _} as e); location} -> eval_prefix_op val_list_head e.rhs location
@@ -505,6 +525,7 @@ and eval_expr: (expr Located.t) -> static_state -> ?tc:bool -> state -> value * 
         | {data = Prefix ({op = Not; _} as e); location} -> eval_prefix_op val_negate_bool e.rhs location
         | {data = Prefix ({op = _op; _}); location} -> 
             printf "Invalid prefix op at %s\n" (location_to_string location);
+            print_traceback ss;
             Caml.exit 0
         | {data = Binary ({op = Add; _} as e); location} -> eval_op val_add e.lhs e.rhs location
         | {data = Binary ({op = Neg; _} as e); location} -> eval_op val_sub e.lhs e.rhs location
