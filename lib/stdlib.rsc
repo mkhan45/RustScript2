@@ -12,7 +12,7 @@ let filter(f, ls) = reverse(filter_rev(f, ls))
 
 let find(f, ls) = match ls
     | [] -> ()
-    | [x | xs] -> if f(x) then x else f(xs)
+    | [x | xs] -> if f(x) then x else find(f, xs)
 
 let map_rev(f, ls) = fold([], fn(ls, x) => [f(x)|ls], ls)
 let map(f, ls) = reverse(map_rev(f, ls))

@@ -24,6 +24,7 @@ let val_sub lhs rhs ss loc = match lhs, rhs with
     | _ ->
         printf "Invalid sub at %s: lhs = %s, rhs = %s\n" 
             (location_to_string loc) (string_of_val ss lhs) (string_of_val ss rhs);
+        print_traceback ss;
         Caml.exit 0
 
 let val_mul lhs rhs ss _loc = match lhs, rhs with
