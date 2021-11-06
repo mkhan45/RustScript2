@@ -1,25 +1,9 @@
-let repeat(x, n) = {
-    let helper(x, n, acc) = match n
-	| 0 -> acc
-	| n -> helper(x, n - 1, [x | acc])
-
-    helper(x, n, [])
-}
-
 let empty_board() = repeat(:empty, 9)
 
 let square_to_string(square) = match square
     | :empty -> " "
     | :x     -> "X"
     | :o     -> "O"
-
-let nth(ls, i) = match i
-    | 0 -> ^ls
-    | i -> nth($ls, i - 1)
-
-let set_nth(ls, i, x) = match i
-    | 0 -> [x | $ls]
-    | i -> [^ls | set_nth($ls, i - 1, x)]
 
 let print_board(board) = {
     foreach([0..3], fn(i) => {

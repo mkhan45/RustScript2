@@ -2,7 +2,7 @@ open Types
 open Stdio
 open Base
 
-let val_add lhs rhs ss _loc = match lhs, rhs with
+let val_add lhs rhs ss loc = match lhs, rhs with
     | Integer lhs, Integer rhs -> Integer (lhs + rhs)
     | Number lhs, Number rhs -> Number (lhs +. rhs)
     | Integer lhs, Number rhs -> Number ((Int.to_float lhs) +. rhs)
@@ -10,8 +10,11 @@ let val_add lhs rhs ss _loc = match lhs, rhs with
     | ValList lhs, ValList rhs ->  ValList (lhs @ rhs)
     | StringVal lhs, StringVal rhs ->  StringVal (lhs ^ rhs)
     | _ -> 
-            printf "Invalid Add: lhs = %s, rhs = %s\n" (string_of_val ss lhs) (string_of_val ss rhs);
-            assert false
+            printf "Invalid Add at %s: lhs = %s, rhs = %s\n" 
+                (location_to_string loc)
+                (string_of_val ss lhs) (string_of_val ss rhs);
+            print_traceback ss;
+            Caml.exit 0
 
 let val_sub lhs rhs ss loc = match lhs, rhs with
     | Integer lhs, Integer rhs -> Integer (lhs - rhs)
@@ -47,6 +50,8 @@ let val_is_true v _ss _loc = match v with
 let rec val_eq lhs rhs ss loc = match lhs, rhs with
     | Integer lhs, Integer rhs -> Boolean (Int.equal lhs rhs)
     | Number lhs, Number rhs -> Boolean (Float.equal lhs rhs)
+    | Integer lhs, Number rhs -> Boolean (Float.equal (Int.to_float lhs) rhs)
+    | Number lhs, Integer rhs -> Boolean (Float.equal lhs (Int.to_float rhs))
     | Boolean lhs, Boolean rhs -> Boolean (Bool.equal lhs rhs)
     | (Tuple lhs, Tuple rhs)|(ValList lhs, ValList rhs) -> begin
         match List.zip lhs rhs with
@@ -66,6 +71,8 @@ let val_neq lhs rhs ss loc = Boolean (not (val_is_true (val_eq lhs rhs ss loc) s
 let val_lt lhs rhs ss loc = match lhs, rhs with
     | Integer lhs, Integer rhs -> Boolean (Int.compare lhs rhs < 0)
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs < 0)
+    | Integer lhs, Number rhs -> Boolean (Float.compare (Int.to_float lhs) rhs < 0)
+    | Number lhs, Integer rhs -> Boolean (Float.compare lhs (Int.to_float rhs) < 0)
     | StringVal lhs, StringVal rhs -> Boolean (String.compare lhs rhs < 0)
     | _ ->
         printf "Invalid <: lhs = %s, rhs = %s, at %s\n" 
@@ -77,18 +84,24 @@ let val_lt lhs rhs ss loc = match lhs, rhs with
 let val_gt lhs rhs _ss _loc = match lhs, rhs with
     | Integer lhs, Integer rhs -> Boolean (Int.compare lhs rhs > 0)
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs > 0)
+    | Integer lhs, Number rhs -> Boolean (Float.compare (Int.to_float lhs) rhs > 0)
+    | Number lhs, Integer rhs -> Boolean (Float.compare lhs (Int.to_float rhs) > 0)
     | StringVal lhs, StringVal rhs -> Boolean (String.compare lhs rhs > 0)
     | _ -> assert false
 
 let val_leq lhs rhs _ss _loc = match lhs, rhs with
     | Integer lhs, Integer rhs -> Boolean (Int.compare lhs rhs <= 0)
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs <= 0)
+    | Integer lhs, Number rhs -> Boolean (Float.compare (Int.to_float lhs) rhs <= 0)
+    | Number lhs, Integer rhs -> Boolean (Float.compare lhs (Int.to_float rhs) <= 0)
     | StringVal lhs, StringVal rhs -> Boolean (String.compare lhs rhs <= 0)
     | _ -> assert false
 
 let val_geq lhs rhs _ss _loc = match lhs, rhs with
     | Integer lhs, Integer rhs -> Boolean (Int.compare lhs rhs >= 0)
     | Number lhs, Number rhs -> Boolean (Float.compare lhs rhs >= 0)
+    | Integer lhs, Number rhs -> Boolean (Float.compare (Int.to_float lhs) rhs >= 0)
+    | Number lhs, Integer rhs -> Boolean (Float.compare lhs (Int.to_float rhs) >= 0)
     | StringVal lhs, StringVal rhs -> Boolean (String.compare lhs rhs >= 0)
     | _ -> assert false
 

@@ -215,7 +215,13 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
                         match rest with
                             | ({data = Comma; _}::rest) -> aux rest (nx::acc)
                             | ({data = RParen; _}::rest) -> (nx::acc, rest)
-                            | _ -> assert false
+                            | ({data; _}::_) ->
+                                Stdio.printf "Expected Comma or RParen in parsing of tuple pattern, got %s\n"
+                                    (string_of_tok data);
+                                Caml.exit 0
+                            | [] -> 
+                                Stdio.printf "Expected Comma or RParen in parsing of tuple pattern at end of file\n";
+                                Caml.exit 0
             in 
             let (parsed, remaining) = aux xs [] 
             in complete_pat (TuplePat (List.rev parsed)) remaining in_list
