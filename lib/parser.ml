@@ -243,7 +243,7 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
             let (pat_list, tail), rest = aux xs [] in
             let parsed_list_pat = match tail with
                 | None -> FullPat (List.rev pat_list)
-                | Some tail_pat -> HeadTailPat (pat_list, tail_pat)
+                | Some tail_pat -> HeadTailPat (List.rev pat_list, tail_pat)
             in
             complete_pat (ListPat parsed_list_pat) rest in_list
     | {data = Percent; _}::{data = LBrace; _}::xs ->
