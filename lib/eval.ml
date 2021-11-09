@@ -369,7 +369,6 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                     Caml.exit 0
                 | ResolvedIdent i ->
                     let name = List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal i in
-                    Map.iter_keys state ~f:(fun k -> printf "key: %d\n" k);
                     printf "Error: resolved function %s (id %d) not found at %s\n" name i (location_to_string loc);
                     print_traceback ss;
                     Caml.exit 0

@@ -1,6 +1,8 @@
 open Base
 open Types
 
+let inline_threshold = 3
+
 let assoc_add ls x = 
     if List.Assoc.mem ls ~equal:String.equal x then
         ls
@@ -250,3 +252,66 @@ let find_expr_functions ss acc e = match e with
 
 let find_block_funcs ss expr_ls acc =
     List.fold_left ~init:acc ~f:(find_expr_functions ss) expr_ls
+
+let rec is_function_inlinable fn_id ss ?current_func_id:(current_func_id=None) e = 
+    let is_function_inlinable ?current_func_id:(current_func_id=current_func_id) e = 
+        e |> Located.extract |> is_function_inlinable ~current_func_id:current_func_id fn_id ss 
+    in
+    let is_opt_inlineable ?current_func_id:(current_func_id=current_func_id) o = 
+        o |> Option.map ~f:(is_function_inlinable ~current_func_id:current_func_id) |> Option.value ~default:true 
+    in
+    let is_id_current_func id = 
+        current_func_id 
+        |> Option.map ~f:(fun current_func_id -> Int.equal current_func_id id) 
+        |> Option.value ~default:false
+    in
+    match e with
+    | LambdaCall {callee = ResolvedIdent id; _} when Int.equal id fn_id -> false
+    | LambdaCall {callee = ResolvedIdent id; _} when is_id_current_func id -> true
+    | LambdaCall {callee = ResolvedIdent id; call_args} -> begin
+        match List.Assoc.find ss.static_block_funcs ~equal:Int.equal id with
+            | Some called_expr ->
+                let args_recurse = is_function_inlinable call_args in
+                let mutually_recursive = is_function_inlinable ~current_func_id:(Some id) called_expr.fn_expr in
+                not (args_recurse || mutually_recursive)
+            | None -> 
+                (* 
+                   Function calls a closure, which can only be mutually recursive
+                   with the current function if it is defined within the current function.
+                   We check all lambda defs in this block, so any mutually recursive lambda
+                   will already be checked.
+                *)
+                true
+    end
+    | BlockExpr ls when List.length ls > inline_threshold ->
+        false
+    | (BlockExpr ls)|(TupleExpr ls) ->
+        List.for_all ls ~f:is_function_inlinable
+    | Binary {lhs; rhs; _} -> (is_function_inlinable lhs) && (is_function_inlinable rhs)
+    | Prefix {rhs; _} -> is_function_inlinable rhs
+    | Let {assigned_expr; _} -> is_function_inlinable assigned_expr
+    | LambdaDef {lambda_def_expr; _} ->
+        is_function_inlinable lambda_def_expr
+    | FnDef {fn_def_func = {fn_expr; _}; _} ->
+        is_function_inlinable fn_expr
+    | IfExpr {cond; then_expr; else_expr} ->
+        List.for_all [cond; then_expr; else_expr] ~f:is_function_inlinable
+    | MatchExpr {match_val; match_arms} ->
+        let val_is_inlinable = is_function_inlinable match_val in
+        let match_arms_inlinable = 
+            List.for_all 
+                match_arms 
+                ~f:(fun (_, e1, e2_opt) -> is_function_inlinable e1 && is_opt_inlineable e2_opt)
+        in
+        val_is_inlinable && match_arms_inlinable
+    | MapExpr (pairs, tail) ->
+        let pairs_inlinable = 
+            List.for_all pairs ~f:(fun (k, v) -> (is_function_inlinable k) && (is_function_inlinable v))
+        in
+        let tail_inlinable = is_opt_inlineable tail in
+        pairs_inlinable && tail_inlinable
+    | ListExpr (vals, tail) ->
+        let vals_inlinable = List.for_all vals ~f:is_function_inlinable in
+        let tail_inlinable = is_opt_inlineable tail in
+        vals_inlinable && tail_inlinable
+    | _ -> true

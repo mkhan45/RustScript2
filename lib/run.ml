@@ -67,8 +67,13 @@ let run_file filename (ss, state) =
     let static_block_funcs = 
         Preprocess.find_block_funcs ss (expr_ls |> List.map ~f:Located.extract) ss.static_block_funcs 
     in
-    (* List.iter static_block_funcs ~f:(fun (k, _) -> printf "%d: func\n" k); *)
     let ss = { ss with static_block_funcs } in
+    (* List.iter *) 
+    (*     static_block_funcs *) 
+    (*     ~f:(fun (k, f) -> *) 
+    (*             let fn_name = List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal k in *)
+    (*             let is_inlinable = Preprocess.is_function_inlinable k ss f.fn_expr.data in *)
+    (*             printf "%s is inlinable: %b\n" fn_name is_inlinable); *)
     let fold_step = fun state e -> let _, s = (Eval.eval_expr e ss) state in s in
     ss, List.fold_left ~init:state ~f:fold_step expr_ls
 
