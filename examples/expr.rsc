@@ -51,7 +51,7 @@ let scan(str) = {
 
 let op_bp(op) = match op
     | :add | :sub -> (1, 2)
-    #| :mul | :div -> (3, 4)
+    | :mul | :div -> (3, 4)
 
 let complete_expr(lhs, ls, min_bp) = match ls
     | [(:number, _) | _] | [] -> (lhs, ls)

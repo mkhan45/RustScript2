@@ -31,19 +31,18 @@ let rec bind: pattern -> value -> static_state -> location -> state -> state = f
             let state = bind (SinglePat (ResolvedIdent ident_id)) rhs state in
             bind pat rhs state
     | ((TuplePat lhs_ls) as lhs, ((Tuple rhs_ls) as rhs))|
-      ((ListPat (FullPat lhs_ls)) as lhs, ((ValList rhs_ls) as rhs)) -> fun state -> begin
-            (* TODO: Look into moving the closure inwards, moving some "runtime" computation to "comptime" *)
-            match List.zip lhs_ls rhs_ls with
-                | Ok zipped -> 
-                    List.fold_left ~init:state ~f:(fun state (k, v) -> (bind k v) state) zipped
-                | _ ->
-                    printf "\n";
-                    printf "Error at %s, Tried to bind %s of len %d to %s of len %d\n"
-                        (location_to_string loc)
-                        (string_of_pat ss lhs) (List.length lhs_ls)
-                        (string_of_val ss rhs) (List.length rhs_ls);
-                    print_traceback ss;
-                    Caml.exit 0
+      ((ListPat (FullPat lhs_ls)) as lhs, ((ValList rhs_ls) as rhs)) -> begin
+          match List.zip lhs_ls rhs_ls with
+            | Ok zipped ->
+                fun state -> List.fold_left ~init:state ~f:(fun state (k, v) -> (bind k v) state) zipped
+            | _ ->
+                printf "\n";
+                printf "Error at %s, Tried to bind %s of len %d to %s of len %d\n"
+                    (location_to_string loc)
+                    (string_of_pat ss lhs) (List.length lhs_ls)
+                    (string_of_val ss rhs) (List.length rhs_ls);
+                print_traceback ss;
+                Caml.exit 0
       end
     | (ListPat (HeadTailPat (head_pat_ls, tail_pat))), ValList rhs_ls -> fun s ->
             let (head_ls, tail_ls) = List.split_n rhs_ls (List.length head_pat_ls) in
