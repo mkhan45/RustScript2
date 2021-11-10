@@ -134,8 +134,9 @@ let val_list_head rhs ss _loc = match rhs with
         printf "Invalid Head: rhs = %s\n" (string_of_val ss rhs);
         assert false
 
-let val_list_tail rhs ss _loc = match rhs with
+let val_list_tail rhs ss loc = match rhs with
     | ValList (_::tail) -> ValList tail
     | _ ->
-        printf "Invalid Tail: rhs = %s\n" (string_of_val ss rhs);
-        assert false
+        printf "Invalid Tail at %s: rhs = %s\n" (location_to_string loc) (string_of_val ss rhs);
+        print_traceback ss;
+        Caml.exit 0

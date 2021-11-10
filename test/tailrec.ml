@@ -8,7 +8,7 @@ let () =
     let ss, state = 
         test_state () |> run_file (test_file "tailrec.rsc") in
     (* Evaluating this stack overflows when tail recursion isn't optimized*)
-    assert_equal_expressions "sum(300000, 0)" "45000150000" ss state;
+    assert_equal_expressions "sum_tailrec(300000, 0)" "45000150000" ss state;
 
     let ss, state = 
         test_state () |> run_file (test_file "fib_tc.rsc") in

@@ -5,7 +5,6 @@ let contains(ls, el) = match ls
 
 let digits() = to_charlist("0123456789")
 
-
 let is_digit(c) = contains(digits(), c)
 
 let chars_to_number(chars) = {
@@ -51,7 +50,7 @@ let scan(str) = {
 
 let op_bp(op) = match op
     | :add | :sub -> (1, 2)
-    #| :mul | :div -> (3, 4)
+    | :mul | :div -> (3, 4)
 
 let complete_expr(lhs, ls, min_bp) = match ls
     | [(:number, _) | _] | [] -> (lhs, ls)
@@ -70,7 +69,6 @@ let expr_bp(toks, min_bp) = match toks
 	| [(:number, _) as n | xs] -> complete_expr(n, xs, min_bp)
 	| _ -> let () = 1
 
-
 let eval(expr) = match expr
     | %{op: :add, lhs: l, rhs: r} -> eval(l) + eval(r)
     | %{op: :sub, lhs: l, rhs: r} -> eval(l) - eval(r)
@@ -85,7 +83,7 @@ let eval_str(s) = {
     eval(expr)
 }
 
-let loop() = {
+let input_loop() = {
     print("Enter an expression to evaluate: ")
 
     match scanln ()
@@ -94,7 +92,7 @@ let loop() = {
 	| line -> {
 	    let res = eval_str(line)
 	    println(to_string(res))
-	    loop()
+	    input_loop()
 	}
 }
 #loop()

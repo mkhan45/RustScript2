@@ -1,11 +1,11 @@
-let range = {
+let range_tup = {
     let helper = fn (l, r, acc) => 
         if l == r then acc else helper(l, r - 1, (r, acc))
     
     fn (l, r) => helper(l - 1, r, ())
 }
 
-let filter = {
+let filter_tup = {
     let helper = fn(f, ls, acc) => match ls
         | (_, ()) -> acc
         | (hd, tl) ->
@@ -16,7 +16,7 @@ let filter = {
     fn(f, ls) => helper(f, ls, ())
 }
 
-let sum = {
+let sum_tup = {
     let helper = fn(ls, acc) => match ls
         | (hd, ()) -> hd + acc
         | (hd, tl) -> helper(tl, hd + acc)

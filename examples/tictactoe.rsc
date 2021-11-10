@@ -33,12 +33,12 @@ let is_winner(board, turn) = {
     ])
 }
 
-let loop(board, turn) = {
+let game_loop(board, turn) = {
     println("===========\n")
     print_board(board)
     print("\nChoose a position for " + square_to_string(turn) + ": ")
 
-    let get_position = fn() => match string_to_num(scanln())
+    let get_position = fn() => match string_to_int(scanln())
 	| (:ok, n) when nth(board, n) != :empty -> {
 	    print("That position is already taken, enter another: ")
 	    get_position()
@@ -56,8 +56,8 @@ let loop(board, turn) = {
 	println(square_to_string(turn) + " Wins!")
 	print_board(new_board)
     } else {
-	loop(set_nth(board, position, turn), switch_turn(turn))
+	game_loop(set_nth(board, position, turn), switch_turn(turn))
     }
 }
 
-loop(empty_board(), :x)
+game_loop(empty_board(), :x)

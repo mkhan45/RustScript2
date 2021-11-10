@@ -71,7 +71,7 @@ and static_state = {
 
 and state = (int, value, Int.comparator_witness) Map.t
 
-and lambda = {lambda_expr: expr Located.t; lambda_args: pattern; enclosed_state: state}
+and lambda = {lambda_expr: expr Located.t; lambda_args: pattern; enclosed_state: state;}
 and lambda_call = {callee: ident; call_args: expr Located.t}
 and func = {fn_expr: expr Located.t; fn_args: pattern}
 and if_expr = {cond: expr Located.t; then_expr: expr Located.t; else_expr: expr Located.t}
@@ -96,8 +96,7 @@ and expr =
     | ListExpr of ((expr Located.t) list) * ((expr Located.t) option)
     | UnresolvedAtom of string
 
-let escape_string s =
-    s 
+let escape_string s = s 
     |> String.substr_replace_all ~pattern:"\\n" ~with_:"\n"
     |> String.substr_replace_all ~pattern:"\\t" ~with_:"\t"
 

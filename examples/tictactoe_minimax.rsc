@@ -4,6 +4,7 @@ let square_to_string(square) = match square
     | :empty -> " "
     | :x     -> "X"
     | :o     -> "O"
+
 let print_board(board) = {
     foreach([0..3], fn(i) => {
 	let [a, b, c] = slice(board, 3 * i, 3 * i + 3)
@@ -116,7 +117,7 @@ let ai_move(board, turn) = {
     }
 }
 
-let loop(board, turn, player) = {
+let game_loop(board, turn, player) = {
     println("===========\n")
     print_board(board)
 
@@ -146,9 +147,9 @@ let loop(board, turn, player) = {
 	println("You tied!")
 	print_board(new_board)
     } else {
-	loop(new_board, switch_turn(turn), player)
+	game_loop(new_board, switch_turn(turn), player)
     }
 }
 
 let board = empty_board()
-loop(board, :x, :x)
+game_loop(board, :x, :x)

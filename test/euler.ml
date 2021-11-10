@@ -15,7 +15,7 @@ let () =
 
     let ss, state = 
         test_state () |> run_file (test_file "euler1_tup.rsc") in
-    assert_equal_expressions "sum(filter(predicate, range(1, 1000)))" "233168" ss state;
+    assert_equal_expressions "sum_tup(filter_tup(predicate, range_tup(1, 1000)))" "233168" ss state;
 
     let ss, state = 
         test_state () |> run_file (test_file "euler1_tup.rsc") in

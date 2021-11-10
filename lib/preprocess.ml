@@ -1,6 +1,8 @@
 open Base
 open Types
 
+let inline_threshold = 3
+
 let assoc_add ls x = 
     if List.Assoc.mem ls ~equal:String.equal x then
         ls
@@ -250,3 +252,191 @@ let find_expr_functions ss acc e = match e with
 
 let find_block_funcs ss expr_ls acc =
     List.fold_left ~init:acc ~f:(find_expr_functions ss) expr_ls
+
+let rec is_function_inlinable fn_id ss ?current_func_id:(current_func_id=None) e = 
+    let is_function_inlinable ?current_func_id:(current_func_id=current_func_id) e = 
+        e |> Located.extract |> is_function_inlinable ~current_func_id:current_func_id fn_id ss 
+    in
+    let is_opt_inlineable ?current_func_id:(current_func_id=current_func_id) o = 
+        o |> Option.map ~f:(is_function_inlinable ~current_func_id:current_func_id) |> Option.value ~default:true 
+    in
+    let is_id_current_func id = 
+        current_func_id 
+        |> Option.map ~f:(fun current_func_id -> Int.equal current_func_id id) 
+        |> Option.value ~default:false
+    in
+    match e with
+    | LambdaCall {callee = ResolvedIdent id; _} when Int.equal id fn_id -> false
+    | LambdaCall {callee = ResolvedIdent id; _} when is_id_current_func id -> true
+    | LambdaCall {callee = ResolvedIdent id; call_args} -> begin
+        match List.Assoc.find ss.static_block_funcs ~equal:Int.equal id with
+            | Some called_expr ->
+                let args_recurse = is_function_inlinable call_args in
+                let mutually_recursive = is_function_inlinable ~current_func_id:(Some id) called_expr.fn_expr in
+                not (args_recurse || mutually_recursive)
+            | None -> 
+                (* 
+                   Function calls a closure, which can only be mutually recursive
+                   with the current function if it is defined within the current function.
+                   We check all lambda defs in this block, so any mutually recursive lambda
+                   will already be checked.
+                *)
+                true
+    end
+    | BlockExpr ls when List.length ls > inline_threshold ->
+        false
+    | (BlockExpr ls)|(TupleExpr ls) ->
+        List.for_all ls ~f:is_function_inlinable
+    | Binary {lhs; rhs; _} -> (is_function_inlinable lhs) && (is_function_inlinable rhs)
+    | Prefix {rhs; _} -> is_function_inlinable rhs
+    | Let {assigned_expr; _} -> is_function_inlinable assigned_expr
+    | LambdaDef {lambda_def_expr; _} ->
+        is_function_inlinable lambda_def_expr
+    | FnDef {fn_def_func = {fn_expr; _}; _} ->
+        is_function_inlinable fn_expr
+    | IfExpr {cond; then_expr; else_expr} ->
+        List.for_all [cond; then_expr; else_expr] ~f:is_function_inlinable
+    | MatchExpr {match_val; match_arms} ->
+        let val_is_inlinable = is_function_inlinable match_val in
+        let match_arms_inlinable = 
+            List.for_all 
+                match_arms 
+                ~f:(fun (_, e1, e2_opt) -> is_function_inlinable e1 && is_opt_inlineable e2_opt)
+        in
+        val_is_inlinable && match_arms_inlinable
+    | MapExpr (pairs, tail) ->
+        let pairs_inlinable = 
+            List.for_all pairs ~f:(fun (k, v) -> (is_function_inlinable k) && (is_function_inlinable v))
+        in
+        let tail_inlinable = is_opt_inlineable tail in
+        pairs_inlinable && tail_inlinable
+    | ListExpr (vals, tail) ->
+        let vals_inlinable = List.for_all vals ~f:is_function_inlinable in
+        let tail_inlinable = is_opt_inlineable tail in
+        vals_inlinable && tail_inlinable
+    | _ -> true
+
+(* TODO *)
+(* To inline a function, create a block with all the assignments and the function body *)
+(* Ideally, reduntant assignments should be removed *)
+(* There should be a separate preprocessor pass to remove reduntant assignments 
+   and assignments which are only used once. We should be able to inline assignments which
+   are only used once, saving a map set/get *)
+let rec inline_functions: static_state -> expr Located.t -> expr Located.t = fun ss e ->
+    let inline_functions = inline_functions ss in
+    let expr_data: expr = match e.data with
+    | Atomic _ | IdentExpr _ | UnresolvedAtom _ -> e.data
+    | Binary ({lhs; rhs; _} as b) ->
+        let lhs = inline_functions lhs in
+        let rhs = inline_functions rhs in
+        Binary {b with lhs; rhs}
+    | Prefix ({rhs; _} as p) ->
+        let rhs = inline_functions rhs in
+        Prefix {p with rhs}
+    | Let ({assigned_expr; _} as l) ->
+        let assigned_expr = inline_functions assigned_expr in
+        Let {l with assigned_expr}
+    | LambdaDef ({lambda_def_expr; _} as l) ->
+        let lambda_def_expr = inline_functions lambda_def_expr in
+        LambdaDef {l with lambda_def_expr}
+    | LambdaCall {callee = ResolvedIdent id; call_args} when List.Assoc.mem ss.static_block_funcs ~equal:Int.equal id ->
+        let fn = List.Assoc.find_exn ss.static_block_funcs ~equal:Int.equal id in
+        BlockExpr [
+            Let {assignee = fn.fn_args; assigned_expr = call_args} |> Located.locate e.location;
+            fn.fn_expr
+        ]
+    | LambdaCall ({call_args; _} as l) ->
+        let call_args = inline_functions call_args in
+        LambdaCall {l with call_args}
+    | FnDef ({fn_def_func = ({fn_expr; _} as fn); _} as def) ->
+        let fn_expr = inline_functions fn_expr in
+        FnDef {def with fn_def_func = {fn with fn_expr}}
+    | IfExpr {cond; then_expr; else_expr} ->
+        let cond = inline_functions cond in
+        let then_expr = inline_functions then_expr in
+        let else_expr = inline_functions else_expr in
+        IfExpr {cond; then_expr; else_expr}
+    | TupleExpr ls ->
+        TupleExpr (List.map ~f:inline_functions ls)
+    | BlockExpr ls ->
+        BlockExpr (List.map ~f:inline_functions ls)
+    | MatchExpr {match_val; match_arms} ->
+        let match_val = inline_functions match_val in
+        let match_arms = 
+            List.map 
+                ~f:(fun (p, e1, e2_opt) -> (p, inline_functions e1, Option.map ~f:inline_functions e2_opt))
+                match_arms
+        in
+        MatchExpr {match_val; match_arms}
+    | MapExpr (pairs, tail) ->
+        let pairs = List.map ~f:(fun (k, v) -> (inline_functions k, inline_functions v)) pairs in
+        let tail = Option.map ~f:inline_functions tail in
+        MapExpr (pairs, tail)
+    | ListExpr (vals, tail) ->
+        let vals = List.map ~f:inline_functions vals in
+        let tail = Option.map ~f:inline_functions tail in
+        ListExpr (vals, tail)
+    in
+    Located.locate e.location expr_data
+
+let rec clobbers_declared_fn ss e = 
+    let clobbers_declared_fn = clobbers_declared_fn ss in
+    let pat_clobbers_fn = pat_clobbers_fn ss in
+    let check_opt o = o |> Option.map ~f:clobbers_declared_fn |> Option.value ~default:false in
+    match (Located.extract e) with
+    | LambdaCall {call_args; _} -> 
+        clobbers_declared_fn call_args
+    | (BlockExpr ls)|(TupleExpr ls) -> 
+        List.exists ls ~f:clobbers_declared_fn
+    | Binary {lhs; rhs; _} -> 
+        (clobbers_declared_fn lhs) || (clobbers_declared_fn rhs)
+    | Prefix {rhs; _} -> 
+        clobbers_declared_fn rhs
+    | Let {assignee; assigned_expr;} -> 
+         (pat_clobbers_fn assignee) || (clobbers_declared_fn assigned_expr)
+    | LambdaDef {lambda_def_expr; lambda_def_args} -> 
+        (clobbers_declared_fn lambda_def_expr) || (pat_clobbers_fn lambda_def_args)
+    | FnDef {fn_def_func = {fn_expr; fn_args}; _} ->
+        (clobbers_declared_fn fn_expr) || (pat_clobbers_fn fn_args)
+    | IfExpr {cond; then_expr; else_expr} ->
+        List.exists [cond; then_expr; else_expr] ~f:clobbers_declared_fn
+    | MatchExpr {match_val; match_arms} ->
+        let val_clobbers = clobbers_declared_fn match_val in
+        let match_arms_clobber = 
+            List.for_all 
+                match_arms 
+                ~f:(fun (pat, e1, e2_opt) -> 
+                    (pat_clobbers_fn pat) || (clobbers_declared_fn e1) && (check_opt e2_opt))
+        in
+        val_clobbers || match_arms_clobber
+    | MapExpr (pairs, tail) ->
+        let pairs_clobber = 
+            List.exists pairs ~f:(fun (k, v) -> (clobbers_declared_fn k) || (clobbers_declared_fn v))
+        in
+        let tail_clobbers = check_opt tail in
+        pairs_clobber || tail_clobbers
+    | ListExpr (vals, tail) ->
+        let vals_clobber = List.exists vals ~f:clobbers_declared_fn in
+        let tail_clobbers = check_opt tail in
+        vals_clobber || tail_clobbers
+    | Atomic _ | IdentExpr _ | UnresolvedAtom _ -> false
+
+(* TODO: Add location & diagnostics *)
+and pat_clobbers_fn ss p =
+    let clobbers_declared_fn = clobbers_declared_fn ss in
+    let pat_clobbers_fn = pat_clobbers_fn ss in
+    match p with
+    | SinglePat (ResolvedIdent id) ->
+        List.Assoc.mem ss.static_block_funcs ~equal:Int.equal id
+    | SinglePat _ | NumberPat _ | IntegerPat _ | StringPat _ | UnresolvedAtomPat _ | AtomPat _ | WildcardPat ->
+        false
+    | (TuplePat ls)|(ListPat (FullPat ls)) -> 
+        List.exists ~f:pat_clobbers_fn ls
+    | ListPat (HeadTailPat (ls, tail)) ->
+        List.exists ~f:pat_clobbers_fn ls || pat_clobbers_fn tail
+    | MapPat pairs ->
+        List.exists ~f:(fun (k, v) -> (clobbers_declared_fn k) || (pat_clobbers_fn v)) pairs
+    | OrPat (l, r) ->
+        (pat_clobbers_fn l) || (pat_clobbers_fn r)
+    | AsPat (p, _) ->
+        pat_clobbers_fn p
