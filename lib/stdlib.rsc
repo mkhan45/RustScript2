@@ -12,7 +12,7 @@ let filter(f, ls) = reverse(filter_rev(f, ls))
 
 let find(f, ls) = match ls
     | [] -> ()
-    | [x | xs] -> if f(x) then x else f(xs)
+    | [x | xs] -> if f(x) then x else find(f, xs)
 
 let map_rev(f, ls) = fold([], fn(ls, x) => [f(x)|ls], ls)
 let map(f, ls) = reverse(map_rev(f, ls))
@@ -84,6 +84,14 @@ let slice(ls, start, end) = take(end - start, drop(start, ls))
 let max(a, b) = if a > b then a else b
 let min(a, b) = if a < b then a else b
 
+let repeat(x, n) = {
+    let helper(x, n, acc) = match n
+	| 0 -> acc
+	| n -> helper(x, n - 1, [x | acc])
+
+    helper(x, n, [])
+}
+
 let nth(ls, i) = match i
     | 0 -> ^ls
     | i -> nth($ls, i - 1)
@@ -92,3 +100,21 @@ let set_nth(ls, i, x) = match i
     | 0 -> [x | $ls]
     | i -> [^ls | set_nth($ls, i - 1, x)]
 
+let merge = fn(xs, ys, cmp) => match (xs, ys)
+    | (ls, [])|([], ls) -> ls
+    | ([x|xs], [y|ys]) when cmp(x, y) <= 0 -> [x | merge(xs, [y|ys], cmp)]
+    | ([x|xs], [y|ys]) -> [y | merge([x|xs], ys, cmp)]
+
+let sort = fn(ls, cmp) => {
+    let pairs = fn(ls) => match ls
+        | [a, b | tl] -> [merge(a, b, cmp) | pairs(tl)]
+        | _ -> ls
+
+    let loop = fn(ls) => match ls
+        | [x] -> x
+        | _ -> loop(pairs(ls))
+
+    loop([[x] for x in ls])
+}
+
+let abs(x) = if x >= 0 then x else -x

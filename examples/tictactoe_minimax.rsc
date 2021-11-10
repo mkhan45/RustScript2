@@ -1,11 +1,3 @@
-let repeat(x, n) = {
-    let helper(x, n, acc) = match n
-	| 0 -> acc
-	| n -> helper(x, n - 1, [x | acc])
-
-    helper(x, n, [])
-}
-
 let empty_board() = repeat(:empty, 9)
 
 let square_to_string(square) = match square
@@ -161,8 +153,3 @@ let game_loop(board, turn, player) = {
 
 let board = empty_board()
 game_loop(board, :x, :x)
-#let board = empty_board()
-#print_board(board)
-#let (_, board) = minimax(board, :x, :x)
-#println("===========")
-#print_board(board)

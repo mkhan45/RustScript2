@@ -1,11 +1,3 @@
-let repeat(x, n) = {
-    let helper(x, n, acc) = match n
-	| 0 -> acc
-	| n -> helper(x, n - 1, [x | acc])
-
-    helper(x, n, [])
-}
-
 let empty_board() = repeat(:empty, 9)
 
 let square_to_string(square) = match square
