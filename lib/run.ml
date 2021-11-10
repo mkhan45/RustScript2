@@ -68,12 +68,24 @@ let run_file filename (ss, state) =
         Preprocess.find_block_funcs ss (expr_ls |> List.map ~f:Located.extract) ss.static_block_funcs 
     in
     let ss = { ss with static_block_funcs } in
+    let block = BlockExpr expr_ls |> Located.locate {line_num = 0; filename = filename} in
     (* List.iter *) 
     (*     static_block_funcs *) 
     (*     ~f:(fun (k, f) -> *) 
     (*             let fn_name = List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal k in *)
     (*             let is_inlinable = Preprocess.is_function_inlinable k ss f.fn_expr.data in *)
     (*             printf "%s is inlinable: %b\n" fn_name is_inlinable); *)
+    (* TODO: If statement syntax errors here? *)
+    let block = match (Preprocess.clobbers_declared_fn ss block) with
+        | false -> block
+        | true ->
+            printf "Tried to clobber function with variable binding\n";
+            Caml.exit 0
+    in
+    let expr_ls = match Preprocess.inline_functions ss block with
+    | {data = BlockExpr expr_ls; _} -> expr_ls
+    | _ -> assert false
+    in
     let fold_step = fun state e -> let _, s = (Eval.eval_expr e ss) state in s in
     ss, List.fold_left ~init:state ~f:fold_step expr_ls
 

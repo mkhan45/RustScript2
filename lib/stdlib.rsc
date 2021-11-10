@@ -83,3 +83,12 @@ let slice(ls, start, end) = take(end - start, drop(start, ls))
 
 let max(a, b) = if a > b then a else b
 let min(a, b) = if a < b then a else b
+
+let nth(ls, i) = match i
+    | 0 -> ^ls
+    | i -> nth($ls, i - 1)
+
+let set_nth(ls, i, x) = match i
+    | 0 -> [x | $ls]
+    | i -> [^ls | set_nth($ls, i - 1, x)]
+

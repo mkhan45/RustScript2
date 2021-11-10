@@ -43,7 +43,3 @@ let construct_from_list = fn(ls) =>
 
 let ls = to_charlist("khan348kha")
 let bst = construct_from_list(ls)
-
-inspect(bst)
-inspect(tree_to_ls_inorder(bst))
-inspect(tree_to_ls_preorder(bst))

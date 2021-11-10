@@ -13,14 +13,6 @@ let square_to_string(square) = match square
     | :x     -> "X"
     | :o     -> "O"
 
-let nth(ls, i) = match i
-    | 0 -> ^ls
-    | i -> nth($ls, i - 1)
-
-let set_nth(ls, i, x) = match i
-    | 0 -> [x | $ls]
-    | i -> [^ls | set_nth($ls, i - 1, x)]
-
 let print_board(board) = {
     foreach([0..3], fn(i) => {
 	let [a, b, c] = slice(board, 3 * i, 3 * i + 3)
@@ -119,13 +111,11 @@ let ai_move(board, turn) = {
 	    }
 	
 	let block_move = loop(indexed_sets)
-	inspect((:block_move, block_move))
 	if block_move != () then {
 	    set_nth(board, block_move, turn)
 	} else {
 	    let corners = [0, 2, 6, 8]
 	    let corner_move = find(fn(sq) => nth(board, sq) == :empty, corners)
-	    inspect((:corner_move, corner_move))
 	    set_nth(board, corner_move, turn)
 	}
 
@@ -135,7 +125,7 @@ let ai_move(board, turn) = {
     }
 }
 
-let loop(board, turn, player) = {
+let game_loop(board, turn, player) = {
     println("===========\n")
     print_board(board)
 
@@ -165,12 +155,12 @@ let loop(board, turn, player) = {
 	println("You tied!")
 	print_board(new_board)
     } else {
-	loop(new_board, switch_turn(turn), player)
+	game_loop(new_board, switch_turn(turn), player)
     }
 }
 
 let board = empty_board()
-loop(board, :x, :x)
+game_loop(board, :x, :x)
 #let board = empty_board()
 #print_board(board)
 #let (_, board) = minimax(board, :x, :x)

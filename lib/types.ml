@@ -96,8 +96,7 @@ and expr =
     | ListExpr of ((expr Located.t) list) * ((expr Located.t) option)
     | UnresolvedAtom of string
 
-let escape_string s =
-    s 
+let escape_string s = s 
     |> String.substr_replace_all ~pattern:"\\n" ~with_:"\n"
     |> String.substr_replace_all ~pattern:"\\t" ~with_:"\t"
 
