@@ -9,6 +9,148 @@ let assoc_add ls x =
     else
         (x, List.length ls)::ls
 
+type tree_node =
+    | ExprNode of (expr Located.t)
+    | PatNode of pattern
+
+let unwrap_expr_node = function
+    | ExprNode n -> n
+    | _ -> assert false
+
+let unwrap_pat_node = function
+    | PatNode n -> n
+    | _ -> assert false
+
+let rec tree_fold_map: tree_node -> accumulator:'a -> f:('a -> tree_node -> (tree_node * 'a)) -> (tree_node * 'a) = 
+    fun node ~accumulator ~f -> match node with
+    | ExprNode ({data = Atomic _ | IdentExpr _ | UnresolvedAtom _; _}) ->
+        f accumulator node
+    | ExprNode (({data = Binary ({lhs; rhs; _} as b); _}) as located) ->
+        let lhs, accumulator = tree_fold_map (ExprNode lhs) ~accumulator:accumulator ~f:f in
+        let rhs, accumulator = tree_fold_map (ExprNode rhs) ~accumulator:accumulator ~f:f in
+        let (lhs, rhs) = (unwrap_expr_node lhs), (unwrap_expr_node rhs) in
+        f (ExprNode {located with data = Binary {b with lhs; rhs}}) accumulator
+    | ExprNode ({data = Prefix ({rhs; _} as p); _} as located) ->
+        let rhs, accumulator = tree_fold_map (ExprNode rhs) ~accumulator:accumulator ~f:f in
+        let rhs = unwrap_expr_node rhs in
+        f (ExprNode {located with data = Prefix {p with rhs}}) accumulator
+    | ExprNode ({data = Let {assignee; assigned_expr}; location}) ->
+        let assignee, accumulator = tree_fold_map (PatNode assignee) ~accumulator:accumulator ~f:f in
+        let assigned_expr, accumulator = tree_fold_map (ExprNode assigned_expr) ~accumulator:accumulator ~f:f in
+        let (assignee, assigned_expr) = unwrap_pat_node assignee, unwrap_expr_node assigned_expr in
+        f (ExprNode {data = Let {assignee; assigned_expr}; location}) accumulator
+    | ExprNode ({data = LambdaDef {lambda_def_expr; lambda_def_args}; _} as located) ->
+        let lambda_def_expr, accumulator = 
+            tree_fold_map (ExprNode lambda_def_expr) ~accumulator:accumulator ~f:f 
+        in
+        let lambda_def_args, accumulator = 
+            tree_fold_map (PatNode lambda_def_args) ~accumulator:accumulator ~f:f 
+        in
+        let (lambda_def_expr, lambda_def_args) = 
+            (unwrap_expr_node lambda_def_expr, unwrap_pat_node lambda_def_args)
+        in
+        f (ExprNode {located with data = LambdaDef {lambda_def_expr; lambda_def_args}}) accumulator
+    | ExprNode ({data = LambdaCall ({call_args; _} as c); _} as located) ->
+        let call_args, accumulator = tree_fold_map (ExprNode call_args) ~accumulator:accumulator ~f:f in
+        let call_args = unwrap_expr_node call_args in
+        f (ExprNode ({located with data = LambdaCall {c with call_args}})) accumulator
+    | ExprNode ({data = FnDef ({fn_def_func = {fn_expr; fn_args}; _} as def); _} as located) ->
+        let fn_expr, accumulator = tree_fold_map (ExprNode fn_expr) ~accumulator:accumulator ~f:f in
+        let fn_args, accumulator = tree_fold_map (PatNode fn_args) ~accumulator:accumulator ~f:f in
+        let (fn_expr, fn_args) = unwrap_expr_node fn_expr, unwrap_pat_node fn_args in
+        let fn_def_func = {fn_expr; fn_args} in
+        f (ExprNode ({located with data = FnDef {def with fn_def_func}})) accumulator
+    | ExprNode ({data = IfExpr {cond; then_expr; else_expr}; _} as located) ->
+        let cond, accumulator = tree_fold_map (ExprNode cond) ~accumulator:accumulator ~f:f in
+        let then_expr, accumulator = tree_fold_map (ExprNode then_expr) ~accumulator:accumulator ~f:f in
+        let else_expr, accumulator = tree_fold_map (ExprNode else_expr) ~accumulator:accumulator ~f:f in
+        let (cond, then_expr, else_expr) = 
+            (unwrap_expr_node cond, unwrap_expr_node then_expr, unwrap_expr_node else_expr) 
+        in
+        f (ExprNode ({located with data = IfExpr {cond; then_expr; else_expr}})) accumulator
+    | ExprNode ({data = TupleExpr ls; _} as located) ->
+        let step accumulator node =
+            let mapped_node, accumulator = tree_fold_map (ExprNode node) ~accumulator:accumulator ~f:f in
+            accumulator, unwrap_expr_node mapped_node
+        in
+        let accumulator, ls = List.fold_map ~init:accumulator ~f:step ls in
+        f (ExprNode ({located with data = TupleExpr ls})) accumulator
+    | ExprNode ({data = BlockExpr ls; _} as located) ->
+        let step accumulator node =
+            let mapped_node, accumulator = tree_fold_map (ExprNode node) ~accumulator:accumulator ~f:f in
+            accumulator, unwrap_expr_node mapped_node
+        in
+        let accumulator, ls = List.fold_map ~init:accumulator ~f:step ls in
+        f (ExprNode {located with data = BlockExpr ls}) accumulator
+    | ExprNode ({data = MatchExpr {match_val; match_arms}; _} as located) ->
+        let match_val, accumulator = tree_fold_map (ExprNode match_val) ~accumulator:accumulator ~f:f in
+        let match_val = unwrap_expr_node match_val in
+        let step accumulator (match_pat, match_expr, match_cond_opt) =
+            let match_pat, accumulator = tree_fold_map (PatNode match_pat) ~accumulator:accumulator ~f:f in
+            let match_expr, accumulator = tree_fold_map (ExprNode match_expr) ~accumulator:accumulator ~f:f in
+            let match_cond_opt, accumulator = match match_cond_opt with
+                | Some c -> 
+                    let match_cond, accumulator = (tree_fold_map (ExprNode c) ~accumulator:accumulator ~f:f) in
+                    Some (unwrap_expr_node match_cond), accumulator
+                | None -> None, accumulator
+            in
+            accumulator, (unwrap_pat_node match_pat, unwrap_expr_node match_expr, match_cond_opt)
+        in
+        let accumulator, match_arms = List.fold_map ~init:accumulator ~f:step match_arms in
+        f (ExprNode {located with data = MatchExpr {match_val; match_arms}}) accumulator
+    | ExprNode ({data = MapExpr (pairs, tail_opt); _} as located) ->
+        let step accumulator (k, v) =
+            let k, accumulator = tree_fold_map (ExprNode k) ~accumulator:accumulator ~f:f in
+            let v, accumulator = tree_fold_map (ExprNode v) ~accumulator:accumulator ~f:f in
+            accumulator, (unwrap_expr_node k, unwrap_expr_node v)
+        in
+        let accumulator, pairs = List.fold_map ~init:accumulator ~f:step pairs in
+        let tail_opt, accumulator = match tail_opt with
+            | Some t -> 
+                let tail, accumulator = tree_fold_map (ExprNode t) ~accumulator:accumulator ~f:f in
+                Some (unwrap_expr_node tail), accumulator
+            | None -> None, accumulator
+        in
+        f (ExprNode {located with data = MapExpr (pairs, tail_opt)}) accumulator
+    | ExprNode ({data = ListExpr (ls, tail_opt); _} as located) ->
+        let step accumulator node =
+            let mapped_node, accumulator = tree_fold_map (ExprNode node) ~accumulator:accumulator ~f:f in
+            accumulator, (unwrap_expr_node mapped_node)
+        in
+        let accumulator, ls = List.fold_map ~init:accumulator ~f:step ls in
+        let tail_opt, accumulator = match tail_opt with
+            | Some t -> 
+                let tail, accumulator = tree_fold_map (ExprNode t) ~accumulator:accumulator ~f:f in
+                Some (unwrap_expr_node tail), accumulator
+            | None -> None, accumulator
+        in
+        f (ExprNode {located with data = ListExpr (ls, tail_opt)}) accumulator
+    | PatNode (SinglePat _ | NumberPat _ | IntegerPat _ | StringPat _ | UnresolvedAtomPat _ | AtomPat _ | WildcardPat) ->
+        f node accumulator
+    | PatNode (TuplePat ls) ->
+        let step accumulator node =
+            let mapped_node, accumulator = tree_fold_map (PatNode node) ~accumulator:accumulator ~f:f in
+            accumulator, (unwrap_pat_node mapped_node)
+        in
+        let accumulator, ls = List.fold_map ~init:accumulator ~f:step ls in
+        f (PatNode (TuplePat ls)) accumulator
+    | PatNode (ListPat (FullPat ls)) ->
+        let step accumulator node =
+            let mapped_node, accumulator = tree_fold_map (PatNode node) ~accumulator:accumulator ~f:f in
+            accumulator, (unwrap_pat_node mapped_node)
+        in
+        let accumulator, ls = List.fold_map ~init:accumulator ~f:step ls in
+        f (PatNode (ListPat (FullPat ls))) accumulator
+    | PatNode (ListPat (HeadTailPat (ls, tail))) ->
+        let step accumulator node =
+            let mapped_node, accumulator = tree_fold_map (PatNode node) ~accumulator:accumulator ~f:f in
+            accumulator, (unwrap_pat_node mapped_node)
+        in
+        let accumulator, ls = List.fold_map ~init:accumulator ~f:step ls in
+        let tail, accumulator = tree_fold_map (PatNode tail) ~accumulator:accumulator ~f:f in
+        let tail = unwrap_pat_node tail in
+        f (PatNode (ListPat (HeadTailPat (ls, tail)))) accumulator
+
 let rec find_pat_atoms pat atoms = match pat with
     | SinglePat _ | NumberPat _ | IntegerPat _ | AtomPat _ | StringPat _ | WildcardPat  -> atoms
     | TuplePat ls -> List.fold_left ~init:atoms ~f:(fun atoms pat -> find_pat_atoms pat atoms) ls

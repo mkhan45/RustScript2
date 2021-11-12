@@ -9,10 +9,8 @@ let sort = fn(ls) => match ls
 
 let insert = fn(root, key) => match root
     | () -> %{val: key}
-    | %{right: right} when root(:val) < key ->
-	%{right: insert(right, key) | root}
-    | %{left: left} ->
-	%{left: insert(left, key) | root}
+    | %{right: right} when root(:val) < key -> {right: insert(right, key) | root}
+    | %{left: left} -> {left: insert(left, key) | root}
 
 let tree_to_ls_inorder = {
     let loop = fn(root, acc) => match root

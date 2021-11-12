@@ -71,11 +71,17 @@ and static_state = {
 
 and state = (int, value, Int.comparator_witness) Map.t
 
+and capture_arg =
+    | CaptureExprArg of expr Located.t
+    | BlankCaptureHole
+    | LabeledCaptureHole of int
+
 and lambda = {lambda_expr: expr Located.t; lambda_args: pattern; enclosed_state: state;}
 and lambda_call = {callee: ident; call_args: expr Located.t}
+and lambda_capture = {capture_fn: ident; capture_args: capture_arg list}
 and func = {fn_expr: expr Located.t; fn_args: pattern}
 and if_expr = {cond: expr Located.t; then_expr: expr Located.t; else_expr: expr Located.t}
-and ident = 
+and ident =
     | UnresolvedIdent of string
     | ResolvedIdent of int
 
@@ -87,6 +93,7 @@ and expr =
     | Let of {assignee: pattern; assigned_expr: expr Located.t}
     | LambdaDef of {lambda_def_expr: expr Located.t; lambda_def_args: pattern}
     | LambdaCall of lambda_call
+    (* | LambdaCapture of lambda_capture *)
     | FnDef of {fn_name: ident; fn_def_func: func}
     | IfExpr of if_expr
     | TupleExpr of (expr Located.t) list
