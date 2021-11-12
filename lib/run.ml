@@ -16,15 +16,19 @@ let static_assoc_dedup ls =
 let eval: static_state -> state -> string -> (value * state) * static_state = fun ss state s ->
     let (parsed, _remaining) = Parser.parse_str s "repl" in
     let static_atoms =
-        Preprocess.find_atoms parsed.data ss.static_atoms
+        Preprocess.find_atoms (ExprNode parsed) ss.static_atoms
             |> static_assoc_dedup
     in
     let static_idents =
-        Preprocess.find_idents parsed.data ss.static_idents
+        Preprocess.find_idents (ExprNode parsed) ss.static_idents
             |> static_assoc_dedup
     in
     let ss = { ss with static_atoms; static_idents } in
-    let parsed = parsed |> Preprocess.resolve_atoms ss |> Preprocess.resolve_idents ss in
+    let parsed = parsed 
+        |> fun e -> Preprocess.ExprNode e
+        |> fun e -> Preprocess.resolve_atoms_test e ss.static_atoms
+        |> Preprocess.unwrap_expr_node
+        |> Preprocess.resolve_idents ss in
     let eval_closure = Eval.eval_expr parsed ss in
     (eval_closure state), ss
 
@@ -40,6 +44,7 @@ let run_line ss state line =
 let run_file filename (ss, state) =
     let in_stream = In_channel.create filename in
     let in_string = In_channel.input_all in_stream in
+    let locate = Located.locate {line_num = 0; filename = filename} in
     let tokens = in_string |> Scanner.scan ~filename:filename |> skip_newlines in
     let expr_ls =
         let rec aux remaining acc = match (skip_newlines remaining) with
@@ -53,16 +58,20 @@ let run_file filename (ss, state) =
     in
     let block = BlockExpr expr_ls in
     let static_atoms =
-        Preprocess.find_atoms block ss.static_atoms
+        Preprocess.find_atoms (ExprNode (locate block)) ss.static_atoms
             |> static_assoc_dedup
     in
     let static_idents =
-        Preprocess.find_idents block ss.static_idents
+        Preprocess.find_idents (ExprNode (locate block)) ss.static_idents
             |> static_assoc_dedup
     in
     (* List.iter static_idents ~f:(fun (k, v) -> printf "%s: %d\n" k v); *)
     let ss = { ss with static_atoms; static_idents } in
-    let expr_ls = List.map ~f:(Preprocess.resolve_atoms ss) expr_ls in
+    let expr_ls = expr_ls
+        |> List.map ~f:(fun e -> Preprocess.ExprNode e)
+        |> List.map ~f:(fun e -> Preprocess.resolve_atoms_test e ss.static_atoms)
+        |> List.map ~f:Preprocess.unwrap_expr_node
+    in
     let expr_ls = List.map ~f:(Preprocess.resolve_idents ss) expr_ls in
     let static_block_funcs = 
         Preprocess.find_block_funcs ss (expr_ls |> List.map ~f:Located.extract) ss.static_block_funcs 

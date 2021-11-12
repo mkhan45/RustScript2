@@ -528,9 +528,13 @@ and parse: (token Located.t) list -> int -> (expr Located.t) * ((token Located.t
         | {data = Match; location}::xs -> 
             let (match_parsed, xs) = parse_match_expr xs location in
             complete_expr (match_parsed |> locate location) xs min_bp
-        | {location; _}::_ -> 
-            printf "Expected expression at %s\n" (location_to_string location);
-            assert false
+        | {location; data = Pipe}::_ -> 
+            printf "Expected expression at %s, got %s. Did you forget a %%?\n" 
+                (location_to_string location) (string_of_tok Pipe);
+            Caml.exit 0
+        | {location; data}::_ -> 
+            printf "Expected expression at %s, got %s\n" (location_to_string location) (string_of_tok data);
+            Caml.exit 0
         | [] -> 
             printf "Expected expression at end of file\n";
             assert false

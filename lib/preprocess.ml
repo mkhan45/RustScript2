@@ -29,16 +29,16 @@ let rec tree_fold_map: tree_node -> accumulator:'a -> f:('a -> tree_node -> (tre
         let lhs, accumulator = tree_fold_map (ExprNode lhs) ~accumulator:accumulator ~f:f in
         let rhs, accumulator = tree_fold_map (ExprNode rhs) ~accumulator:accumulator ~f:f in
         let (lhs, rhs) = (unwrap_expr_node lhs), (unwrap_expr_node rhs) in
-        f (ExprNode {located with data = Binary {b with lhs; rhs}}) accumulator
+        f accumulator (ExprNode {located with data = Binary {b with lhs; rhs}})
     | ExprNode ({data = Prefix ({rhs; _} as p); _} as located) ->
         let rhs, accumulator = tree_fold_map (ExprNode rhs) ~accumulator:accumulator ~f:f in
         let rhs = unwrap_expr_node rhs in
-        f (ExprNode {located with data = Prefix {p with rhs}}) accumulator
+        f accumulator (ExprNode {located with data = Prefix {p with rhs}})
     | ExprNode ({data = Let {assignee; assigned_expr}; location}) ->
         let assignee, accumulator = tree_fold_map (PatNode assignee) ~accumulator:accumulator ~f:f in
         let assigned_expr, accumulator = tree_fold_map (ExprNode assigned_expr) ~accumulator:accumulator ~f:f in
         let (assignee, assigned_expr) = unwrap_pat_node assignee, unwrap_expr_node assigned_expr in
-        f (ExprNode {data = Let {assignee; assigned_expr}; location}) accumulator
+        f accumulator (ExprNode {data = Let {assignee; assigned_expr}; location})
     | ExprNode ({data = LambdaDef {lambda_def_expr; lambda_def_args}; _} as located) ->
         let lambda_def_expr, accumulator = 
             tree_fold_map (ExprNode lambda_def_expr) ~accumulator:accumulator ~f:f 
@@ -49,17 +49,17 @@ let rec tree_fold_map: tree_node -> accumulator:'a -> f:('a -> tree_node -> (tre
         let (lambda_def_expr, lambda_def_args) = 
             (unwrap_expr_node lambda_def_expr, unwrap_pat_node lambda_def_args)
         in
-        f (ExprNode {located with data = LambdaDef {lambda_def_expr; lambda_def_args}}) accumulator
+        f accumulator (ExprNode {located with data = LambdaDef {lambda_def_expr; lambda_def_args}})
     | ExprNode ({data = LambdaCall ({call_args; _} as c); _} as located) ->
         let call_args, accumulator = tree_fold_map (ExprNode call_args) ~accumulator:accumulator ~f:f in
         let call_args = unwrap_expr_node call_args in
-        f (ExprNode ({located with data = LambdaCall {c with call_args}})) accumulator
+        f accumulator (ExprNode ({located with data = LambdaCall {c with call_args}}))
     | ExprNode ({data = FnDef ({fn_def_func = {fn_expr; fn_args}; _} as def); _} as located) ->
         let fn_expr, accumulator = tree_fold_map (ExprNode fn_expr) ~accumulator:accumulator ~f:f in
         let fn_args, accumulator = tree_fold_map (PatNode fn_args) ~accumulator:accumulator ~f:f in
         let (fn_expr, fn_args) = unwrap_expr_node fn_expr, unwrap_pat_node fn_args in
         let fn_def_func = {fn_expr; fn_args} in
-        f (ExprNode ({located with data = FnDef {def with fn_def_func}})) accumulator
+        f accumulator (ExprNode ({located with data = FnDef {def with fn_def_func}}))
     | ExprNode ({data = IfExpr {cond; then_expr; else_expr}; _} as located) ->
         let cond, accumulator = tree_fold_map (ExprNode cond) ~accumulator:accumulator ~f:f in
         let then_expr, accumulator = tree_fold_map (ExprNode then_expr) ~accumulator:accumulator ~f:f in
@@ -67,21 +67,21 @@ let rec tree_fold_map: tree_node -> accumulator:'a -> f:('a -> tree_node -> (tre
         let (cond, then_expr, else_expr) = 
             (unwrap_expr_node cond, unwrap_expr_node then_expr, unwrap_expr_node else_expr) 
         in
-        f (ExprNode ({located with data = IfExpr {cond; then_expr; else_expr}})) accumulator
+        f accumulator (ExprNode ({located with data = IfExpr {cond; then_expr; else_expr}}))
     | ExprNode ({data = TupleExpr ls; _} as located) ->
         let step accumulator node =
             let mapped_node, accumulator = tree_fold_map (ExprNode node) ~accumulator:accumulator ~f:f in
             accumulator, unwrap_expr_node mapped_node
         in
         let accumulator, ls = List.fold_map ~init:accumulator ~f:step ls in
-        f (ExprNode ({located with data = TupleExpr ls})) accumulator
+        f accumulator (ExprNode ({located with data = TupleExpr ls}))
     | ExprNode ({data = BlockExpr ls; _} as located) ->
         let step accumulator node =
             let mapped_node, accumulator = tree_fold_map (ExprNode node) ~accumulator:accumulator ~f:f in
             accumulator, unwrap_expr_node mapped_node
         in
         let accumulator, ls = List.fold_map ~init:accumulator ~f:step ls in
-        f (ExprNode {located with data = BlockExpr ls}) accumulator
+        f accumulator (ExprNode {located with data = BlockExpr ls})
     | ExprNode ({data = MatchExpr {match_val; match_arms}; _} as located) ->
         let match_val, accumulator = tree_fold_map (ExprNode match_val) ~accumulator:accumulator ~f:f in
         let match_val = unwrap_expr_node match_val in
@@ -97,7 +97,7 @@ let rec tree_fold_map: tree_node -> accumulator:'a -> f:('a -> tree_node -> (tre
             accumulator, (unwrap_pat_node match_pat, unwrap_expr_node match_expr, match_cond_opt)
         in
         let accumulator, match_arms = List.fold_map ~init:accumulator ~f:step match_arms in
-        f (ExprNode {located with data = MatchExpr {match_val; match_arms}}) accumulator
+        f accumulator (ExprNode {located with data = MatchExpr {match_val; match_arms}})
     | ExprNode ({data = MapExpr (pairs, tail_opt); _} as located) ->
         let step accumulator (k, v) =
             let k, accumulator = tree_fold_map (ExprNode k) ~accumulator:accumulator ~f:f in
@@ -111,7 +111,7 @@ let rec tree_fold_map: tree_node -> accumulator:'a -> f:('a -> tree_node -> (tre
                 Some (unwrap_expr_node tail), accumulator
             | None -> None, accumulator
         in
-        f (ExprNode {located with data = MapExpr (pairs, tail_opt)}) accumulator
+        f accumulator (ExprNode {located with data = MapExpr (pairs, tail_opt)})
     | ExprNode ({data = ListExpr (ls, tail_opt); _} as located) ->
         let step accumulator node =
             let mapped_node, accumulator = tree_fold_map (ExprNode node) ~accumulator:accumulator ~f:f in
@@ -124,23 +124,23 @@ let rec tree_fold_map: tree_node -> accumulator:'a -> f:('a -> tree_node -> (tre
                 Some (unwrap_expr_node tail), accumulator
             | None -> None, accumulator
         in
-        f (ExprNode {located with data = ListExpr (ls, tail_opt)}) accumulator
+        f accumulator (ExprNode {located with data = ListExpr (ls, tail_opt)})
     | PatNode (SinglePat _ | NumberPat _ | IntegerPat _ | StringPat _ | UnresolvedAtomPat _ | AtomPat _ | WildcardPat) ->
-        f node accumulator
+        f accumulator node
     | PatNode (TuplePat ls) ->
         let step accumulator node =
             let mapped_node, accumulator = tree_fold_map (PatNode node) ~accumulator:accumulator ~f:f in
             accumulator, (unwrap_pat_node mapped_node)
         in
         let accumulator, ls = List.fold_map ~init:accumulator ~f:step ls in
-        f (PatNode (TuplePat ls)) accumulator
+        f accumulator (PatNode (TuplePat ls))
     | PatNode (ListPat (FullPat ls)) ->
         let step accumulator node =
             let mapped_node, accumulator = tree_fold_map (PatNode node) ~accumulator:accumulator ~f:f in
             accumulator, (unwrap_pat_node mapped_node)
         in
         let accumulator, ls = List.fold_map ~init:accumulator ~f:step ls in
-        f (PatNode (ListPat (FullPat ls))) accumulator
+        f accumulator (PatNode (ListPat (FullPat ls)))
     | PatNode (ListPat (HeadTailPat (ls, tail))) ->
         let step accumulator node =
             let mapped_node, accumulator = tree_fold_map (PatNode node) ~accumulator:accumulator ~f:f in
@@ -149,153 +149,81 @@ let rec tree_fold_map: tree_node -> accumulator:'a -> f:('a -> tree_node -> (tre
         let accumulator, ls = List.fold_map ~init:accumulator ~f:step ls in
         let tail, accumulator = tree_fold_map (PatNode tail) ~accumulator:accumulator ~f:f in
         let tail = unwrap_pat_node tail in
-        f (PatNode (ListPat (HeadTailPat (ls, tail)))) accumulator
-
-let rec find_pat_atoms pat atoms = match pat with
-    | SinglePat _ | NumberPat _ | IntegerPat _ | AtomPat _ | StringPat _ | WildcardPat  -> atoms
-    | TuplePat ls -> List.fold_left ~init:atoms ~f:(fun atoms pat -> find_pat_atoms pat atoms) ls
-    | ListPat (FullPat ls) -> List.fold_left ~init:atoms ~f:(fun atoms pat -> find_pat_atoms pat atoms) ls
-    | ListPat (HeadTailPat (ls, tail)) -> atoms |> find_pat_atoms (ListPat (FullPat ls)) |> find_pat_atoms tail
-    | MapPat pairs -> List.fold_left ~init:atoms ~f:(fun a (e, p) -> a |> find_atoms e.data |> find_pat_atoms p) pairs
-    | OrPat (l, r) -> atoms |> find_pat_atoms l |> find_pat_atoms r
-    | AsPat (p, _) -> atoms |> find_pat_atoms p
-    | UnresolvedAtomPat s -> assoc_add atoms s
-
-and find_atoms: expr -> (string * int) list -> (string * int) list = 
-    fun expr atoms -> match expr with
-    | Binary b     -> atoms |> find_atoms b.lhs.data |> find_atoms b.rhs.data
-    | Prefix p     -> atoms |> find_atoms p.rhs.data
-    | Let l        -> atoms |> find_atoms l.assigned_expr.data |> find_pat_atoms l.assignee
-    | FnDef d      -> atoms |> find_atoms d.fn_def_func.fn_expr.data |> find_pat_atoms d.fn_def_func.fn_args
-    | LambdaDef d  -> atoms |> find_atoms d.lambda_def_expr.data |> find_pat_atoms d.lambda_def_args
-    | LambdaCall c -> atoms |> find_atoms c.call_args.data
-    | IfExpr i     -> atoms |> find_atoms i.cond.data |> find_atoms i.then_expr.data |> find_atoms i.else_expr.data
-    | TupleExpr ls -> List.fold_left ~init:atoms ~f:(fun atoms e -> atoms |> find_atoms e.data) ls
-    | BlockExpr ls -> List.fold_left ~init:atoms ~f:(fun atoms e -> atoms |> find_atoms e.data) ls
-    | MatchExpr m  -> 
-        let fold_step a (p, e, _o) = 
-            a |> find_pat_atoms p |> find_atoms (Located.extract e) 
+        f accumulator (PatNode (ListPat (HeadTailPat (ls, tail))))
+    | PatNode (MapPat pairs) ->
+        let step accumulator (k, v) =
+            let k, accumulator = tree_fold_map (ExprNode k) ~accumulator:accumulator ~f:f in
+            let v, accumulator = tree_fold_map (PatNode v) ~accumulator:accumulator ~f:f in
+            let (k, v) = unwrap_expr_node k, unwrap_pat_node v in
+            accumulator, (k, v) 
         in
-        let atoms = atoms |> find_atoms m.match_val.data in
-        List.fold_left ~init:atoms ~f:fold_step m.match_arms
-    | MapExpr (m, _)  -> 
-        List.fold_left ~init:atoms ~f:(fun atoms (a, b) -> atoms |> find_atoms a.data |> find_atoms b.data) m
-    | ListExpr (ls, _) -> List.fold_left ~init:atoms ~f:(fun atoms e -> atoms |> find_atoms e.data) ls
-    | UnresolvedAtom s -> assoc_add atoms s
-    | _ -> atoms
+        let accumulator, pairs = List.fold_map ~init:accumulator ~f:step pairs in
+        f accumulator (PatNode (MapPat pairs))
+    | PatNode (OrPat (l, r)) ->
+        let l, accumulator = tree_fold_map (PatNode l) ~accumulator:accumulator ~f:f in
+        let r, accumulator = tree_fold_map (PatNode r) ~accumulator:accumulator ~f:f in
+        let (l, r) = (unwrap_pat_node l), (unwrap_pat_node r) in
+        f accumulator (PatNode (OrPat (l, r)))
+    | PatNode (AsPat (p, s)) ->
+        let p, accumulator = tree_fold_map (PatNode p) ~accumulator:accumulator ~f:f in
+        let p = unwrap_pat_node p in
+        f accumulator (PatNode (AsPat (p, s)))
 
-let rec resolve_pat_atoms ss p =
-    let resolve = resolve_pat_atoms ss in
-    let resolve_expr = resolve_atoms ss in
-    match p with
-    | SinglePat _ | NumberPat _ | IntegerPat _ | AtomPat _ | WildcardPat | StringPat _ -> p
-    | TuplePat ls -> TuplePat (List.map ~f:resolve ls)
-    | ListPat (FullPat ls) ->  ListPat (FullPat (List.map ~f:resolve ls))
-    | ListPat (HeadTailPat (ls, p)) -> ListPat (HeadTailPat (List.map ~f:resolve ls, resolve p))
-    | MapPat pairs -> MapPat (List.map ~f:(fun (k, v) -> resolve_expr k, resolve v) pairs)
-    | OrPat (l, r) -> OrPat (resolve l, resolve r)
-    | AsPat (p, n) -> AsPat (resolve p, n)
-    | UnresolvedAtomPat s -> AtomPat (List.Assoc.find_exn ss.static_atoms ~equal:String.equal s)
+let find_expr_atoms_step expr atoms = match (Located.extract expr) with
+    | UnresolvedAtom s -> expr, assoc_add atoms s
+    | _ -> expr, atoms
 
-and resolve_atoms: static_state -> expr Located.t -> expr Located.t = fun ss e ->
-    let open Types.Located in
-    let resolve = resolve_atoms ss in
-    match e with
-        | {data = (Atomic _ | IdentExpr _); _} -> e
-        | {data = Binary b; location} ->
-            let lhs = resolve b.lhs in
-            let rhs = resolve b.rhs in
-            Binary { lhs; rhs; op = b.op } |> locate location
-        | {data = Prefix p; location} ->
-            let rhs = resolve p.rhs in
-            Prefix { rhs; op = p.op } |> locate location
-        | {data = Let l; location} ->
-            let assignee = resolve_pat_atoms ss l.assignee in
-            let assigned_expr = resolve l.assigned_expr in
-            Let { assignee; assigned_expr } |> locate location
-        | {data = LambdaDef d; location} ->
-            let lambda_def_expr = resolve d.lambda_def_expr in
-            let lambda_def_args = resolve_pat_atoms ss d.lambda_def_args in
-            LambdaDef { lambda_def_expr; lambda_def_args } |> locate location
-        | {data = FnDef d; location} ->
-            let fn_expr = resolve d.fn_def_func.fn_expr in
-            let fn_args = resolve_pat_atoms ss d.fn_def_func.fn_args in
-            FnDef { d with fn_def_func = {fn_expr; fn_args} } |> locate location
-        | {data = LambdaCall c; location} ->
-            let call_args = resolve c.call_args in
-            LambdaCall { call_args; callee = c.callee } |> locate location
-        | {data = IfExpr i; location} ->
-            let cond = resolve i.cond in
-            let then_expr = resolve i.then_expr in
-            let else_expr = resolve i.else_expr in
-            IfExpr { cond; then_expr; else_expr } |> locate location
-        | {data = TupleExpr ls; location} ->
-            TupleExpr (List.map ~f:resolve ls) |> locate location
-        | {data = BlockExpr ls; location} ->
-            BlockExpr (List.map ~f:resolve ls) |> locate location
-        | {data = MatchExpr m; location} ->
-            let match_val = resolve m.match_val in
-            let match_arms = 
-                List.map 
-                ~f:(fun (p, a, b) -> (resolve_pat_atoms ss p, resolve a, Option.map ~f:resolve b)) 
-                m.match_arms 
-            in
-            MatchExpr { match_val; match_arms } |> locate location
-        | {data = MapExpr (pairs, tail); location} ->
-            let pairs = List.map ~f:(fun (a, b) -> (resolve a, resolve b)) pairs in
-            let tail = Option.map ~f:resolve tail in
-            MapExpr (pairs, tail) |> locate location
-        | {data = ListExpr (ls, tail); location} ->
-            let ls = List.map ~f:resolve ls in
-            let tail = Option.map ~f:resolve tail in
-            ListExpr (ls, tail) |> locate location
-        | {data = UnresolvedAtom s; location} -> 
-            match List.Assoc.find ss.static_atoms ~equal:String.equal s with
-                | Some i -> (Atomic (Atom i)) |> locate location
-                | None ->
-                    Stdio.printf "Could not resolve atom :%s\n" s;
-                    Caml.exit 0
+let find_pat_atoms_step pat atoms = match pat with
+    | UnresolvedAtomPat s -> pat, assoc_add atoms s
+    | _ -> pat, atoms
 
-let rec find_pat_idents pat idents = match pat with
-    | SinglePat (UnresolvedIdent s) -> assoc_add idents s
-    | NumberPat _ | AtomPat _ | StringPat _ | WildcardPat -> idents
-    | TuplePat ls -> List.fold_left ~init:idents ~f:(fun idents pat -> find_pat_idents pat idents) ls
-    | ListPat (FullPat ls) -> List.fold_left ~init:idents ~f:(fun idents pat -> find_pat_idents pat idents) ls
-    | ListPat (HeadTailPat (ls, tail)) -> idents |> find_pat_idents (ListPat (FullPat ls)) |> find_pat_idents tail
-    | MapPat pairs -> List.fold_left ~init:idents ~f:(fun a (e, p) -> a |> find_idents e.data |> find_pat_idents p) pairs
-    | OrPat (l, r) -> idents |> find_pat_idents l |> find_pat_idents r
-    | AsPat (p, _) -> idents |> find_pat_idents p
-    | _ -> idents
+let find_atoms tree atoms =
+    let fold_step atoms tree = match tree with
+        | ExprNode e ->
+            let e, atoms = find_expr_atoms_step e atoms in
+            (ExprNode e), atoms
+        | PatNode p -> 
+            let p, atoms = find_pat_atoms_step p atoms in
+            (PatNode p), atoms
+    in
+    let _, atoms = tree_fold_map tree ~accumulator:atoms ~f:fold_step in
+    atoms
 
-and find_idents: expr -> (string * int) list -> (string * int) list =
-    fun expr idents -> match expr with
-    | IdentExpr (UnresolvedIdent s)  -> assoc_add idents s
-    | Binary b     -> idents |> find_idents b.lhs.data |> find_idents b.rhs.data
-    | Prefix p     -> idents |> find_idents p.rhs.data
-    | Let l        -> idents |> find_idents l.assigned_expr.data |> find_pat_idents l.assignee
-    | FnDef d      -> 
-            idents 
-            |> find_pat_idents (SinglePat d.fn_name)
-            |> find_idents d.fn_def_func.fn_expr.data 
-            |> find_pat_idents d.fn_def_func.fn_args
-    | LambdaDef d  -> idents |> find_idents d.lambda_def_expr.data |> find_pat_idents d.lambda_def_args
-    | LambdaCall {callee = UnresolvedIdent s; call_args } -> 
-            let idents = idents |> find_idents call_args.data in
-            assoc_add idents s
-    | LambdaCall {call_args; _} -> idents |> find_idents call_args.data
-    | IfExpr i     -> idents |> find_idents i.cond.data |> find_idents i.then_expr.data |> find_idents i.else_expr.data
-    | TupleExpr ls -> List.fold_left ~init:idents ~f:(fun idents e -> idents |> find_idents e.data) ls
-    | BlockExpr ls -> List.fold_left ~init:idents ~f:(fun idents e -> idents |> find_idents e.data) ls
-    | MatchExpr m  -> 
-        let fold_step a (p, e, _o) = 
-            a |> find_pat_idents p |> find_idents (Located.extract e) 
-        in
-        let idents = idents |> find_idents m.match_val.data in
-        List.fold_left ~init:idents ~f:fold_step m.match_arms
-    | MapExpr (m, _)  -> 
-        List.fold_left ~init:idents ~f:(fun idents (a, b) -> idents |> find_idents a.data |> find_idents b.data) m
-    | ListExpr (ls, _) -> List.fold_left ~init:idents ~f:(fun idents e -> idents |> find_idents e.data) ls
-    | _ -> idents
+let resolve_atoms_step atoms node = match node with
+    | ExprNode {data = UnresolvedAtom s; location} -> begin
+        match List.Assoc.find atoms ~equal:String.equal s with
+            | Some i -> ExprNode {data = Atomic (Atom i); location}, atoms
+            | None ->
+                Stdio.printf "Could not resolve atom :%s\n" s;
+                Caml.exit 0
+    end
+    | PatNode (UnresolvedAtomPat s) -> begin
+        match List.Assoc.find atoms ~equal:String.equal s with
+            | Some i -> PatNode (AtomPat i), atoms
+            | None ->
+                Stdio.printf "Could not resolve atom :%s\n" s;
+                Caml.exit 0
+    end
+    | _ -> node, atoms
+
+let resolve_atoms_test tree atoms =
+    let tree, _ = tree_fold_map tree ~accumulator:atoms ~f:resolve_atoms_step in
+    tree
+
+let find_idents_step idents node = match node with
+    | ExprNode {data = IdentExpr (UnresolvedIdent s); _} ->
+        node, assoc_add idents s
+    | ExprNode {data = LambdaCall {callee = UnresolvedIdent s; _}; _} ->
+        node, assoc_add idents s
+    | ExprNode {data = FnDef {fn_name = UnresolvedIdent s; _}; _} ->
+        node, assoc_add idents s
+    | PatNode (SinglePat (UnresolvedIdent s)) ->
+        node, assoc_add idents s
+    | _ -> node, idents
+
+let find_idents tree idents =
+    let _, idents = tree_fold_map tree ~accumulator:idents ~f:find_idents_step in
+    idents
 
 let rec resolve_pat_idents ss p =
     let resolve = resolve_pat_idents ss in
