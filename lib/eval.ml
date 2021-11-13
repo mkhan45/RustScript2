@@ -282,6 +282,34 @@ and eval_fn_def name {fn_expr; fn_args} ss loc = fun state ->
 and eval_lambda_def e args =
     fun s -> (Lambda {lambda_expr = e; lambda_args = args; enclosed_state = s}), s
 
+and eval_lambda_capture capture ss loc state =
+    let capture_callee_id = match capture.capture_expr_fn with
+        | UnresolvedIdent s ->
+            printf "Found unresolved ident %s at %s" s (location_to_string loc);
+            Caml.exit 0
+        | ResolvedIdent id -> id
+    in
+    let capture_val = match Map.find state capture_callee_id with
+        | None ->
+            printf "Tried to make function capture out of nonexistent %s at %s\n"
+                (List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal capture_callee_id)
+                (location_to_string loc);
+            Caml.exit 0
+        | Some v -> v
+    in
+    let fold_step state arg = match arg with
+        | CaptureExprArg e ->
+            let evaled, state = (eval_expr e ss) state in
+            state, ValArg evaled
+        | BlankCaptureExprHole ->
+            state, BlankCaptureHole
+        | LabeledCaptureExprHole i ->
+            state, LabeledCaptureHole i
+    in
+    let state, capture_args = List.fold_map capture.capture_expr_args ~init:state ~f:fold_step in
+    let capture = LambdaCapture {capture_val; capture_args} in
+    (capture, state)
+                
 and unwrap_thunk thunk state ss loc = match thunk with
     | Thunk {thunk_fn; thunk_args; thunk_fn_name = ResolvedIdent thunk_fn_name_id} ->
             let inner_state = (bind thunk_fn.lambda_args thunk_args ss loc) thunk_fn.enclosed_state in
@@ -299,41 +327,129 @@ and unwrap_thunk thunk state ss loc = match thunk with
             Caml.exit 0
     | value -> value, state
 
+and eval_lambda ~tc lambda call ss loc state = match lambda with
+    | Lambda lambda_val ->
+        let (evaled, _) = (eval_expr call.call_args ss) state in
+        let thunk = Thunk {thunk_fn = lambda_val; thunk_args = evaled; thunk_fn_name = call.callee} in
+        if tc then 
+            (thunk, state)
+        else 
+            let res, _ = unwrap_thunk thunk state ss loc in
+            (res, state)
+    | Fn fn_val ->
+        let (evaled, _) = (eval_expr call.call_args ss) state in
+        let block_funcs = List.Assoc.map ss.static_block_funcs ~f:(fun f -> Fn f) in
+        let enclosed_state = Map.of_alist_reduce (module Int) block_funcs ~f:(fun a _ -> a) in
+        let pseudo_lambda = 
+            {lambda_expr = fn_val.fn_expr; lambda_args = fn_val.fn_args; enclosed_state }
+        in
+        let thunk = Thunk {thunk_fn = pseudo_lambda; thunk_args = evaled; thunk_fn_name = call.callee } in
+        if tc then
+            (thunk, state)
+        else
+            let res, _ = unwrap_thunk thunk state ss loc in
+            (res, state)
+    | LambdaCapture capture ->
+        let rec construct_arglist captured arglist call_args used_hole = match captured, call_args, used_hole with
+            | [], [], _ -> 
+                List.rev arglist
+
+            | [], _, _ -> 
+                printf "Called captured fn with too many arguments at %s\n" (location_to_string loc);
+                Caml.exit 0
+
+            | BlankCaptureHole::_, [], ((Some BlankHole)|None) -> 
+                printf "Called captured fn with too few arguments at %s\n" (location_to_string loc);
+                Caml.exit 0
+
+            | (ValArg v)::xs, _, _ -> 
+                let arg = (Atomic v) |> Located.locate loc in
+                construct_arglist xs (arg::arglist) call_args used_hole
+
+            | BlankCaptureHole::xs, arg::call_args, ((Some BlankHole)|None) -> 
+                construct_arglist xs (arg::arglist) call_args (Some BlankHole)
+
+            | (LabeledCaptureHole i)::xs, _, ((Some LabeledHole)|None) ->
+                construct_arglist xs ((List.nth_exn call_args i)::arglist) call_args (Some BlankHole)
+
+            | BlankCaptureHole::_, _, (Some LabeledHole) 
+            | (LabeledCaptureHole _)::_, _, (Some BlankHole) -> 
+                printf "Tried to mix labeled and blank capture holes in call at %s\n"
+                    (location_to_string loc);
+                Caml.exit 0
+        in
+        let call_args = match call.call_args.data with
+            | TupleExpr ls -> ls
+            | _ -> assert false
+        in
+        let arglist = construct_arglist capture.capture_args [] call_args None in
+        let call = {call with call_args = (TupleExpr arglist) |> Located.locate loc} in
+        eval_lambda ~tc:tc capture.capture_val call ss loc state
+    | Dictionary dict ->
+        let (evaled, state) = (eval_expr call.call_args ss) state in begin
+            match evaled with
+                | Tuple [key] -> dict_get dict key ss loc, state
+                | _ ->
+                    printf "Expected a single key\n";
+                    assert false
+        end
+    | _ -> assert false
+
 and eval_lambda_call ?tc:(tail_call=false) call ss loc =
     let callee_id = match call.callee with
         | UnresolvedIdent n -> List.Assoc.find_exn ss.static_idents ~equal:String.equal n
         | ResolvedIdent i -> i
     in
     fun (state: state) -> match Map.find state callee_id with
-        | Some(Lambda lambda_val) ->
-            let (evaled, _) = (eval_expr call.call_args ss) state in
-            let thunk = Thunk {thunk_fn = lambda_val; thunk_args = evaled; thunk_fn_name = call.callee} in
-            if tail_call then 
-                (thunk, state)
-            else 
-                let res, _ = unwrap_thunk thunk state ss loc in
-                (res, state)
-        | Some(Fn fn_val) ->
-            let (evaled, _) = (eval_expr call.call_args ss) state in
-            let block_funcs = List.Assoc.map ss.static_block_funcs ~f:(fun f -> Fn f) in
-            let enclosed_state = Map.of_alist_reduce (module Int) block_funcs ~f:(fun a _ -> a) in
-            let pseudo_lambda = 
-                {lambda_expr = fn_val.fn_expr; lambda_args = fn_val.fn_args; enclosed_state }
-            in
-            let thunk = Thunk {thunk_fn = pseudo_lambda; thunk_args = evaled; thunk_fn_name = call.callee } in
-            if tail_call then
-                (thunk, state)
-            else
-                let res, _ = unwrap_thunk thunk state ss loc in
-                (res, state)
-        | Some(Dictionary dict) ->
-            let (evaled, state) = (eval_expr call.call_args ss) state in begin
-                match evaled with
-                    | Tuple [key] -> dict_get dict key ss loc, state
-                    | _ ->
-                        printf "Expected a single key\n";
-                        assert false
-            end
+        | Some((Lambda _ | Fn _ | LambdaCapture _ | Dictionary _) as l) ->
+            eval_lambda ~tc:tail_call l call ss loc state
+        (* | Some(Lambda lambda_val) -> *)
+        (*     let (evaled, _) = (eval_expr call.call_args ss) state in *)
+        (*     let thunk = Thunk {thunk_fn = lambda_val; thunk_args = evaled; thunk_fn_name = call.callee} in *)
+        (*     if tail_call then *) 
+        (*         (thunk, state) *)
+        (*     else *) 
+        (*         let res, _ = unwrap_thunk thunk state ss loc in *)
+        (*         (res, state) *)
+        (* | Some(Fn fn_val) -> *)
+        (*     let (evaled, _) = (eval_expr call.call_args ss) state in *)
+        (*     let block_funcs = List.Assoc.map ss.static_block_funcs ~f:(fun f -> Fn f) in *)
+        (*     let enclosed_state = Map.of_alist_reduce (module Int) block_funcs ~f:(fun a _ -> a) in *)
+        (*     let pseudo_lambda = *) 
+        (*         {lambda_expr = fn_val.fn_expr; lambda_args = fn_val.fn_args; enclosed_state } *)
+        (*     in *)
+        (*     let thunk = Thunk {thunk_fn = pseudo_lambda; thunk_args = evaled; thunk_fn_name = call.callee } in *)
+        (*     if tail_call then *)
+        (*         (thunk, state) *)
+        (*     else *)
+        (*         let res, _ = unwrap_thunk thunk state ss loc in *)
+        (*         (res, state) *)
+        (* | Some(Dictionary dict) -> *)
+        (*     let (evaled, state) = (eval_expr call.call_args ss) state in begin *)
+        (*         match evaled with *)
+        (*             | Tuple [key] -> dict_get dict key ss loc, state *)
+        (*             | _ -> *)
+        (*                 printf "Expected a single key\n"; *)
+        (*                 assert false *)
+        (*     end *)
+        (* | Some(LambdaCapture capture) -> *)
+        (*     let construct_arglist captured arglist call_args used_hole = match captured, call_args, used_hole with *)
+        (*         | [], [] -> List.rev arglist *)
+        (*         | [], _ -> *) 
+        (*             printf "Called captured fn with too many arguments at %s\n" (location_to_string loc); *)
+        (*             Caml.exit 0 *)
+        (*         | (ValArg v)::xs, _ -> construct_arglist xs (v::arglist) call_args *)
+        (*         | BlankCaptureHole::xs, arg::call_args, ((Some BlankHole)|None) -> *) 
+        (*             construct_arglist xs (arg::arglist) call_args (Some BlankHole) *)
+        (*         | (LabeledCaptureHole i)::xs, _, ((Some LabeledHole)|None) -> *)
+        (*             construct_arglist xs ((List.nth call_args i)::arglist) call_args (Some BlankHole) *)
+        (*         | BlankCaptureHole::_, _, (Some LabeledHole) *) 
+        (*         | LabeledCaptureHole::_, _, (Some BlankHole) -> *) 
+        (*             printf "Tried to mix labeled and blank capture holes in call at %s\n" *)
+        (*                 (location_to_string loc); *)
+        (*             Caml.exit 0 *)
+        (*     in *)
+        (*     let arglist = construct_arglist capture.capture_args [] call.call_args None in *)
         | None -> begin
             match call.callee with
                 | ResolvedIdent 0 -> inspect_builtin ((eval_expr call.call_args ss) state) ss
@@ -544,6 +660,7 @@ and eval_expr: (expr Located.t) -> static_state -> ?tc:bool -> state -> value * 
         | {data = FnDef d; location} -> fun s -> (eval_fn_def d.fn_name d.fn_def_func ss location) s
         | {data = TupleExpr ls; _} -> fun s -> (eval_tuple_expr ls ss) s
         | {data = LambdaCall l; location} -> fun s -> (eval_lambda_call ~tc:tail_call l ss) location s
+        | {data = LambdaCaptureExpr c; location} -> fun s -> (eval_lambda_capture c ss) location s
         | {data = IfExpr i; _} -> fun s -> (eval_if_expr ~tc:tail_call i ss) s
         | {data = BlockExpr ls; _} -> fun s -> (eval_block_expr ~tc:tail_call ls ss) s
         | {data = MatchExpr m; location} -> 

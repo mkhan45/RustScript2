@@ -54,6 +54,15 @@ let rec tree_fold_map: tree_node -> accumulator:'a -> f:('a -> tree_node -> (tre
         let call_args, accumulator = tree_fold_map (ExprNode call_args) ~accumulator:accumulator ~f:f in
         let call_args = unwrap_expr_node call_args in
         f accumulator (ExprNode ({located with data = LambdaCall {c with call_args}}))
+    | ExprNode ({data = LambdaCaptureExpr {capture_expr_args; capture_expr_fn}; _} as located) ->
+        let step accumulator capture_arg = match capture_arg with
+            | CaptureExprArg e ->
+                let e, accumulator = tree_fold_map (ExprNode e) ~accumulator:accumulator ~f:f in
+                accumulator, CaptureExprArg (unwrap_expr_node e)
+            | _ -> accumulator, capture_arg
+        in
+        let accumulator, capture_expr_args = List.fold_map ~init:accumulator ~f:step capture_expr_args in
+        f accumulator (ExprNode {located with data = LambdaCaptureExpr {capture_expr_args; capture_expr_fn}})
     | ExprNode ({data = FnDef ({fn_def_func = {fn_expr; fn_args}; _} as def); _} as located) ->
         let fn_expr, accumulator = tree_fold_map (ExprNode fn_expr) ~accumulator:accumulator ~f:f in
         let fn_args, accumulator = tree_fold_map (PatNode fn_args) ~accumulator:accumulator ~f:f in
@@ -90,7 +99,7 @@ let rec tree_fold_map: tree_node -> accumulator:'a -> f:('a -> tree_node -> (tre
             let match_expr, accumulator = tree_fold_map (ExprNode match_expr) ~accumulator:accumulator ~f:f in
             let match_cond_opt, accumulator = match match_cond_opt with
                 | Some c -> 
-                    let match_cond, accumulator = (tree_fold_map (ExprNode c) ~accumulator:accumulator ~f:f) in
+                    let match_cond, accumulator = tree_fold_map (ExprNode c) ~accumulator:accumulator ~f:f in
                     Some (unwrap_expr_node match_cond), accumulator
                 | None -> None, accumulator
             in
@@ -217,6 +226,8 @@ let find_idents_step idents node = match node with
         node, assoc_add idents s
     | ExprNode {data = FnDef {fn_name = UnresolvedIdent s; _}; _} ->
         node, assoc_add idents s
+    | ExprNode {data = LambdaCaptureExpr {capture_expr_fn = UnresolvedIdent s; _}; _} ->
+        node, assoc_add idents s
     | PatNode (SinglePat (UnresolvedIdent s)) ->
         node, assoc_add idents s
     | _ -> node, idents
@@ -237,6 +248,9 @@ let resolve_idents_step idents node =
     | ExprNode {data = FnDef ({fn_name = UnresolvedIdent s; _} as def); location} ->
         let ident = ResolvedIdent (find s) in
         ExprNode {data = FnDef {def with fn_name = ident}; location}, idents
+    | ExprNode {data = LambdaCaptureExpr ({capture_expr_fn = UnresolvedIdent s; _} as capture); location} ->
+        let ident = ResolvedIdent (find s) in
+        ExprNode {data = LambdaCaptureExpr {capture with capture_expr_fn = ident}; location}, idents
     | PatNode (SinglePat (UnresolvedIdent s)) ->
         let ident = ResolvedIdent (find s) in
         PatNode (SinglePat ident), idents
