@@ -118,3 +118,8 @@ let sort = fn(ls, cmp) => {
 }
 
 let abs(x) = if x >= 0 then x else -x
+
+let add(a, b) = a + b
+let sub(a, b) = a - b
+let mul(a, b) = a * b
+let div(a, b) = a / b

@@ -351,10 +351,10 @@ and eval_lambda ~tc lambda call ss loc state = match lambda with
             (res, state)
     | LambdaCapture capture ->
         let rec construct_arglist captured arglist call_args used_hole = match captured, call_args, used_hole with
-            | [], [], _ -> 
+            | [], [], _ | [], _, (Some LabeledHole) | [], _::_, None -> 
                 List.rev arglist
 
-            | [], _, _ -> 
+            | [], _, (Some BlankHole) -> 
                 printf "Called captured fn with too many arguments at %s\n" (location_to_string loc);
                 Caml.exit 0
 
@@ -370,7 +370,7 @@ and eval_lambda ~tc lambda call ss loc state = match lambda with
                 construct_arglist xs (arg::arglist) call_args (Some BlankHole)
 
             | (LabeledCaptureHole i)::xs, _, ((Some LabeledHole)|None) ->
-                construct_arglist xs ((List.nth_exn call_args i)::arglist) call_args (Some BlankHole)
+                construct_arglist xs ((List.nth_exn call_args i)::arglist) call_args (Some LabeledHole)
 
             | BlankCaptureHole::_, _, (Some LabeledHole) 
             | (LabeledCaptureHole _)::_, _, (Some BlankHole) -> 
