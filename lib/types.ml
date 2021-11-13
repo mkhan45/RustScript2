@@ -137,11 +137,14 @@ let rec string_of_expr ss e =
     | Atomic v -> string_of_val v
     | IdentExpr (UnresolvedIdent s) -> s
     | IdentExpr (ResolvedIdent i) -> List.Assoc.find_exn (ss.static_idents |> List.Assoc.inverse) ~equal:Int.equal i
-    | Prefix (_ as p) -> sprintf "{rhs: %s}" (string_of_expr p.rhs.data)
-    | Binary (_ as b) -> sprintf "{lhs: %s, rhs: %s}" (string_of_expr b.lhs.data) (string_of_expr b.rhs.data)
-    | Let (_ as l) -> sprintf "Let %s = %s" (string_of_pat l.assignee) (string_of_expr l.assigned_expr.data)
+    | Prefix p -> sprintf "{rhs: %s}" (string_of_expr p.rhs.data)
+    | Binary b -> sprintf "{lhs: %s, rhs: %s}" (string_of_expr b.lhs.data) (string_of_expr b.rhs.data)
+    | Let l -> sprintf "Let %s = %s" (string_of_pat l.assignee) (string_of_expr l.assigned_expr.data)
     | LambdaDef _ -> "Lambda"
-    | FnDef _ -> "FnDef"
+    | FnDef d -> sprintf "FnDef %s%s = %s" 
+        (string_of_pat (SinglePat d.fn_name)) 
+        (string_of_pat d.fn_def_func.fn_args)
+        (string_of_expr d.fn_def_func.fn_expr.data)
     | LambdaCall ({callee = UnresolvedIdent name; _} as call) -> 
             sprintf "{Call: %s, args: %s}" name (string_of_expr call.call_args.data)
     | LambdaCall ({callee = ResolvedIdent i; _} as call) -> 

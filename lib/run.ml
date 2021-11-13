@@ -26,9 +26,10 @@ let eval: static_state -> state -> string -> (value * state) * static_state = fu
     let ss = { ss with static_atoms; static_idents } in
     let parsed = parsed 
         |> fun e -> Preprocess.ExprNode e
-        |> fun e -> Preprocess.resolve_atoms_test e ss.static_atoms
+        |> fun e -> Preprocess.resolve_atoms e ss.static_atoms
+        |> fun e -> Preprocess.resolve_idents e ss.static_idents
         |> Preprocess.unwrap_expr_node
-        |> Preprocess.resolve_idents ss in
+    in
     let eval_closure = Eval.eval_expr parsed ss in
     (eval_closure state), ss
 
@@ -69,10 +70,10 @@ let run_file filename (ss, state) =
     let ss = { ss with static_atoms; static_idents } in
     let expr_ls = expr_ls
         |> List.map ~f:(fun e -> Preprocess.ExprNode e)
-        |> List.map ~f:(fun e -> Preprocess.resolve_atoms_test e ss.static_atoms)
+        |> List.map ~f:(fun e -> Preprocess.resolve_atoms e ss.static_atoms)
+        |> List.map ~f:(fun e -> Preprocess.resolve_idents e ss.static_idents)
         |> List.map ~f:Preprocess.unwrap_expr_node
     in
-    let expr_ls = List.map ~f:(Preprocess.resolve_idents ss) expr_ls in
     let static_block_funcs = 
         Preprocess.find_block_funcs ss (expr_ls |> List.map ~f:Located.extract) ss.static_block_funcs 
     in
@@ -85,13 +86,18 @@ let run_file filename (ss, state) =
     (*             let is_inlinable = Preprocess.is_function_inlinable k ss f.fn_expr.data in *)
     (*             printf "%s is inlinable: %b\n" fn_name is_inlinable); *)
     (* TODO: If statement syntax errors here? *)
-    let block = match (Preprocess.clobbers_declared_fn ss block) with
+    let block = match (Preprocess.clobbers_declared_fn_test (ExprNode block) ss.static_block_funcs) with
         | false -> block
         | true ->
             printf "Tried to clobber function with variable binding\n";
             Caml.exit 0
     in
-    let expr_ls = match Preprocess.inline_functions ss block with
+    let block = block
+        |> fun b -> Preprocess.inline_functions (ExprNode b) ss.static_block_funcs
+        |> Preprocess.unwrap_expr_node
+    in
+    (* printf "%s\n" (string_of_expr ss block.data); *)
+    let expr_ls = match block with
     | {data = BlockExpr expr_ls; _} -> expr_ls
     | _ -> assert false
     in
