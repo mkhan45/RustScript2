@@ -316,10 +316,20 @@ and parse_args toks =
     | {data = LParen; _}::xs ->
             let rec aux toks acc = match toks with
                 | {data = RParen; _}::rest -> (acc, rest)
-                | _ -> let (nx, rest) = parse toks 0 in begin
+                | _ -> 
+                    let nx, rest = match toks with
+                        | {data = Underscore; _}::rest ->
+                            BlankCaptureExprHole, rest
+                        | {data = Percent; _}::{data = Integer n; _}::rest ->
+                            LabeledCaptureExprHole n, rest
+                        | _ ->
+                            let (nx, rest) = parse toks 0 in
+                            CaptureExprArg nx, rest
+                    in
+                    let acc = nx::acc in
                     match rest with
-                        | {data = Comma; _}::rest -> aux rest (nx::acc)
-                        | {data = RParen; _}::rest -> (nx::acc), rest
+                        | {data = Comma; _}::rest -> aux rest acc
+                        | {data = RParen; _}::rest -> acc, rest
                         | {data; location}::_ ->
                             printf "Error: expected a ), got %s at %s"
                                 (string_of_tok data)
@@ -328,7 +338,6 @@ and parse_args toks =
                         | [] ->
                             printf "Error: missing parentheses in argument list at end of file";
                             Caml.exit 0
-                end
             in
             let (parsed, remaining) = aux xs []
             in
@@ -357,12 +366,15 @@ and parse_lambda = function
     | _ -> assert false
 
 and parse_lambda_call = function
-    | ({data = Ident lambda_name; location})::xs -> begin
-            match parse_args xs with
-                | args, rest ->
-                        let call_args = TupleExpr args |> locate location in
-                        (LambdaCall {callee = UnresolvedIdent lambda_name; call_args = call_args}, rest)
-    end
+    | ({data = Ident lambda_name; location})::xs -> 
+        begin match parse_args xs with
+            | args, rest when List.for_all args ~f:(function | CaptureExprArg _ -> true | _ -> false) ->
+                let args = List.map args ~f:(function | CaptureExprArg e -> e | _ -> assert false) in
+                let call_args = TupleExpr args |> locate location in
+                (LambdaCall {callee = UnresolvedIdent lambda_name; call_args = call_args}, rest)
+            | args, rest ->
+                LambdaCaptureExpr {capture_expr_fn = UnresolvedIdent lambda_name; capture_expr_args = args}, rest
+        end
     | _ -> assert false
 
 

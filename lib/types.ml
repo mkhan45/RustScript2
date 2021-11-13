@@ -37,6 +37,7 @@ type value =
     | Tuple of value list
     | ValList of value list
     | Lambda of lambda
+    | LambdaCapture of {capture_val: value; capture_args: capture_arg list}
     | Fn of func
     | Thunk of {thunk_fn: lambda; thunk_args: value; thunk_fn_name: ident}
     | Dictionary of (int, (value * value) list, Int.comparator_witness) Map.t
@@ -71,14 +72,24 @@ and static_state = {
 
 and state = (int, value, Int.comparator_witness) Map.t
 
+(* Used to evaluate captures *)
+and used_hole =
+    | BlankHole
+    | LabeledHole
+
 and capture_arg =
-    | CaptureExprArg of expr Located.t
+    | ValArg of value
     | BlankCaptureHole
     | LabeledCaptureHole of int
 
+and capture_expr_arg =
+    | CaptureExprArg of expr Located.t
+    | BlankCaptureExprHole
+    | LabeledCaptureExprHole of int
+
 and lambda = {lambda_expr: expr Located.t; lambda_args: pattern; enclosed_state: state;}
 and lambda_call = {callee: ident; call_args: expr Located.t}
-and lambda_capture = {capture_fn: ident; capture_args: capture_arg list}
+and lambda_capture_expr = {capture_expr_fn: ident; capture_expr_args: capture_expr_arg list}
 and func = {fn_expr: expr Located.t; fn_args: pattern}
 and if_expr = {cond: expr Located.t; then_expr: expr Located.t; else_expr: expr Located.t}
 and ident =
@@ -93,7 +104,7 @@ and expr =
     | Let of {assignee: pattern; assigned_expr: expr Located.t}
     | LambdaDef of {lambda_def_expr: expr Located.t; lambda_def_args: pattern}
     | LambdaCall of lambda_call
-    (* | LambdaCapture of lambda_capture *)
+    | LambdaCaptureExpr of lambda_capture_expr
     | FnDef of {fn_name: ident; fn_def_func: func}
     | IfExpr of if_expr
     | TupleExpr of (expr Located.t) list
@@ -117,6 +128,7 @@ let rec string_of_val ss v =
     | Tuple ls -> "(" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ ")"
     | ValList ls -> "[" ^ String.concat ~sep:", " (List.map ~f:string_of_val ls) ^ "]"
     | Lambda _ -> "Lambda"
+    | LambdaCapture _ -> "LambdaCapture"
     | Fn _ -> "Fn"
     | Thunk _ -> "Thunk"
     | Dictionary d ->
@@ -150,6 +162,7 @@ let rec string_of_expr ss e =
     | LambdaCall ({callee = ResolvedIdent i; _} as call) -> 
             let name = List.Assoc.find_exn (ss.static_idents |> List.Assoc.inverse) ~equal:Int.equal i in
             sprintf "{Call: %s, args: %s}" name (string_of_expr call.call_args.data)
+    | LambdaCaptureExpr _ -> "LambdaCaptureExpr"
     | TupleExpr ls -> 
             sprintf "(%s)" (String.concat ~sep:", " (ls |> List.map ~f:Located.extract |> List.map ~f:string_of_expr))
     | ListExpr (ls, tail) -> 
