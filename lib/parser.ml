@@ -5,19 +5,20 @@ open Printf
 open Base
 
 let binary_op_bp = function
-    | Or        -> (1, 2)
-    | And       -> (3, 4)
-    | EQ | NEQ | GEQ | LEQ  -> (5, 6)
-    | LT | GT   -> (7, 8)
-    | Add | Neg -> (9, 10)
-    | Mul | Div | Mod -> (11, 12)
-    | Head | Tail -> (13, 14)
+    | PipeOp    -> (1, 2)
+    | Or        -> (3, 4)
+    | And       -> (5, 6)
+    | EQ | NEQ | GEQ | LEQ  -> (7, 8)
+    | LT | GT   -> (9, 10)
+    | Add | Neg -> (11, 12)
+    | Mul | Div | Mod -> (13, 14)
+    | Head | Tail -> (15, 16)
     | Not -> assert false
 
 let prefix_op_bp = 13
 
 let rec complete_expr: expr t -> (token t) list -> int -> (expr t * (token t) list) = 
-    fun lhs ls min_bp -> match ls with
+    fun lhs ls min_bp -> match (skip_newlines ls) with
     | {data = Percent; location}::xs -> complete_expr lhs (({data = Operator Mod; location})::xs) min_bp
     | ({data = Operator op; location})::xs ->
             let (l_bp, r_bp) = binary_op_bp op in
@@ -184,7 +185,9 @@ and parse_list_expr xs min_bp =
     in 
     aux xs []
 
-and expr_bp ls min_bp = match ls with
+and expr_bp ls min_bp = 
+    let ls = skip_newlines ls in
+    match ls with
     | ({data = LParen; _}::xs) -> parse_paren_expr xs min_bp
     | ({data = LBracket; _}::xs) -> parse_list_expr xs min_bp
     | ({data = Number f; location})::xs -> complete_expr (Atomic (Number f) |> locate location) xs min_bp

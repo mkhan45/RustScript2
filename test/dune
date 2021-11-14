@@ -1,3 +1,3 @@
 (tests
- (names fib tuple block comments tailrec euler match_expr map run_len_encode two_sum sort strings expr capture)
+ (names fib tuple block comments tailrec euler match_expr map run_len_encode two_sum sort strings expr capture pipe)
  (libraries base stdio rustscript))

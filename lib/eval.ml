@@ -250,6 +250,24 @@ and to_charlist_builtin (args, state) _ss =
             printf "Expected a single string argument to to_charlist";
             assert false
 
+and eval_pipe ~tc lhs rhs ss loc = fun s ->
+    let (lhs, s) = (eval_expr lhs ss) s in
+    let (rhs, s) = (eval_expr rhs ss) s in
+    match rhs with
+    | Lambda _ | Fn _ | LambdaCapture _ | Dictionary _ ->
+        let call_args =
+            (TupleExpr ([Atomic lhs |> Located.locate loc])) |> Located.locate loc
+        in
+        let call =
+            {callee = ResolvedIdent ~-1; call_args}
+        in
+        eval_lambda ~tc:tc rhs call ss loc s
+    | _ ->
+        printf "Tried to pipe to a non function %s at %s\n"
+            (string_of_val ss rhs)
+            (location_to_string loc);
+        Caml.exit 0
+
 and eval_op op lhs rhs ss loc = fun s ->
     let (lhs, s) = (eval_expr lhs ss) s in
     let (rhs, s) = (eval_expr rhs ss) s in
@@ -291,10 +309,14 @@ and eval_lambda_capture capture ss loc state =
     in
     let capture_val = match Map.find state capture_callee_id with
         | None ->
-            printf "Tried to make function capture out of nonexistent %s at %s\n"
-                (List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal capture_callee_id)
-                (location_to_string loc);
-            Caml.exit 0
+            begin match List.Assoc.find ss.static_block_funcs capture_callee_id ~equal:Int.equal with
+            | Some f -> Fn f
+            | None ->
+                printf "Tried to make function capture out of nonexistent %s at %s\n"
+                    (List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal capture_callee_id)
+                    (location_to_string loc);
+                Caml.exit 0
+            end
         | Some v -> v
     in
     let fold_step state arg = match arg with
@@ -607,6 +629,7 @@ and eval_expr: (expr Located.t) -> static_state -> ?tc:bool -> state -> value * 
         | {data = Binary ({op = And; _} as e); location} -> eval_op val_and e.lhs e.rhs location
         | {data = Binary ({op = Or; _} as e); location} -> eval_op val_or e.lhs e.rhs location
         | {data = Binary ({op = Mod; _} as e); location} -> eval_op val_mod e.lhs e.rhs location
+        | {data = Binary ({op = PipeOp; _} as e); location} -> eval_pipe ~tc:tail_call e.lhs e.rhs ss location
         | {data = Binary ({op = _op; _}); _} -> assert false (* Invalid binary op *)
         | {data = LambdaDef d; _} -> eval_lambda_def d.lambda_def_expr d.lambda_def_args
         | {data = Let l; location} -> fun s -> (eval_let l.assignee l.assigned_expr ss location) s

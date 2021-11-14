@@ -108,17 +108,17 @@ let base_static_atoms () = [("ok", 0); ("err", 1)]
 
 let base_static_idents () = 
     let builtin_idents = [
-        "inspect";
-        "print";
-        "println";
-        "scanln";
-        "to_string";
-        "string_to_num";
-        "string_to_int";
-        "range_step";
-        "fold";
-        "to_charlist";
-        "get";
+        "inspect__builtin";
+        "print__builtin";
+        "println__builtin";
+        "scanln__builtin";
+        "to_string__builtin";
+        "string_to_num__builtin";
+        "string_to_int__builtin";
+        "range_step__builtin";
+        "fold__builtin";
+        "to_charlist__builtin";
+        "get__builtin";
     ] in
     List.zip_exn builtin_idents (List.range 0 (List.length builtin_idents))
 

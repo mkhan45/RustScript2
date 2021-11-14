@@ -29,6 +29,7 @@ type operator =
     | Head
     | Tail
     | Not
+    | PipeOp
 
 type value =
     | Number of float

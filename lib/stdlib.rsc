@@ -123,3 +123,15 @@ let add(a, b) = a + b
 let sub(a, b) = a - b
 let mul(a, b) = a * b
 let div(a, b) = a / b
+
+let inspect(n) = inspect__builtin(n)
+let print(n) = print__builtin(n)
+let println(n) = println__builtin(n)
+let scanln(n) = scanln__builtin(n)
+let to_string(n) = to_string__builtin(n)
+let string_to_num(n) = string_to_num__builtin(n)
+let string_to_int(n) = string_to_int__builtin(n)
+let range_step(start, end, step) = range_step__builtin(start, end, step)
+let fold(acc, f, ls) = fold__builtin(acc, f, ls)
+let to_charlist(n) = to_charlist__builtin(n)
+let get(m, k) = get__builtin(m, k)

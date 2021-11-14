@@ -161,6 +161,8 @@ and scan_ls ls line filename =
         (Comma |> locate) :: scan_ls xs line filename
     | '#'::xs -> 
         scan_ls (skip_until_newline xs) (line + 1) filename
+    | '|'::'>'::xs -> 
+        ((Operator PipeOp) |> locate) :: scan_ls xs line filename
     | '|'::xs -> 
         (Pipe |> locate) :: scan_ls xs line filename
     | 'T'::xs -> 
