@@ -250,6 +250,16 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
         let parse_pair: (token t) list -> (expr t * pattern) * ((token t) list) = fun toks ->
             let key, rest = parse toks 0 in
             match rest with
+                | {data = Comma | RBrace; _}::_ ->
+                    (* Field punning *)
+                    let key, val_pat = match key with
+                        | ({data = IdentExpr (UnresolvedIdent n); location}) -> 
+                            let key = UnresolvedAtom n |> locate location in
+                            let val_pat = SinglePat (UnresolvedIdent n) in
+                            key, val_pat
+                        | _ -> assert false
+                    in
+                    (key, val_pat), rest
                 | {data = Colon; _}::more ->
                     let val_pat, more = parse_pat more in
                     let key = match key with
@@ -260,9 +270,14 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
                 | {data = Arrow; _}::more ->
                     let val_pat, more = parse_pat more in
                     (key, val_pat), more
-                | _ -> 
-                    printf "Expected a colon\n";
-                    assert false
+                | {data; location}::_ -> 
+                    printf "Expected a colon in map at %s, got %s\n" 
+                        (location_to_string location)
+                        (string_of_tok data);
+                    Caml.exit 0
+                | [] ->
+                    printf "Expected a colon in map at end of file\n";
+                    Caml.exit 0
         in
         let rec aux toks acc = match toks with
             | {data = RBrace; _}::rest -> acc, rest

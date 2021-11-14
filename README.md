@@ -84,19 +84,16 @@ inspect(run_len_encode(test_ls))
 ```ex
 let insert = fn(root, key) => match root
     | () -> %{val: key}
-    | %{right: right} when root(:val) < key ->
-	%{right: insert(right, key) | root}
-    | %{left: left} ->
-	%{left: insert(left, key) | root}
+    | %{right, val} when val < key -> %{right: insert(right, key) | root}
+    | %{left} -> %{left: insert(left, key) | root}
 
 let tree_to_ls_inorder = {
     let loop = fn(root, acc) => match root
 	| () -> acc
-	| %{val: v, left: l, right: r} -> {
-	    let acc = loop(l, acc)
-	    let acc = [v | acc]
-	    let acc = loop(r, acc)
-	    acc
+	| %{val, left, right} -> {
+	    let acc = loop(left, acc)
+	    let acc = [val | acc]
+	    loop(right, acc)
 	}
 
     fn(bst) => reverse(loop(bst, []))

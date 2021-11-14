@@ -23,6 +23,10 @@ let () =
     assert_equal_expressions "m((5, 6))" "z" ss state;
     assert_equal_expressions "m(467)" "a" ss state;
 
+    assert_equal_expressions "one" "1" ss state;
+    assert_equal_expressions "two" "2" ss state;
+    assert_equal_expressions "three" "3" ss state;
+
     let ss, state = 
         test_state () |> run_file (test_file "caesar.rsc") in
 

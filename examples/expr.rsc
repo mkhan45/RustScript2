@@ -13,7 +13,6 @@ let chars_to_number(chars) = {
 	fold(%{}, fn(m, (i, d)) => %{d => i | m}, enumerated)
     }
 
-    let chars = reverse(chars)
     let loop = fn(ls, acc, multiplier) => match ls
 	| [] -> acc
 	| [c | cs] -> {
@@ -21,6 +20,7 @@ let chars_to_number(chars) = {
 	    loop(cs, acc + number, multiplier * 10)
 	}
 
+    let chars = reverse(chars)
     loop(chars, 0, 1)
 }
 
