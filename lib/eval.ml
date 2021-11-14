@@ -384,7 +384,6 @@ and eval_lambda ~tc lambda call ss loc state = match lambda with
         in
         let arglist = construct_arglist capture.capture_args [] call_args None in
         let call = {call with call_args = (TupleExpr arglist) |> Located.locate loc} in
-        (* TODO: Loop if the callee is also a capture *)
         eval_lambda ~tc:tc capture.capture_val call ss loc state
     | Dictionary dict ->
         let (evaled, state) = (eval_expr call.call_args ss) state in begin

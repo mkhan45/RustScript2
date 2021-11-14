@@ -11,6 +11,7 @@ let () =
     assert_equal_expressions "g(3)" "-2" ss state;
     assert_equal_expressions "g(5)" "0" ss state;
     assert_equal_expressions "f(1, 2, 4)" "quadratic(1, 2, 0, 4)" ss state;
+    assert_equal_expressions "j(4)" "f(1, 2, 4)" ss state;
     assert_equal_expressions "h(5, 3)" "-2" ss state;
 
     printf "Passed\n"
