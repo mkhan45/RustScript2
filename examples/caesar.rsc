@@ -1,6 +1,5 @@
 let (to_number, to_letter) = {
-    let letter_arr = to_charlist("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-    let enumerated = enumerate(letter_arr)
+    let enumerated = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" |> to_charlist |> enumerate
     let to_number = fold(%{}, fn(m, (i, l)) => %{l => i | m}, enumerated)
     let to_letter = fold(%{}, fn(m, (i, l)) => %{i => l | m}, enumerated)
     (to_number, to_letter)
@@ -11,9 +10,11 @@ let encode = fn(text, n) => {
 	| [] -> concat(reverse(acc))
 	| [c | xs] when to_number(c) == () -> loop(xs, n, [c | acc])
 	| [c | xs] -> {
-	    let num = to_number(c) + n
-	    let num = if num < 0 then 26 + num else num
-	    let new_letter = to_letter(num % 26)
+	    let new_letter = c
+		|> to_number
+		|> add(n, _)
+		|> fn(n) => if n < 0 then 26 + n else n
+		|> fn(n) => to_letter(n % 26)
 	    loop(xs, n, [new_letter | acc])
 	}
 
