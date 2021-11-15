@@ -586,8 +586,11 @@ and eval_list_expr ?tc:(_tail_call=false) ls tail ss = fun s ->
                 let (eval_ls, state) = eval_expr_list ~init:(tail_ls, s) (List.rev ls) in
                 ValList eval_ls, state
             | _ ->
-                printf "tried to prepend to a non-list";
-                assert false
+                printf "tried to prepend to non-list %s at %s\n"
+                    (string_of_val ss tail_eval)
+                    (location_to_string tail.location);
+                print_traceback ss;
+                Caml.exit 0;
     in
     match tail with
         | Some tail -> eval_prepend ls tail

@@ -1,33 +1,50 @@
-let y_bin() = 0.5
+let y_bin() = 1
 
-let draw_graph(points) = {
-    let height = 40.0
-    let width = 80.0
-
-    let loop(points, current_x) = match points
-	| [] -> ()
-	| [(x, y1) | [(_, y2) | _] as xs] when abs(y1 - y2) > y_bin() -> {
-	    let spaces = concat(repeat(" ", x - current_x))
-	    println(spaces + ".")
-	    loop(xs, 0)
-	}
-	| [(x, _) | xs] -> {
-	    let spaces = concat(repeat(" ", x - current_x))
-	    print(spaces + ".")
-	    loop(xs, x)
-	}
-
-    loop(points, 0)
-    println("")
+let distance_sqr((x1, y1), (x2, y2)) = {
+    let x = x1 - x2
+    let y = y1 - y2
+    x * x + y * y
 }
 
-let f(x) = x * x
+let draw_graph(points, scale) = {
+    let height = 20
+    let width = 40
 
-# sort in increasing y, then increasing x order
-let sort_fn((x1, y1), (x2, y2)) = if abs(y1 - y2) < y_bin() then x1 - x2 else y2 - y1
+    let col_loop = fn(row, col, row_arr) => {
+	if col == width then {
+	    ["\n" | row_arr]
+	} else {
+	    let current_point = ((col - width / 2) / scale, (row - height / 2) / scale)
+	    let is_filled = points
+		|> map(distance_sqr(current_point, _), _)
+		|> map(fn(dist) => dist < 0.001, _)
+		|> any
 
-let domain = map(div(_, 10), [-40..41])
-let points = enumerate(map(f, domain))
-let points = sort(points, sort_fn)
+	    let point_char = if is_filled then "." else " "
+	    col_loop(row, col + 1, [point_char | row_arr])
+	}
+    }
 
-draw_graph(points)
+    let row_loop = fn(row, table) => {
+	if row == height then {
+	    table
+	    |> map(reverse, _)
+	    |> map(concat, _)
+	    |> concat
+	} else {
+	    let table = [col_loop(row, 0, []) | table]
+	    row_loop(row + 1, table)
+	}
+    }
+
+    let graph_str = row_loop(0, [])
+    println(graph_str)
+}
+
+let f(x) = x * x * x
+
+let points = [-15..16]
+    |> map(div(_, 20), _)
+    |> map(fn(x) => (x, f(x)), _)
+
+draw_graph(points, 20)
