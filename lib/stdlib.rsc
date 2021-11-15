@@ -1,3 +1,12 @@
+let count(ls) = {
+    let loop(ls, counter) = match ls
+	| [] -> counter
+	| [x | xs] when counter(x) == () -> loop(xs, %{x => 1 | counter})
+	| [x | xs] -> loop(xs, %{x => counter(x) + 1 | counter})
+
+    loop(ls, %{})
+}
+
 let reverse(ls) = {
     let fold_step = fn(ls, x) => [x|ls]
     fold([], fold_step, ls)
