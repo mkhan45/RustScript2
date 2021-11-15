@@ -42,9 +42,7 @@ let run_line ss state line =
             Out_channel.flush Stdio.stdout;
             new_state
 
-let run_file filename (ss, state) =
-    let in_stream = In_channel.create filename in
-    let in_string = In_channel.input_all in_stream in
+let run_string in_string filename (ss, state) =
     let locate = Located.locate {line_num = 0; filename = filename} in
     let tokens = in_string |> Scanner.scan ~filename:filename |> skip_newlines in
     let expr_ls =
@@ -103,6 +101,11 @@ let run_file filename (ss, state) =
     in
     let fold_step = fun state e -> let _, s = (Eval.eval_expr e ss) state in s in
     ss, List.fold_left ~init:state ~f:fold_step expr_ls
+
+let run_file filename (ss, state) =
+    let in_stream = In_channel.create filename in
+    let in_string = In_channel.input_all in_stream in
+    run_string in_string filename (ss, state)
 
 let base_static_atoms () = [("ok", 0); ("err", 1)]
 
