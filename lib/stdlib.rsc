@@ -199,6 +199,15 @@ let sort = fn(ls, cmp) => {
 
 let abs(x) = if x >= 0 then x else -x
 
+let replace(ls, pairs) = {
+    let loop = fn(ls, acc) => match ls
+	| [] -> reverse(acc)
+	| [x | xs] when pairs(x) != () -> loop(xs, [pairs(x) | acc])
+	| [x | xs] -> loop(xs, [x | acc])
+
+    loop(ls, [])
+}
+
 let add(a, b) = a + b
 let sub(a, b) = a - b
 let mul(a, b) = a * b
