@@ -5,20 +5,22 @@ let (to_number, to_letter) = {
     (to_number, to_letter)
 }
 
-let encode = fn(text, n) => {
-    let loop = fn(char_ls, n, acc) => match char_ls
+let encode = fn(text, shift) => {
+    let shift = shift % 26
+
+    let loop = fn(char_ls, acc) => match char_ls
 	| [] -> concat(reverse(acc))
-	| [c | xs] when to_number(c) == () -> loop(xs, n, [c | acc])
+	| [c | xs] when to_number(c) == () -> loop(xs, [c | acc])
 	| [c | xs] -> {
 	    let new_letter = c
 		|> to_number
-		|> add(n, _)
-		|> fn(n) => if n < 0 then 26 + n else n
-		|> fn(n) => to_letter(n % 26)
-	    loop(xs, n, [new_letter | acc])
+		|> add(shift, _)
+		|> fn(c) => if c < 0 then 26 + c else c
+		|> fn(c) => to_letter(c % 26)
+	    loop(xs, [new_letter | acc])
 	}
 
-    loop(to_charlist(text), n % 26, [])
+    loop(to_charlist(text), [])
 }
 
 let decode = fn(text, n) => encode(text, -n)
