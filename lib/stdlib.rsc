@@ -40,7 +40,30 @@ let enumerate(ls) = reverse(enumerate_rev(ls))
 
 let concat(ls) = fold("", fn(a, b) => a + b, ls)
 
-let concat_sep = fn(ls, sep) => fold("", fn(a, b) => a + b + sep, ls)
+let intersperse_rev(ls, sep) = {
+    let loop(ls, sep, acc) = match ls
+	| [] -> acc
+	| [x] -> [x | acc]
+	| [x | xs] -> loop(xs, sep, [sep, x | acc])
+
+    loop(ls, sep, [])
+}
+
+let intersperse(ls, sep) = reverse(intersperse_rev(ls, sep))
+
+let concat_sep(ls, sep) = concat(intersperse(ls, sep))
+
+let is_sorted_by(ls, f) = match ls
+    | [] | [_] -> T
+    | [a | [b | _] as xs] when f(a, b) == :less || f(a, b) == :equal -> is_sorted_by(xs, f)
+    | _ -> F
+
+let op_cmp(a, b) = match T
+    | _ when a < b  -> :less
+    | _ when a == b -> :equal
+    | _             -> :more
+
+let is_sorted(ls) = is_sorted_by(ls, op_cmp)
 
 let sum(ls) = fold(0, fn(a, b) => a + b, ls)
 let any(ls) = fold(F, fn(a, b) => a || b, ls)
@@ -81,8 +104,43 @@ let drop(n, ls) =
 
 let slice(ls, start, end) = take(end - start, drop(start, ls))
 
+let take_while(ls, f) = {
+    let loop(ls, f, acc) = match ls
+	| [x | xs] when f(x) -> loop(xs, f, [x | acc])
+	| _ -> reverse(acc)
+
+    loop(ls, f, [])
+}
+
+let skip_while(ls, f) = match ls
+    | [x | xs] when f(x) -> skip_while(xs, f)
+    | _ -> ls
+
 let max(a, b) = if a > b then a else b
 let min(a, b) = if a < b then a else b
+
+let partition_rev(ls, f) = {
+    let loop(ls, f, (l1, l2)) = match ls
+	| [] -> (l1, l2)
+	| [x | xs] when f(x) -> loop(xs, f, ([x | l1], l2))
+	| [x | xs] -> loop(xs, f, (l1, [x | l2]))
+
+    loop(ls, f, ([], []))
+}
+
+let partition(ls, f) = {
+    let (l1, l2) = partition_rev(ls, f)
+    (reverse(l1), reverse(l2))
+}
+
+let step_by(ls, n) = {
+    let loop(ls, n, i, acc) = match (ls, i)
+	| ([], _) -> reverse(acc)
+	| ([x | xs], 0) -> loop(xs, n, n, [x | acc])
+	| ([_ | xs], i) -> loop(xs, n, i - 1, acc)
+
+    loop(ls, n - 1, 0, [])
+}
 
 let repeat(x, n) = {
     let helper(x, n, acc) = match n

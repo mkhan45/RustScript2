@@ -54,9 +54,7 @@ fizzbuzz(100)
 let sort = fn(ls) => match ls
     | [] -> []
     | [pivot | tail] -> {
-        let higher = filter (fn(x) => x >= pivot, tail)
-        let lower = filter(fn(x) => x < pivot, tail)
-
+	let (higher, lower) = partition(tail, fn(x) => x >= pivot)
         sort(lower) + [pivot] + sort(higher)
     }
 
