@@ -539,7 +539,9 @@ and eval_match_expr ?tc:(tail_call=false) match_val match_arms ss loc state =
         | Some((result, state)) -> 
             result, state
         | None ->
-            printf "No patterns matched in match expression at %s\n" (location_to_string loc);
+            printf "No patterns matched %s in match expression at %s\n" 
+                (string_of_val ss match_val)
+                (location_to_string loc);
             print_traceback ss;
             Caml.exit 0
 

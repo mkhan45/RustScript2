@@ -76,6 +76,19 @@ let foreach(ls, f) = match ls
 	foreach(xs, f)
     }
 
+let split(ls, el) = {
+    let loop(ls, el, acc) = match (ls, acc)
+	| ([fst, snd | xs], [current | rest]) when snd == el ->
+	    loop(xs, el, [[], [fst | current] | rest])
+	| ([fst | xs], [current | rest]) ->
+	    loop(xs, el, [[fst | current] | rest])
+	| (_, _) ->
+	    reverse(acc)
+    
+    let res = loop(ls, el, [[]])
+    map(reverse, res)
+}
+
 # copied from https://github.com/janestreet/base/blob/0f626a86991b020348eac9aa0244d59da43ae02c/src/list.ml#L1060
 let split_at(n, ls) = 
     if n <= 0 then {
