@@ -291,4 +291,10 @@ let _ =
                let filename = Js.to_string filename in
                let (ss, state) = Rustscript.Run.run_string in_string filename (ss, state) in
                (ss, state)
+
+           method run_with_state in_string filename ss state = 
+               let in_string = Js.to_string in_string in
+               let filename = Js.to_string filename in
+               let (ss, state) = Rustscript.Run.run_string in_string filename (ss, state) in
+               (ss, state)
         end)
