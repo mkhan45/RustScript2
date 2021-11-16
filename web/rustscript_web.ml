@@ -245,12 +245,40 @@ let stdlib () = [
     |};
 
     {|
+    let group_by(ls, f) = {
+        let fold_step = fn(acc, el) => match acc
+            | [] when f(el) -> [[]]
+            | [] -> [[el]]
+            | [current | _] when f(el) -> [[] | acc]
+            | [current | rest] -> [[el | current] | rest]
+
+        fold([], fold_step, ls) |> reverse |> map(reverse, _)
+    }
+
+    let split(ls, el) = group_by(ls, eq(_, el))
+
+    let replace(ls, pairs) = {
+        let loop = fn(ls, acc) => match ls
+            | [] -> reverse(acc)
+            | [x | xs] when pairs(x) != () -> loop(xs, [pairs(x) | acc])
+            | [x | xs] -> loop(xs, [x | acc])
+
+        loop(ls, [])
+    }
+    |};
+
+    {|
     let abs(x) = if x >= 0 then x else -x
     
     let add(a, b) = a + b
     let sub(a, b) = a - b
     let mul(a, b) = a * b
     let div(a, b) = a / b
+    let eq(a, b) = a == b
+    let geq(a, b) = a >= b
+    let leq(a, b) = a <= b
+    let lt(a, b) = a < b
+    let gt(a, b) = a > b
 
     let inspect(n) = inspect__builtin(n)
     let print(n) = print__builtin(n)
@@ -263,6 +291,8 @@ let stdlib () = [
     let fold(acc, f, ls) = fold__builtin(acc, f, ls)
     let to_charlist(n) = to_charlist__builtin(n)
     let get(m, k) = get__builtin(m, k)
+    let read_file(file) = read_file__builtin(file)
+    let write_file(file, data) = write_file__builtin(file, data)
     |};
 ]
 
