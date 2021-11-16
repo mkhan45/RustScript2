@@ -122,6 +122,8 @@ let base_static_idents () =
         "fold__builtin";
         "to_charlist__builtin";
         "get__builtin";
+        "read_file__builtin";
+        "write_file__builtin";
     ] in
     List.zip_exn builtin_idents (List.range 0 (List.length builtin_idents))
 

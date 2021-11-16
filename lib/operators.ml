@@ -62,7 +62,7 @@ let rec val_eq lhs rhs ss loc = match lhs, rhs with
             | _ -> Boolean false
     end
     | Atom lhs, Atom rhs -> Boolean (Int.equal lhs rhs)
-    | StringVal lhs, StringVal rhs -> Boolean (String.equal lhs rhs)
+    | StringVal lhs, StringVal rhs -> Boolean (String.equal (escape_string lhs) (escape_string rhs))
     | _ -> Boolean false
 
 let val_eq_bool l r ss loc = val_is_true (val_eq l r ss loc) ss loc

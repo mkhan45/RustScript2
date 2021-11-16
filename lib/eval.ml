@@ -20,7 +20,7 @@ let rec bind: pattern -> value -> static_state -> location -> state -> state = f
             fun state -> state
     | IntegerPat lhs, Integer rhs when Int.equal lhs rhs -> 
             fun state -> state
-    | StringPat lhs, StringVal rhs when String.equal lhs rhs ->
+    | StringPat lhs, StringVal rhs when String.equal (escape_string lhs) (escape_string rhs) ->
             fun state -> state
     | AtomPat lhs, Atom rhs when Int.equal lhs rhs ->
             fun state -> state
@@ -250,6 +250,50 @@ and to_charlist_builtin (args, state) _ss =
             printf "Expected a single string argument to to_charlist";
             assert false
 
+and get_builtin (args, state) ss loc = 
+    match args with
+        | Tuple [Dictionary m; key] -> begin
+            match Map.find m (hash_value key) with
+                | Some found_values -> 
+                    let res = 
+                        List.Assoc.find found_values ~equal:(fun a b -> val_eq_bool a b ss loc) key 
+                    in
+                    let v = Option.value ~default:(Tuple []) res in
+                    v, state
+                | None -> (Tuple [], state)
+            end
+        | _ ->
+            printf "get requires two arguments, a list, and a value";
+            assert false
+
+and read_file_builtin (args, state) ss loc =
+    match args with
+        | Tuple [StringVal filename] -> begin
+            try
+                let in_stream = In_channel.create filename in
+                let file_string = In_channel.input_all in_stream in
+                StringVal file_string, state
+            with Sys_error err_str ->
+                printf "Error at %s: %s\n" (location_to_string loc) err_str;
+                print_traceback ss;
+                Caml.exit 0
+        end
+        | _ -> assert false
+
+and write_file_builtin (args, state) ss loc =
+    match args with
+        | Tuple [StringVal filename; StringVal data] -> begin
+            try
+                let out_stream = Out_channel.create filename in
+                Out_channel.output_string out_stream data;
+                Tuple [], state
+            with Sys_error err_str ->
+                printf "Error at %s: %s\n" (location_to_string loc) err_str;
+                print_traceback ss;
+                Caml.exit 0
+        end
+        | _ -> assert false
+
 and eval_pipe ~tc lhs rhs ss loc = fun s ->
     let (lhs, s) = (eval_expr lhs ss) s in
     let (rhs, s) = (eval_expr rhs ss) s in
@@ -437,23 +481,9 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                 | ResolvedIdent 7 -> range_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 8 -> fold_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 9 -> to_charlist_builtin ((eval_expr call.call_args ss) state) ss
-                | ResolvedIdent 10 ->
-                    let (args, state) = (eval_expr call.call_args ss) state in begin
-                    match args with
-                        | Tuple [Dictionary m; key] -> begin
-                            match Map.find m (hash_value key) with
-                                | Some found_values -> 
-                                    let res = 
-                                        List.Assoc.find found_values ~equal:(fun a b -> val_eq_bool a b ss loc) key 
-                                    in
-                                    let v = Option.value ~default:(Tuple []) res in
-                                    v, state
-                                | None -> (Tuple [], state)
-                            end
-                        | _ ->
-                            printf "get requires two arguments, a list, and a value";
-                            assert false
-                    end
+                | ResolvedIdent 10 -> get_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 11 -> read_file_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 12 -> write_file_builtin ((eval_expr call.call_args ss) state) ss loc
                 | UnresolvedIdent s ->
                     printf "Error: unresolved function %s not found at %s\n" s (location_to_string loc);
                     print_traceback ss;
