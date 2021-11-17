@@ -304,9 +304,12 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
     | ({data = Integer i; _})::xs -> complete_pat (IntegerPat i) xs in_list
     | ({data = StringTok f; _})::xs -> complete_pat (StringPat f) xs in_list
     | {data = Underscore; _}::xs -> complete_pat WildcardPat xs in_list
-    | _ ->
-            printf "Expected pattern";
-            assert false
+    | {data; location}::_ ->
+            printf "Expected pattern at %s, got %s" (location_to_string location) (string_of_tok data);
+            Caml.exit 0
+    | [] ->
+            printf "Expected pattern at end of file";
+            Caml.exit 0
 
 and parse_let ls =
     let (pat, xs) = parse_pat ls in
@@ -376,10 +379,10 @@ and parse_lambda = function
                         in (lambda, rest)
                 | {location; _}::_ ->
                         printf "Expected an arrow at %s\n" (location_to_string location);
-                        assert false
+                        Caml.exit 0
                 | [] -> 
                         printf "Expected an arrow at end of file\n";
-                        assert false
+                        Caml.exit 0
         end
     | _ -> assert false
 
@@ -433,7 +436,9 @@ and parse_map = function
     | {data = LBrace; _}::rest ->
         let rest = skip_newlines rest in
         let parse_key_val ls =
+            let ls = skip_newlines ls in
             let key_expr, xs = parse ls 0 in
+            let xs = skip_newlines xs in
             match xs with
                 | {data = Colon; _}::xs ->
                     let xs = skip_newlines xs in
@@ -476,6 +481,7 @@ and parse_map = function
                 (MapExpr ([], None), xs)
             | _ ->
                 let k0, v0, rest = parse_key_val rest in
+                let rest = skip_newlines rest in
                 let (res, tail), more = aux rest [(k0, v0)] in
                 let res = List.map ~f:(fun (a, b) -> a |> locate b.location, b) res in
                 (MapExpr (List.rev res, tail), more)
@@ -488,7 +494,9 @@ and parse_map = function
 and parse_match_expr ls loc =
     let (match_val, rest) = parse ls 0 in
     let rest = skip_newlines rest in
-    let rec parse_match_arms toks acc = match toks with
+    let rec parse_match_arms toks acc =
+        let toks = skip_newlines toks in
+        match toks with
         | {data = Pipe; _}::xs ->
             let arm_pat, rest = parse_pat xs in begin
             let cond, rest = match rest with

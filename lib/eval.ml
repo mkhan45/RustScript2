@@ -88,7 +88,7 @@ and pattern_matches: pattern -> value -> static_state -> location -> state -> bo
         | OrPat (lhs, rhs), value -> (pattern_matches lhs value state) || (pattern_matches rhs value state)
         | NumberPat lhs, Number rhs -> Float.equal lhs rhs
         | IntegerPat lhs, Integer rhs -> Int.equal lhs rhs
-        | StringPat lhs, StringVal rhs -> String.equal lhs rhs
+        | StringPat lhs, StringVal rhs -> String.equal (escape_string lhs) (escape_string rhs)
         | AtomPat lhs, Atom rhs -> Int.equal lhs rhs
         | ((TuplePat lhs_ls), (Tuple rhs_ls))|(ListPat (FullPat lhs_ls), ValList rhs_ls) ->
             if list_equal_len lhs_ls rhs_ls then
@@ -287,6 +287,22 @@ and write_file_builtin (args, state) ss loc =
                 let out_stream = Out_channel.create filename in
                 Out_channel.output_string out_stream data;
                 Tuple [], state
+            with Sys_error err_str ->
+                printf "Error at %s: %s\n" (location_to_string loc) err_str;
+                print_traceback ss;
+                Caml.exit 0
+        end
+        | _ -> assert false
+
+and list_dir_builtin (args, state) ss loc =
+    match args with
+        | Tuple [StringVal dirname] -> begin
+            try
+                let filenames = Caml.Sys.readdir dirname
+                    |> Array.to_list
+                    |> List.map ~f:(fun n -> StringVal n)
+                in
+                ValList filenames, state
             with Sys_error err_str ->
                 printf "Error at %s: %s\n" (location_to_string loc) err_str;
                 print_traceback ss;
@@ -506,8 +522,9 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                 | ResolvedIdent 10 -> get_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 11 -> read_file_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 12 -> write_file_builtin ((eval_expr call.call_args ss) state) ss loc
-                | ResolvedIdent 13 -> map_keys_builtin ((eval_expr call.call_args ss) state) ss loc
-                | ResolvedIdent 14 -> map_to_list_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 13 -> list_dir_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 14 -> map_keys_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 15 -> map_to_list_builtin ((eval_expr call.call_args ss) state) ss loc
                 | UnresolvedIdent s ->
                     printf "Error: unresolved function %s not found at %s\n" s (location_to_string loc);
                     print_traceback ss;

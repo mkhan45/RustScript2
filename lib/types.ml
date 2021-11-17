@@ -212,6 +212,10 @@ let rec hash_value = function
 let rec print_traceback ss = match ss.call_stack with
     | [] -> ()
     | ((call_id, call_loc), count)::xs ->
-        let fn_name = List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal call_id in
-        printf "%s at %s, called %d times\n" fn_name (location_to_string call_loc) count;
-        print_traceback {ss with call_stack = xs}
+        match List.Assoc.find (List.Assoc.inverse ss.static_idents) ~equal:Int.equal call_id with
+            | Some fn_name ->
+                printf "%s at %s, called %d times\n" fn_name (location_to_string call_loc) count;
+                print_traceback {ss with call_stack = xs}
+            | None ->
+                printf "Unresolved Ident %d at %s, called %d times\n" call_id (location_to_string call_loc) count;
+                print_traceback {ss with call_stack = xs}

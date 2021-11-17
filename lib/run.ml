@@ -3,25 +3,14 @@ open Stdio
 open Types
 open Scanner
 
-let static_assoc_dedup ls =
-    let ls = List.stable_sort ls ~compare:(fun (k1, _) (k2, _) -> String.compare k1 k2) in
-    let rec loop ls = match ls with
-        | (k1, _)::(((k2, _)::_) as xs) when String.equal k1 k2 -> 
-            loop xs
-        | x::xs -> x::(loop xs)
-        | [] -> []
-    in
-    loop ls
 
 let eval: static_state -> state -> string -> (value * state) * static_state = fun ss state s ->
     let (parsed, _remaining) = Parser.parse_str s "repl" in
     let static_atoms =
         Preprocess.find_atoms (ExprNode parsed) ss.static_atoms
-            |> static_assoc_dedup
     in
     let static_idents =
         Preprocess.find_idents (ExprNode parsed) ss.static_idents
-            |> static_assoc_dedup
     in
     let ss = { ss with static_atoms; static_idents } in
     let parsed = parsed 
@@ -33,7 +22,6 @@ let eval: static_state -> state -> string -> (value * state) * static_state = fu
     let eval_closure = Eval.eval_expr parsed ss in
     (eval_closure state), ss
 
-(* TODO: Make it support atoms *)
 let run_line ss state line =
     match eval ss state line with
         | (Tuple [], new_state), _ -> new_state
@@ -58,11 +46,9 @@ let run_string in_string filename (ss, state) =
     let block = BlockExpr expr_ls in
     let static_atoms =
         Preprocess.find_atoms (ExprNode (locate block)) ss.static_atoms
-            |> static_assoc_dedup
     in
     let static_idents =
         Preprocess.find_idents (ExprNode (locate block)) ss.static_idents
-            |> static_assoc_dedup
     in
     (* List.iter static_idents ~f:(fun (k, v) -> printf "%s: %d\n" k v); *)
     let ss = { ss with static_atoms; static_idents } in
@@ -124,6 +110,7 @@ let base_static_idents () =
         "get__builtin";
         "read_file__builtin";
         "write_file__builtin";
+        "list_dir__builtin";
         "map_keys__builtin";
         "map_to_list__builtin";
     ] in

@@ -85,6 +85,7 @@ and scan_string ls line_num filename =
         | '"'::xs -> 
             (StringTok (String.of_char_list (List.rev acc)) 
             |> Located.locate {line_num; filename})::(scan_ls xs line_num filename)
+        | '\\'::'"'::xs -> aux xs ('"'::acc)
         | c::xs -> aux xs (c::acc)
         | [] ->
             printf "Unmatched quote";
