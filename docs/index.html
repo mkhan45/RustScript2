@@ -19,6 +19,12 @@
     </body>
 
     <script>
+        const textarea = document.querySelector("#code");
+        const output = document.querySelector("#output");
+
+        var start_code = (new URLSearchParams(window.location.search)).get("code");
+        textarea.value = start_code;
+
         console.stdlog = console.log.bind(console);
         console.logs = [];
         console.log = function(){
@@ -30,9 +36,6 @@
         var state = null;
         var first_run = true;
         var error = true;
-
-        const textarea = document.querySelector("#code");
-        const output = document.querySelector("#output");
 
         function run_code() {
             let code = textarea.value;
@@ -55,6 +58,10 @@
                 }
                 console.logs = [];
             }
+
+            let code_encoded = encodeURIComponent(code);
+            let new_search = `${window.location.pathname}?code=${code_encoded}`;
+            window.history.pushState({}, 'RustScript', new_search);
         }
     </script>
 </html>

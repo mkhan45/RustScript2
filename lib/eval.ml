@@ -294,6 +294,28 @@ and write_file_builtin (args, state) ss loc =
         end
         | _ -> assert false
 
+and map_keys_builtin (args, state) _ss _loc =
+    match args with
+        | Tuple [Dictionary dict] ->
+            let keys = dict 
+                |> Map.data 
+                |> List.map ~f:(fun assoc_list -> List.map ~f:(fun (k, _) -> k) assoc_list)
+                |> List.concat_no_order
+            in
+            ValList keys, state
+        | _ -> assert false
+
+and map_to_list_builtin (args, state) _ss _loc =
+    match args with
+        | Tuple [Dictionary dict] ->
+            let ls = dict 
+                |> Map.data 
+                |> List.concat_no_order
+                |> List.map ~f:(fun (k, v) -> Tuple [k; v])
+            in
+            ValList ls, state
+        | _ -> assert false
+
 and eval_pipe ~tc lhs rhs ss loc = fun s ->
     let (lhs, s) = (eval_expr lhs ss) s in
     let (rhs, s) = (eval_expr rhs ss) s in
@@ -484,6 +506,8 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                 | ResolvedIdent 10 -> get_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 11 -> read_file_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 12 -> write_file_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 13 -> map_keys_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 14 -> map_to_list_builtin ((eval_expr call.call_args ss) state) ss loc
                 | UnresolvedIdent s ->
                     printf "Error: unresolved function %s not found at %s\n" s (location_to_string loc);
                     print_traceback ss;
