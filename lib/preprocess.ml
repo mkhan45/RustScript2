@@ -260,6 +260,25 @@ let resolve_idents tree idents =
     let tree, _ = tree_fold_map tree ~accumulator:idents ~f:resolve_idents_step in
     tree
 
+(* To be replaced with a proper module system later *)
+let resolve_imports_step () node = match node with
+    | ExprNode {
+        data = 
+            LambdaCall {
+                callee = UnresolvedIdent "import"; 
+                call_args = 
+                    {data = TupleExpr [{data = Atomic (StringVal filename); _}]; _}
+            }; location} ->
+            let in_stream = Stdio.In_channel.create filename in
+            let in_string = Stdio.In_channel.input_all in_stream in
+            let file_block, _ = Parser.parse_str ("{" ^ in_string ^ "}") filename in
+            ExprNode file_block, ()
+    | _ -> node, ()
+
+let resolve_imports tree =
+    let tree, _ = tree_fold_map tree ~accumulator:() ~f:resolve_imports_step in
+    unwrap_expr_node tree
+
 let find_expr_functions ss acc e = match e with
     | FnDef {fn_name = UnresolvedIdent fn_name; fn_def_func} -> 
         (fn_name |> List.Assoc.find_exn ss.static_idents ~equal:String.equal, fn_def_func)::acc

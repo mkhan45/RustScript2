@@ -44,11 +44,16 @@ let run_string in_string filename (ss, state) =
         List.rev (aux remaining [parsed])
     in
     let block = BlockExpr expr_ls in
+    let block = Preprocess.resolve_imports (Preprocess.ExprNode (locate block)) in
+    let expr_ls = match block with
+        | {data = BlockExpr ls; _} -> ls
+        | _ -> assert false
+    in
     let static_atoms =
-        Preprocess.find_atoms (ExprNode (locate block)) ss.static_atoms
+        Preprocess.find_atoms (ExprNode block) ss.static_atoms
     in
     let static_idents =
-        Preprocess.find_idents (ExprNode (locate block)) ss.static_idents
+        Preprocess.find_idents (ExprNode block) ss.static_idents
     in
     (* List.iter static_idents ~f:(fun (k, v) -> printf "%s: %d\n" k v); *)
     let ss = { ss with static_atoms; static_idents } in
