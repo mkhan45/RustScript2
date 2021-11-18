@@ -93,7 +93,19 @@ let run_file filename (ss, state) =
     let in_string = In_channel.input_all in_stream in
     run_string in_string filename (ss, state)
 
-let base_static_atoms () = [("ok", 0); ("err", 1)]
+let base_static_atoms () = [
+    ("ok", 0); 
+    ("err", 1);
+    ("number", 2);
+    ("integer", 3);
+    ("boolean", 4);
+    ("tuple", 5);
+    ("list", 6);
+    ("function", 7);
+    ("dictionary", 8);
+    ("atom", 9);
+    ("string", 10);
+]
 
 let base_static_idents () = 
     let builtin_idents = [
@@ -113,6 +125,7 @@ let base_static_idents () =
         "list_dir__builtin";
         "map_keys__builtin";
         "map_to_list__builtin";
+        "typeof__builtin";
     ] in
     List.zip_exn builtin_idents (List.range 0 (List.length builtin_idents))
 
