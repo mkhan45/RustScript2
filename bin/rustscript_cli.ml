@@ -21,8 +21,11 @@ let () =
     let args = Sys.get_argv () in
     let ss, state = Run.default_state () in
     match args |> Array.to_list with
-        | [_; filename] -> let _state = Run.run_file filename (ss, state) in ()
         | [_] ->
             repl state ss
+        | _::filenames -> 
+            let _ = List.fold_left ~init:(ss, state) ~f:(fun s f -> Run.run_file f s) filenames
+            in
+            ()
         | _ ->
                 printf "Usage: 'rustscript <filename>' or just 'rustscript' for REPL\n"
