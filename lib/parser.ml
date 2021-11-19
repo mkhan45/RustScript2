@@ -458,7 +458,7 @@ and parse_map = function
                     printf "Expected comma";
                     assert false
         in
-        let rec aux ls acc = match ls with
+        let rec aux ls acc = match (skip_newlines ls) with
             | {data = RBrace; _}::more -> ((acc, None), more)
             | {data = Comma; _}::xs ->
                 let xs = skip_newlines xs in
@@ -475,7 +475,14 @@ and parse_map = function
                         printf "Invalid map expression\n";
                         assert false
                 end
-            | _ -> assert false
+            | {data; location}::_ -> 
+                printf "Expected Pipe, Comma, or RBrace at %s, got %s" 
+                    (location_to_string location) 
+                    (string_of_tok data);
+                Caml.exit 0
+            | [] -> 
+                printf "Expected Pipe, Comma, or RBrace at end of file" ;
+                Caml.exit 0
         in begin match rest with
             | {data = RBrace; _}::xs ->
                 (MapExpr ([], None), xs)

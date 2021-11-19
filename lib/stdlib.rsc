@@ -1,3 +1,8 @@
+let merge_maps(m1, m2) = {
+    let m1_list = map_to_list(m1)
+    fold(m2, fn(acc, (k, v)) => %{k => v | acc}, m1_list)
+}
+
 let count(ls) = {
     let loop(ls, counter) = match ls
 	| [] -> counter
