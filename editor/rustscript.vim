@@ -31,6 +31,7 @@ syntax match rscOp "<="
 syntax match rscOp "<"
 syntax match rscOp ">"
 syntax match rscOp ">="
+syntax match rscOp "mod"
 highlight link rscOp Operator
 
 syntax match rscMatchArrow "->" 

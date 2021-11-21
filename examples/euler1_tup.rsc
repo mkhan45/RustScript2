@@ -24,4 +24,4 @@ let sum_tup = {
     fn (ls) => helper(ls, 0)
 }
 
-let predicate = fn(n) => (n % 3 == 0) || (n % 5 == 0)
+let predicate = fn(n) => (n mod 3 == 0) || (n mod 5 == 0)

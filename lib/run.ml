@@ -33,6 +33,7 @@ let run_line ss state line =
 let run_string in_string filename (ss, state) =
     let locate = Located.locate {line_num = 0; filename = filename} in
     let tokens = in_string |> Scanner.scan ~filename:filename |> skip_newlines in
+    (* print_toks (List.map ~f:Located.extract tokens); *)
     let expr_ls =
         let rec aux remaining acc = match (skip_newlines remaining) with
             | [] -> acc

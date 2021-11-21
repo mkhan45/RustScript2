@@ -6,7 +6,7 @@ let (to_number, to_letter) = {
 }
 
 let encode = fn(text, shift) => {
-    let shift = shift % 26
+    let shift = shift mod 26
 
     let loop = fn(char_ls, acc) => match char_ls
 	| [] -> concat(reverse(acc))
@@ -16,7 +16,7 @@ let encode = fn(text, shift) => {
 		|> to_number
 		|> add(shift, _)
 		|> fn(c) => if c < 0 then 26 + c else c
-		|> fn(c) => to_letter(c % 26)
+		|> fn(c) => to_letter(c mod 26)
 	    loop(xs, [new_letter | acc])
 	}
 

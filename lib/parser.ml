@@ -19,7 +19,6 @@ let prefix_op_bp = 13
 
 let rec complete_expr: expr t -> (token t) list -> int -> (expr t * (token t) list) = 
     fun lhs ls min_bp -> match (skip_newlines ls) with
-    | {data = Percent; location}::xs -> complete_expr lhs (({data = Operator Mod; location})::xs) min_bp
     | ({data = Operator op; location})::xs ->
             let (l_bp, r_bp) = binary_op_bp op in
             if l_bp < min_bp then 
@@ -348,6 +347,7 @@ and parse_args toks =
                             CaptureExprArg nx, rest
                     in
                     let acc = nx::acc in
+                    let rest = skip_newlines rest in
                     match rest with
                         | {data = Comma; _}::rest -> aux rest acc
                         | {data = RParen; _}::rest -> acc, rest

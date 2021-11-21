@@ -650,9 +650,12 @@ and eval_map_expr ?tc:(_tail_call=false) map_pairs tail_map ss loc state =
     let start_map = match tail_map with
         | Some (Dictionary m) -> m
         | None -> Map.empty (module Int)
-        | _ ->
-            printf "Expected a map\n";
-            assert false
+        | Some m ->
+            printf "Expected a map for the tail in map expr at %s, got %s\n"
+                (location_to_string loc)
+                (string_of_val ss m);
+            print_traceback ss;
+            Caml.exit 0
     in
     let (val_map, state) = 
         List.fold_left ~init:(start_map, state) ~f:fold_fn map_pairs

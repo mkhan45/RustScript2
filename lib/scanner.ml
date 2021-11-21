@@ -75,6 +75,7 @@ and scan_ident ls line_num filename =
                    | "for" -> For
                    | "in" -> In
                    | "as" -> As
+                   | "mod" -> Operator Mod
                    | _ -> Ident n
                 in
                 (tok |> Located.locate {line_num; filename})::(scan_ls ls line_num filename)

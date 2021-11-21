@@ -2,15 +2,15 @@ let gcd = fn(a, b) => match (a, b)
     | (x, 0) | (0, x) -> x
     | (a, b) when a > b -> gcd(b, a)
     | (a, b) -> {
-        let remainder = b % a
+        let remainder = b mod a
         if remainder != 0 then (gcd(a, remainder)) else a
     }
 
 let pollard = fn(n) => match n
     | 1 -> ()
-    | n when n % 2 == 0 -> 2
+    | n when n mod 2 == 0 -> 2
     | n -> {
-        let g = fn(x, n) => (x * x + 1) % n
+        let g = fn(x, n) => (x * x + 1) mod n
         let iter = fn(x, y, d) => match (x, y, d)
             | (x, y, 1) -> {
                 let x = g(x, n)
