@@ -1,3 +1,26 @@
+let starts_with(ls, prefix) = take(length(prefix), ls) == prefix
+
+let replace_substr(str, substr, replacement) = {
+    let substr_chars = to_charlist(substr)
+    let substr_len = length(substr_chars)
+    let replacement_chars = to_charlist(replacement)
+
+    let loop = fn(chars, acc) => match chars
+	| [] -> 
+	    reverse(acc)
+
+	| _ when starts_with(chars, substr_chars) -> {
+	    let remaining = drop(length(substr_chars), chars)
+	    loop(remaining, reverse(replacement_chars) + acc)
+	}
+
+	| [c | xs] ->
+	    loop(xs, [c | acc])
+
+    let string_chars = to_charlist(str)
+    loop(string_chars, []) |> concat
+}
+
 let merge_maps(m1, m2) = {
     let m1_list = map_to_list(m1)
     fold(m2, fn(acc, (k, v)) => %{k => v | acc}, m1_list)
@@ -107,10 +130,10 @@ let split_at(n, ls) =
     if n <= 0 then {
 	([], ls)
     } else {
-	let loop(n, xs, acc) =
+	let loop(n, ls, acc) =
 	    if n == 0 then 
-		(reverse(acc), xs)
-	    else match xs
+		(reverse(acc), ls)
+	    else match ls
 		| [] -> (ls, acc)
 		| [x | xs] -> loop(n - 1, xs, [x | acc])
 	

@@ -17,3 +17,6 @@ RUN dune build
 RUN mkdir -p ~/.local/bin
 RUN cp _build/default/bin/rustscript_cli.exe ~/.local/bin/rustscript
 ENV PATH $PATH:~/.local/bin
+
+WORKDIR /home/opam
+RUN rm -rf RustScript2
