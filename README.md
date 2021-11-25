@@ -35,6 +35,12 @@ dune exec ./bin/rustscript_cli.exe
 
 ### Examples:
 
+The most impressive examples are:
+- The tic-tac-toe AI: <https://github.com/mkhan45/RustScript2/blob/main/examples/tictactoe_minimax.rsc>
+- The TOML parser library: <https://github.com/mkhan45/rustscript_toml>
+- A simple static site generator/HTML template engine: <https://github.com/mkhan45/ssg_rustscript>
+- My personal website generated using the previous two libraries: <https://github.com/mkhan45/rustscript_site>
+
 #### FizzBuzz
 ```ex
 # ideally, for ... in will become a macro over foreach
