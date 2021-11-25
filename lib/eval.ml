@@ -345,6 +345,57 @@ and typeof_builtin (args, state) _ss _loc =
         | Tuple [StringVal _] -> Atom 10, state
         | _ -> assert false
 
+and serve_builtin (args, interpreter_state) ss loc =
+    match args with
+        | Tuple [Integer port; Lambda lambda] ->
+            let open Lwt in
+            let open Cohttp in
+            let open Cohttp_lwt_unix in
+
+            let callback _conn req body =
+            let uri = req |> Request.uri |> Uri.to_string in
+            let meth = req |> Request.meth |> Code.string_of_method in
+            let headers = req |> Request.headers |> Header.to_string in
+            ( body |> Cohttp_lwt.Body.to_string >|= fun body -> body )
+            >>= fun body -> 
+                    let args = Tuple [StringVal uri; StringVal meth; StringVal headers; StringVal body] in
+                    let thunk = Thunk {thunk_fn = lambda; thunk_args = args; thunk_fn_name = ResolvedIdent ~-1} in
+                    let res = match unwrap_thunk thunk interpreter_state ss loc with
+                        | StringVal s, _ -> s
+                        | _ -> assert false
+                    in
+                    Server.respond_string ~status:`OK ~body:res ()
+            in
+            Server.create ~mode:(`TCP (`Port port)) (Server.make ~callback ())
+        | _ ->
+            assert false
+
+and serve_ssl_builtin (args, interpreter_state) ss loc =
+    match args with
+        | Tuple [StringVal cert_path; StringVal key_path; Integer port; Lambda lambda] ->
+            let open Lwt in
+            let open Cohttp in
+            let open Cohttp_lwt_unix in
+
+            let callback _conn req body =
+            let uri = req |> Request.uri |> Uri.to_string in
+            let meth = req |> Request.meth |> Code.string_of_method in
+            let headers = req |> Request.headers |> Header.to_string in
+            ( body |> Cohttp_lwt.Body.to_string >|= fun body -> body )
+            >>= fun body -> 
+                    let args = Tuple [StringVal uri; StringVal meth; StringVal headers; StringVal body] in
+                    let thunk = Thunk {thunk_fn = lambda; thunk_args = args; thunk_fn_name = ResolvedIdent ~-1} in
+                    let res = match unwrap_thunk thunk interpreter_state ss loc with
+                        | StringVal s, _ -> s
+                        | _ -> assert false
+                    in
+                    Server.respond_string ~status:`OK ~body:res ()
+            in
+            let tls_config = `Crt_file_path cert_path, `Key_file_path key_path, `No_password, `Port port in
+            Server.create ~mode:(`TLS tls_config) (Server.make ~callback ())
+        | _ ->
+            assert false
+
 and eval_pipe ~tc lhs rhs ss loc = fun s ->
     let (lhs, s) = (eval_expr lhs ss) s in
     let (rhs, s) = (eval_expr rhs ss) s in
@@ -539,6 +590,12 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                 | ResolvedIdent 14 -> map_keys_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 15 -> map_to_list_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 16 -> typeof_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 17 -> 
+                        Lwt_main.run (serve_builtin ((eval_expr call.call_args ss) state) ss loc);
+                        Tuple [], state
+                | ResolvedIdent 18 -> 
+                        Lwt_main.run (serve_ssl_builtin ((eval_expr call.call_args ss) state) ss loc);
+                        Tuple [], state
                 | UnresolvedIdent s ->
                     printf "Error: unresolved function %s not found at %s\n" s (location_to_string loc);
                     print_traceback ss;

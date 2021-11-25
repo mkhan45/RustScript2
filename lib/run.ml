@@ -127,6 +127,8 @@ let base_static_idents () =
         "map_keys__builtin";
         "map_to_list__builtin";
         "typeof__builtin";
+        "serve__builtin";
+        "serve_ssl__builtin";
     ] in
     List.zip_exn builtin_idents (List.range 0 (List.length builtin_idents))
 
