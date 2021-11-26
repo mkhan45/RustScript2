@@ -310,6 +310,18 @@ and list_dir_builtin (args, state) ss loc =
         end
         | _ -> assert false
 
+and mkdir_builtin (args, state) _ss _loc =
+    match args with
+        | Tuple [StringVal dirname] -> begin
+            try
+                match Caml.Sys.command (Printf.sprintf "mkdir %s" dirname) with
+                    | 0 -> Atom 0, state
+                    | _ -> Tuple [Atom 1; StringVal "Nonzero exit code"], state
+            with Sys_error err_str ->
+                Tuple [Atom 1; StringVal err_str], state
+        end
+        | _ -> assert false
+
 and map_keys_builtin (args, state) _ss _loc =
     match args with
         | Tuple [Dictionary dict] ->
@@ -587,13 +599,14 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                 | ResolvedIdent 11 -> read_file_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 12 -> write_file_builtin ((eval_expr call.call_args ss) state) ss loc
                 | ResolvedIdent 13 -> list_dir_builtin ((eval_expr call.call_args ss) state) ss loc
-                | ResolvedIdent 14 -> map_keys_builtin ((eval_expr call.call_args ss) state) ss loc
-                | ResolvedIdent 15 -> map_to_list_builtin ((eval_expr call.call_args ss) state) ss loc
-                | ResolvedIdent 16 -> typeof_builtin ((eval_expr call.call_args ss) state) ss loc
-                | ResolvedIdent 17 -> 
+                | ResolvedIdent 14 -> mkdir_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 15 -> map_keys_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 16 -> map_to_list_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 17 -> typeof_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 18 -> 
                         Lwt_main.run (serve_builtin ((eval_expr call.call_args ss) state) ss loc);
                         Tuple [], state
-                | ResolvedIdent 18 -> 
+                | ResolvedIdent 19 -> 
                         Lwt_main.run (serve_ssl_builtin ((eval_expr call.call_args ss) state) ss loc);
                         Tuple [], state
                 | UnresolvedIdent s ->

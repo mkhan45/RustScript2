@@ -124,6 +124,7 @@ let base_static_idents () =
         "read_file__builtin";
         "write_file__builtin";
         "list_dir__builtin";
+        "mkdir__builtin";
         "map_keys__builtin";
         "map_to_list__builtin";
         "typeof__builtin";
