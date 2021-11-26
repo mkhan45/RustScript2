@@ -9,7 +9,7 @@ ENV OCAML_TOPLEVEL_PATH '/home/opam/.opam/4.13/lib/toplevel'
 ENV PATH '/home/opam/.opam/4.13/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 
 # Cloning RustScript
-RUN git clone https://github.com/mkhan45/RustScript2
+RUN git clone https://github.com/mkhan45/RustScript2 #redo
 WORKDIR RustScript2
 
 # Build/install RustScript

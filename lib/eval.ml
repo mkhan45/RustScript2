@@ -359,10 +359,12 @@ and typeof_builtin (args, state) _ss _loc =
 
 and serve_builtin (args, interpreter_state) ss loc =
     match args with
-        | Tuple [Integer port; Lambda lambda] ->
+        | Tuple [Integer port; Lambda lambda; server_state] ->
             let open Lwt in
             let open Cohttp in
             let open Cohttp_lwt_unix in
+            
+            let server_ref = ref server_state in
 
             let callback _conn req body =
             let uri = req |> Request.uri |> Uri.to_string in
@@ -370,10 +372,14 @@ and serve_builtin (args, interpreter_state) ss loc =
             let headers = req |> Request.headers |> Header.to_string in
             ( body |> Cohttp_lwt.Body.to_string >|= fun body -> body )
             >>= fun body -> 
-                    let args = Tuple [StringVal uri; StringVal meth; StringVal headers; StringVal body] in
+                    let args = Tuple [StringVal uri; StringVal meth; StringVal headers; StringVal body; !server_ref] in
                     let thunk = Thunk {thunk_fn = lambda; thunk_args = args; thunk_fn_name = ResolvedIdent ~-1} in
                     let res = match unwrap_thunk thunk interpreter_state ss loc with
-                        | StringVal s, _ -> s
+                        | Tuple [StringVal s; server_state], _ -> 
+                            server_ref := server_state;
+                            s
+                        | StringVal s, _ -> 
+                            s
                         | _ -> assert false
                     in
                     Server.respond_string ~status:`OK ~body:res ()
@@ -384,10 +390,12 @@ and serve_builtin (args, interpreter_state) ss loc =
 
 and serve_ssl_builtin (args, interpreter_state) ss loc =
     match args with
-        | Tuple [StringVal cert_path; StringVal key_path; Integer port; Lambda lambda] ->
+        | Tuple [StringVal cert_path; StringVal key_path; Integer port; Lambda lambda; server_state] ->
             let open Lwt in
             let open Cohttp in
             let open Cohttp_lwt_unix in
+
+            let server_ref = ref server_state in
 
             let callback _conn req body =
             let uri = req |> Request.uri |> Uri.to_string in
@@ -395,10 +403,14 @@ and serve_ssl_builtin (args, interpreter_state) ss loc =
             let headers = req |> Request.headers |> Header.to_string in
             ( body |> Cohttp_lwt.Body.to_string >|= fun body -> body )
             >>= fun body -> 
-                    let args = Tuple [StringVal uri; StringVal meth; StringVal headers; StringVal body] in
+                    let args = Tuple [StringVal uri; StringVal meth; StringVal headers; StringVal body; !server_ref] in
                     let thunk = Thunk {thunk_fn = lambda; thunk_args = args; thunk_fn_name = ResolvedIdent ~-1} in
                     let res = match unwrap_thunk thunk interpreter_state ss loc with
-                        | StringVal s, _ -> s
+                        | Tuple [StringVal s; server_state], _ ->
+                            server_ref := server_state;
+                            s
+                        | StringVal s, _ -> 
+                            s
                         | _ -> assert false
                     in
                     Server.respond_string ~status:`OK ~body:res ()
