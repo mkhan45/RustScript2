@@ -1,6 +1,6 @@
-FROM ocaml/opam
+FROM ocaml/opam:alpine
 
-RUN sudo apt install -y pkg-config libgmp-dev libgmp-ocaml-dev
+RUN sudo apk add pkgconf libgmpxx gmp-dev
 RUN opam install dune base cohttp cohttp-lwt-unix js_of_ocaml js_of_ocaml-ppx lwt ppx_blob stdio
 # RUN eval $(opam env)
 ENV OPAM_SWITCH_PREFIX '/home/opam/.opam/4.13'
