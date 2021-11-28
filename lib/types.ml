@@ -217,5 +217,9 @@ let rec print_traceback ss = match ss.call_stack with
                 printf "%s at %s, called %d times\n" fn_name (location_to_string call_loc) count;
                 print_traceback {ss with call_stack = xs}
             | None ->
-                printf "Unresolved Ident %d at %s, called %d times\n" call_id (location_to_string call_loc) count;
+                match call_id with
+                | -1 -> 
+                    printf "Anonymous fn at %s, called %d times\n" (location_to_string call_loc) count;
+                | _ ->
+                    printf "Unresolved Ident %d at %s, called %d times\n" call_id (location_to_string call_loc) count;
                 print_traceback {ss with call_stack = xs}

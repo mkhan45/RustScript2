@@ -82,16 +82,17 @@ and scan_ident ls line_num filename =
     in aux ls []
 
 and scan_string ls line_num filename =
-    let rec aux ls acc = match ls with
+    let rec aux ls line_num acc = match ls with
         | '"'::xs -> 
             (StringTok (String.of_char_list (List.rev acc)) 
             |> Located.locate {line_num; filename})::(scan_ls xs line_num filename)
-        | '\\'::'"'::xs -> aux xs ('"'::acc)
-        | c::xs -> aux xs (c::acc)
+        | '\\'::'"'::xs -> aux xs line_num ('"'::acc)
+        | '\n'::xs -> aux xs (line_num + 1) ('\n'::acc)
+        | c::xs -> aux xs line_num (c::acc)
         | [] ->
             printf "Unmatched quote";
             assert false
-    in aux ls []
+    in aux ls line_num []
 
 and skip_until_newline = function
     | [] -> []
