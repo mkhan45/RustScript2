@@ -266,7 +266,7 @@ and get_builtin (args, state) ss loc =
             printf "get requires two arguments, a list, and a value";
             assert false
 
-and read_file_builtin (args, state) ss loc =
+and read_file_builtin (args, state) _ss _loc =
     match args with
         | Tuple [StringVal filename] -> begin
             try
@@ -274,9 +274,7 @@ and read_file_builtin (args, state) ss loc =
                 let file_string = In_channel.input_all in_stream in
                 StringVal file_string, state
             with Sys_error err_str ->
-                printf "Error at %s: %s\n" (location_to_string loc) err_str;
-                print_traceback ss;
-                Caml.exit 0
+                Tuple [Atom 1; StringVal err_str], state
         end
         | _ -> assert false
 
@@ -374,15 +372,22 @@ and serve_builtin (args, interpreter_state) ss loc =
             >>= fun body -> 
                     let args = Tuple [StringVal uri; StringVal meth; StringVal headers; StringVal body; !server_ref] in
                     let thunk = Thunk {thunk_fn = lambda; thunk_args = args; thunk_fn_name = ResolvedIdent ~-1} in
-                    let res = match unwrap_thunk thunk interpreter_state ss loc with
-                        | Tuple [StringVal s; server_state], _ -> 
+                    let res, headers = match unwrap_thunk thunk interpreter_state ss loc with
+                        | Tuple [StringVal s; server_state; Dictionary headers], _ -> 
                             server_ref := server_state;
-                            s
+                            let header_pairs = List.concat (Map.data headers) in
+                            let header_pairs = List.map header_pairs ~f:(fun (k, v) -> match k, v with
+                                | StringVal k, StringVal v -> k, v
+                                | _ -> assert false
+                            )
+                            in
+                            let headers = Header.add_list (Header.init ()) header_pairs in
+                            s, headers
                         | StringVal s, _ -> 
-                            s
+                            s, Header.init ()
                         | _ -> assert false
                     in
-                    Server.respond_string ~status:`OK ~body:res ()
+                    Server.respond_string ~status:`OK ~headers ~body:res ()
             in
             Server.create ~mode:(`TCP (`Port port)) (Server.make ~callback ())
         | _ ->
@@ -421,17 +426,19 @@ and serve_ssl_builtin (args, interpreter_state) ss loc =
             assert false
 
 and eval_pipe ~tc lhs rhs ss loc = fun s ->
+    let {Located.location = args_loc; _} = lhs in
+    let {Located.location = fn_loc; _} = rhs in
     let (lhs, s) = (eval_expr lhs ss) s in
     let (rhs, s) = (eval_expr rhs ss) s in
     match rhs with
     | Lambda _ | Fn _ | LambdaCapture _ | Dictionary _ ->
         let call_args =
-            (TupleExpr ([Atomic lhs |> Located.locate loc])) |> Located.locate loc
+            (TupleExpr ([Atomic lhs |> Located.locate args_loc])) |> Located.locate args_loc
         in
         let call =
             {callee = ResolvedIdent ~-1; call_args}
         in
-        eval_lambda ~tc:tc rhs call ss loc s
+        eval_lambda ~tc:tc rhs call ss fn_loc s
     | _ ->
         printf "Tried to pipe to a non function %s at %s\n"
             (string_of_val ss rhs)
@@ -576,6 +583,11 @@ and eval_lambda ~tc lambda call ss loc state = match lambda with
         in
         let arglist = construct_arglist capture.capture_args [] call_args None in
         let call = {call with call_args = (TupleExpr arglist) |> Located.locate loc} in
+        let call_stack = match ss.call_stack with
+            | ((id, loc), n)::xs when Int.equal id ~-1 -> ((-1, loc), n + 1)::xs
+            | _ -> ((-1, loc), 1)::ss.call_stack
+        in
+        let ss = { ss with call_stack } in
         eval_lambda ~tc:tc capture.capture_val call ss loc state
     | Dictionary dict ->
         let (evaled, state) = (eval_expr call.call_args ss) state in begin
