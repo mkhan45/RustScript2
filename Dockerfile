@@ -1,7 +1,7 @@
 FROM ocaml/opam:alpine
 
 RUN sudo apk add pkgconf libgmpxx gmp-dev
-RUN opam install dune base cohttp cohttp-lwt-unix js_of_ocaml js_of_ocaml-ppx lwt ppx_blob stdio
+RUN opam install dune base cohttp cohttp-lwt-unix js_of_ocaml js_of_ocaml-ppx lwt ppx_blob stdio safepass
 # RUN eval $(opam env)
 ENV OPAM_SWITCH_PREFIX '/home/opam/.opam/4.13'
 ENV CAML_LD_LIBRARY_PATH '/home/opam/.opam/4.13/lib/stublibs:/home/opam/.opam/4.13/lib/ocaml/stublibs:/home/opam/.opam/4.13/lib/ocaml'

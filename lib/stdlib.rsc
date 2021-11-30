@@ -146,7 +146,7 @@ let take(n, ls) = {
 }
 
 let drop(n, ls) =
-    if n <= 0 then
+    if n <= 0 || ls == [] then
 	ls
     else
 	drop(n - 1, $ls)
@@ -266,3 +266,4 @@ let typeof(m) = typeof__builtin(m)
 let start_server(port, callback, server_state) = serve__builtin(port, callback, server_state)
 let start_server_ssl(cert_path, key_path, port, callback) = serve_ssl__builtin(cert_path, key_path, port, callback)
 let crypto_hash(val) = crypto_hash__builtin(val)
+let truncate(val) = truncate__builtin(val)
