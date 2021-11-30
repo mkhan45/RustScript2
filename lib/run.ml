@@ -130,6 +130,7 @@ let base_static_idents () =
         "typeof__builtin";
         "serve__builtin";
         "serve_ssl__builtin";
+        "crypto_hash__builtin";
     ] in
     List.zip_exn builtin_idents (List.range 0 (List.length builtin_idents))
 

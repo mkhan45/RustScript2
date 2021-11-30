@@ -425,6 +425,11 @@ and serve_ssl_builtin (args, interpreter_state) ss loc =
         | _ ->
             assert false
 
+and crypto_hash_builtin (args, state) _ss _loc =
+    match args with
+        | Tuple [StringVal s] -> StringVal (Bcrypt.string_of_hash (Bcrypt.hash s)), state
+        | _ -> assert false
+
 and eval_pipe ~tc lhs rhs ss loc = fun s ->
     let {Located.location = args_loc; _} = lhs in
     let {Located.location = fn_loc; _} = rhs in
@@ -633,6 +638,7 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                 | ResolvedIdent 19 -> 
                         Lwt_main.run (serve_ssl_builtin ((eval_expr call.call_args ss) state) ss loc);
                         Tuple [], state
+                | ResolvedIdent 20 -> crypto_hash_builtin ((eval_expr call.call_args ss) state) ss loc
                 | UnresolvedIdent s ->
                     printf "Error: unresolved function %s not found at %s\n" s (location_to_string loc);
                     print_traceback ss;
