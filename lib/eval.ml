@@ -375,8 +375,8 @@ and serve_builtin (args, interpreter_state) ss loc =
             >>= fun body -> 
                     let args = Tuple [StringVal uri; StringVal meth; StringVal headers; StringVal body; !server_ref] in
                     let thunk = Thunk {thunk_fn = lambda; thunk_args = args; thunk_fn_name = ResolvedIdent ~-1} in
-                    let res, headers = match unwrap_thunk thunk interpreter_state ss loc with
-                        | Tuple [StringVal s; server_state; Dictionary headers], _ -> 
+                    let res, headers, status = match unwrap_thunk thunk interpreter_state ss loc with
+                        | Tuple [StringVal s; server_state; Dictionary headers; Integer status], _ -> 
                             server_ref := server_state;
                             let header_pairs = List.concat (Map.data headers) in
                             let header_pairs = List.map header_pairs ~f:(fun (k, v) -> match k, v with
@@ -385,12 +385,12 @@ and serve_builtin (args, interpreter_state) ss loc =
                             )
                             in
                             let headers = Header.add_list (Header.init ()) header_pairs in
-                            s, headers
+                            s, headers, `Code status
                         | StringVal s, _ -> 
-                            s, Header.init ()
+                            s, Header.init (), `OK
                         | _ -> assert false
                     in
-                    Server.respond_string ~status:`OK ~headers ~body:res ()
+                    Server.respond_string ~status ~headers ~body:res ()
             in
             Server.create ~mode:(`TCP (`Port port)) (Server.make ~callback ())
         | _ ->
