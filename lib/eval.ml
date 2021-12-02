@@ -691,6 +691,14 @@ and eval_if_expr ?tc:(tail_call=false) if_expr ss = fun state ->
                 (eval_expr ~tc:tail_call if_expr.else_expr ss) state
         | _ -> assert false
 
+and eval_if_let_expr ?tc:(tail_call=false) if_let_expr ss loc = fun state ->
+    let assigned_val, state = (eval_expr if_let_expr.assigned_expr ss) state in
+    if (pattern_matches if_let_expr.pat assigned_val ss loc state) then
+        let state = (bind if_let_expr.pat assigned_val ss loc) state in
+        (eval_expr ~tc:tail_call if_let_expr.let_then_expr ss) state
+    else
+        (eval_expr ~tc:tail_call if_let_expr.let_else_expr ss) state
+
 and eval_block_expr ?tc:(tail_call=false) ls ss =
     let static_block_funcs = 
         Preprocess.find_block_funcs ss (ls |> List.map ~f:Located.extract) ss.static_block_funcs 
@@ -845,7 +853,8 @@ and eval_expr: (expr Located.t) -> static_state -> ?tc:bool -> state -> value * 
         | {data = TupleExpr ls; _} -> fun s -> (eval_tuple_expr ls ss) s
         | {data = LambdaCall l; location} -> fun s -> (eval_lambda_call ~tc:tail_call l ss) location s
         | {data = LambdaCaptureExpr c; location} -> fun s -> (eval_lambda_capture c ss) location s
-        | {data = IfExpr i; _} -> fun s -> (eval_if_expr ~tc:tail_call i ss) s
+        | {data = IfExpr i; _} -> eval_if_expr ~tc:tail_call i ss
+        | {data = IfLetExpr i; location} -> eval_if_let_expr ~tc:tail_call i ss location
         | {data = BlockExpr ls; _} -> fun s -> (eval_block_expr ~tc:tail_call ls ss) s
         | {data = MatchExpr m; location} -> 
             fun s -> (eval_match_expr ~tc:tail_call m.match_val m.match_arms ss location) s

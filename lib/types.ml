@@ -93,6 +93,8 @@ and lambda_call = {callee: ident; call_args: expr Located.t}
 and lambda_capture_expr = {capture_expr_fn: ident; capture_expr_args: capture_expr_arg list}
 and func = {fn_expr: expr Located.t; fn_args: pattern}
 and if_expr = {cond: expr Located.t; then_expr: expr Located.t; else_expr: expr Located.t}
+and if_let_expr = 
+    {pat: pattern; assigned_expr: expr Located.t; let_then_expr: expr Located.t; let_else_expr: expr Located.t}
 and ident =
     | UnresolvedIdent of string
     | ResolvedIdent of int
@@ -108,6 +110,7 @@ and expr =
     | LambdaCaptureExpr of lambda_capture_expr
     | FnDef of {fn_name: ident; fn_def_func: func}
     | IfExpr of if_expr
+    | IfLetExpr of if_let_expr
     | TupleExpr of (expr Located.t) list
     | BlockExpr of (expr Located.t) list
     | MatchExpr of {match_val: expr Located.t; match_arms: (pattern * (expr Located.t) * (expr Located.t) option) list}
@@ -171,6 +174,7 @@ let rec string_of_expr ss e =
         (String.concat ~sep:", " (ls |> List.map ~f:Located.extract |> List.map ~f:string_of_expr))
         (if Option.is_none tail then "None" else "Tail")
     | IfExpr _ -> "IfExpr"
+    | IfLetExpr _ -> "IfLetExpr"
     | BlockExpr ls -> 
         sprintf "{\n\t%s\n}" 
         (String.concat ~sep:"\n\t" (ls |> List.map ~f:Located.extract |> List.map ~f:string_of_expr))

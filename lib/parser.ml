@@ -405,6 +405,24 @@ and parse_lambda_call = function
 
 
 and parse_if_expr = function
+    | {data = If; _}::{data = Let; _}::xs -> begin
+        let pat, xs = parse_pat xs in
+        let xs = match skip_newlines xs with
+            | {data = Equal; _}::xs -> skip_newlines xs
+            | _ -> assert false
+        in
+        let assigned_expr, xs = parse xs 0 in
+        match (skip_newlines xs) with
+            | {data = Then; _}::xs -> begin
+                let (let_then_expr, xs) = parse xs 0 in
+                match (skip_newlines xs) with
+                    | {data = Else; _}::xs ->
+                        let (let_else_expr, rest) = parse xs 0 in
+                        (IfLetExpr {pat; assigned_expr; let_then_expr; let_else_expr}), rest
+                    | _ -> assert false
+            end
+            | _ -> assert false
+    end
     | {data = If; _}::xs -> begin
         let (cond, xs) = parse xs 0 in
         match skip_newlines xs with

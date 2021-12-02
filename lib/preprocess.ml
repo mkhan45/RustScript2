@@ -77,6 +77,19 @@ let rec tree_fold_map: tree_node -> accumulator:'a -> f:('a -> tree_node -> (tre
             (unwrap_expr_node cond, unwrap_expr_node then_expr, unwrap_expr_node else_expr) 
         in
         f accumulator (ExprNode ({located with data = IfExpr {cond; then_expr; else_expr}}))
+    | ExprNode ({data = IfLetExpr {pat; assigned_expr; let_then_expr; let_else_expr}; _} as located) ->
+        let pat, accumulator = tree_fold_map (PatNode pat) ~accumulator ~f in
+        let assigned_expr, accumulator = tree_fold_map (ExprNode assigned_expr) ~accumulator ~f in
+        let let_then_expr, accumulator = tree_fold_map (ExprNode let_then_expr) ~accumulator ~f in
+        let let_else_expr, accumulator = tree_fold_map (ExprNode let_else_expr) ~accumulator ~f in
+        let (pat, assigned_expr, let_then_expr, let_else_expr) = (
+            unwrap_pat_node pat, 
+            unwrap_expr_node assigned_expr, 
+            unwrap_expr_node let_then_expr, 
+            unwrap_expr_node let_else_expr
+        ) 
+        in
+        f accumulator (ExprNode ({located with data = IfLetExpr {pat; assigned_expr; let_then_expr; let_else_expr}}))
     | ExprNode ({data = TupleExpr ls; _} as located) ->
         let step accumulator node =
             let mapped_node, accumulator = tree_fold_map (ExprNode node) ~accumulator:accumulator ~f:f in
