@@ -1,6 +1,6 @@
-FROM ocaml/opam:alpine
+FROM ocaml/opam:alpine AS build
 
-RUN sudo apk add pkgconf libgmpxx gmp-dev
+RUN sudo apk add pkgconf libgmpxx gmp-dev binutils
 RUN opam install dune base cohttp cohttp-lwt-unix js_of_ocaml js_of_ocaml-ppx lwt ppx_blob stdio safepass
 # RUN eval $(opam env)
 ENV OPAM_SWITCH_PREFIX '/home/opam/.opam/4.13'
@@ -13,11 +13,9 @@ COPY . RustScript2
 WORKDIR RustScript2
 RUN sudo chown -R opam .
 
-# Build/install RustScript
+# Build RustScript
 RUN dune build
-RUN mkdir -p ~/.local/bin
-RUN cp _build/default/bin/rustscript_cli.exe ~/.local/bin/rustscript
-ENV PATH $PATH:~/.local/bin
+RUN sudo strip _build/default/bin/rustscript_cli.exe
 
-WORKDIR /home/opam
-RUN rm -rf RustScript2
+FROM alpine
+COPY --from=build /home/opam/RustScript2/_build/default/bin/rustscript_cli.exe /bin/rustscript
