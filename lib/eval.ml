@@ -272,6 +272,7 @@ and read_file_builtin (args, state) _ss _loc =
             try
                 let in_stream = In_channel.create filename in
                 let file_string = In_channel.input_all in_stream in
+                In_channel.close in_stream;
                 StringVal file_string, state
             with Sys_error err_str ->
                 Tuple [Atom 1; StringVal err_str], state
@@ -283,7 +284,8 @@ and write_file_builtin (args, state) ss loc =
         | Tuple [StringVal filename; StringVal data] -> begin
             try
                 let out_stream = Out_channel.create filename in
-                Out_channel.output_string out_stream data;
+                Out_channel.output_string out_stream (escape_string data);
+                Out_channel.close out_stream;
                 Tuple [], state
             with Sys_error err_str ->
                 printf "Error at %s: %s\n" (location_to_string loc) err_str;
@@ -336,7 +338,8 @@ and map_to_list_builtin (args, state) _ss _loc =
         | Tuple [Dictionary dict] ->
             let ls = dict 
                 |> Map.data 
-                |> List.concat_no_order
+                |> List.concat
+                |> List.rev
                 |> List.map ~f:(fun (k, v) -> Tuple [k; v])
             in
             ValList ls, state
@@ -428,6 +431,11 @@ and serve_ssl_builtin (args, interpreter_state) ss loc =
 and crypto_hash_builtin (args, state) _ss _loc =
     match args with
         | Tuple [StringVal s] -> StringVal (Bcrypt.string_of_hash (Bcrypt.hash s)), state
+        | _ -> assert false
+
+and validate_pass_builtin (args, state) _ss _loc =
+    match args with
+        | Tuple [StringVal a; StringVal b] -> Boolean (Bcrypt.verify a (Bcrypt.hash_of_string b)), state
         | _ -> assert false
 
 and truncate_builtin (args, state) _ss _loc =
@@ -644,7 +652,8 @@ and eval_lambda_call ?tc:(tail_call=false) call ss loc =
                         Lwt_main.run (serve_ssl_builtin ((eval_expr call.call_args ss) state) ss loc);
                         Tuple [], state
                 | ResolvedIdent 20 -> crypto_hash_builtin ((eval_expr call.call_args ss) state) ss loc
-                | ResolvedIdent 21 -> truncate_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 21 -> validate_pass_builtin ((eval_expr call.call_args ss) state) ss loc
+                | ResolvedIdent 22 -> truncate_builtin ((eval_expr call.call_args ss) state) ss loc
                 | UnresolvedIdent s ->
                     printf "Error: unresolved function %s not found at %s\n" s (location_to_string loc);
                     print_traceback ss;

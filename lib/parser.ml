@@ -281,11 +281,16 @@ and parse_pat ?in_list:(in_list=false) ls = match ls with
                     printf "Expected a colon in map at end of file\n";
                     Caml.exit 0
         in
-        let rec aux toks acc = match toks with
+        let rec aux toks acc = match (skip_newlines toks) with
             | {data = RBrace; _}::rest -> acc, rest
             | {data = Comma; _}::rest ->
                 let pair, more = parse_pair rest in
                 aux more (pair::acc)
+            | {data; location}::_ ->
+                printf "Expected RBrace or Comma at %s, got %s"
+                    (location_to_string location)
+                    (string_of_tok data);
+                Caml.exit 0
             | _ -> assert false
         in begin match xs with
             | {data = RBrace; _}::rest -> complete_pat (MapPat []) rest in_list
