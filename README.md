@@ -12,7 +12,64 @@ I wrote RustScript originally in Java because it was part of a school project,
 ignoring performance/code quality because I only had one night to do it.
 
 This is an improved version of RustScript with improved performance and more features
-written to learn OCaml. Still WIP
+written to learn OCaml.
+
+### Language Tour (in progress)
+
+#### Basic types:
+
+RustScript has 5 basic types
+```ex
+let x = 5 # integer
+let f = 5.0 # float
+let s = "Hello" # string
+let b = T # boolean
+let a = :atom # atom
+```
+
+#### Compound types:
+
+There are also a few compound types
+```ex
+let t = (1, "hello", :aaa) # tuples
+let ls = [1, 2, 3, 4, 5] # lists
+let m = %{one: 2, "three" => 3} # maps
+let f1 = fn(x) => x * 2 # closures
+let f2(x) = x * 2 # functions
+```
+
+#### Patterns:
+
+All bindings in RustScript are done through pattern matching. Aside from the primitives, there
+are:
+
+```ex
+let (a, (b, c), d) = (1, (2, 3), 4) # tuple patterns
+inspect((a, b, c, d)) # (1, 2, 3, 4)
+
+let [a, b, c] = [1, 2, 3] # list patterns
+inspect((a, b, c)) # (1, 2, 3)
+
+let [a, b | tl] = [1, 2, 3, 4] # list head/tail patterns
+inspect((a, b, tl)) # (1, 2, [3, 4])
+
+let %{one, "two" => two} = %{one: 1, "two" => 2, unused: 0} # map patterns
+inspect((one, two)) # (1, 2)
+```
+
+While pattern matching is most frequently used in let bindings, it is also used in `if let` expressions, `match` expressions,
+and function arguments.
+
+`if let` expressions are used for refutable patterns:
+
+```
+let result = (:ok, 5)
+if let (:ok, n) = result then
+    inspect(n)
+else
+    println("Error")
+```
+
 
 ### Build
 
