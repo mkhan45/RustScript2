@@ -1,12 +1,3 @@
-let sort = fn(ls) => match ls
-    | [] -> []
-    | [pivot | tail] -> {
-        let higher = filter (fn(x) => x >= pivot, tail)
-        let lower = filter(fn(x) => x < pivot, tail)
-
-        sort(lower) + [pivot] + sort(higher)
-    }
-
 let insert = fn(root, key) => match root
     | () -> %{val: key}
     | %{right, val} when val < key -> %{right: insert(right, key) | root}
@@ -41,3 +32,8 @@ let construct_from_list = fn(ls) =>
 
 let ls = to_charlist("khan348kha")
 let bst = construct_from_list(ls)
+
+let str_cmp(a, b) = match T
+    | _ when a < b -> -1
+    | _ when a == b -> 0
+    | _ when a > b -> 1
