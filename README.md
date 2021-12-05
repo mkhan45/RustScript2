@@ -55,6 +55,12 @@ inspect((a, b, tl)) # (1, 2, [3, 4])
 
 let %{one, "two" => two} = %{one: 1, "two" => 2, unused: 0} # map patterns
 inspect((one, two)) # (1, 2)
+
+let _ = :something # wildcard pattern
+# no bindings are created
+
+let [x | xs] as ls = [1, 2, 3] # as patterns
+inspect((x, xs, ls)) # (1, [2, 3], [1, 2, 3])
 ```
 
 While pattern matching is most frequently used in let bindings, it is also used in `if let` expressions, `match` expressions,
@@ -62,7 +68,7 @@ and function arguments.
 
 `if let` expressions are used for refutable patterns:
 
-```
+```ex
 let result = (:ok, 5)
 if let (:ok, n) = result then
     inspect(n)
@@ -70,6 +76,84 @@ else
     println("Error")
 ```
 
+`match` expressions:
+
+```ex
+let ls = [1, 2, 3, 4]
+match ls
+    | [1 | xs] -> println("Starts with 1")
+    | [_ | xs] -> println("Starts with something other than 1")
+```
+
+#### Closures:
+
+```ex
+let a = 5
+let f = fn(x) => x * a # f captures a
+
+inspect(f(2)) # 10
+
+let g = fn(a, [x | xs]) = (a * x, xs) # pattern matching works in function arguments
+inspect(g(1, [2, 3, 4])) # (2, [3, 4])
+```
+
+#### Maps:
+
+```ex
+# pairs with non-atom keys use "=>" arrows
+let x = %{"one" => 1, "two" => 2, "three" => 3}
+
+# pairs with atom keys use colons
+let y = %{one: 1, two: 2, three: 3}
+
+# the following are equivalent:
+%{one: 1, two: 2}
+%{:one => 1, :two, 2}
+
+# Maps are accessed via function call syntax
+inspect(x("one")) # 1
+inspect(y(:one)) # 1
+
+# However it's often more convenient to pattern match over them,
+# especially with atoms as keys
+
+let %{"one" => one, "two" => two} = x
+inspect((one, two)) # the three does not get bound
+
+let %{one, two} = y # key punning, equivalent to the next line
+let %{:one => one, :two => two}
+```
+
+#### Captures and Pipes
+
+```ex
+# Currying is emulated via function captures
+
+let polynomial = fn(a, b, c, x) => a * x * x + b * x + c
+let f = polynomial(2, 3, 4, _)
+let g = polynomial(_, _, _, 10)
+
+inspect(f(10)) # 234
+inspect(g(2, 3, 4)) # 234
+
+# Captures are especially useful in combination with the pipe operator.
+# The following code takes advantage of the standard add, sub, mul, and div functions
+# as well as the fact that inspect returns its arguments unchanged after printing them
+
+let f = polynomial(2, 3, 4)
+
+10
+|> f
+|> inspect # 234
+|> add(_, 10)
+|> inspect # 244
+|> div(_, 100)
+|> inspect # 2.44
+|> sub(1000, _)
+|> inspect # 997.56
+|> mul(_, 10)
+|> inspect # -9975.599
+```
 
 ### Build
 
