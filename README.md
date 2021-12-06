@@ -121,7 +121,7 @@ let %{"one" => one, "two" => two} = x
 inspect((one, two)) # the three does not get bound
 
 let %{one, two} = y # key punning, equivalent to the next line
-let %{:one => one, :two => two}
+let %{:one => one, :two => two} = y
 ```
 
 #### Captures and Pipes
