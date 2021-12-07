@@ -14,7 +14,7 @@ ignoring performance/code quality because I only had one night to do it.
 This is an improved version of RustScript with improved performance and more features
 written to learn OCaml.
 
-### Language Tour (in progress)
+### Language Tour
 
 #### Basic types:
 
@@ -97,6 +97,16 @@ let g = fn(a, [x | xs]) = (a * x, xs) # pattern matching works in function argum
 inspect(g(1, [2, 3, 4])) # (2, [3, 4])
 ```
 
+#### Named functions:
+
+Named functions do not capture their environment. As a result, they run
+slightly faster and can be made mutually recursive
+
+```
+let f(x) = x * 2
+inspect(f(2)) # 4
+```
+
 #### Maps:
 
 ```ex
@@ -122,6 +132,32 @@ inspect((one, two)) # the three does not get bound
 
 let %{one, two} = y # key punning, equivalent to the next line
 let %{:one => one, :two => two} = y
+
+# Maps can be updated using update syntax
+let m = %{one: 1, two: 2}
+let g = %{three: 3 | m}
+inspect(g) # %{:one: 1, :three: 3, :two: 2}
+```
+
+#### Lists
+
+```ex
+# Lists are heterogenous linkedlists.
+let ls = [1, 2, 5, 7]
+
+# Generally, lists are accessed via pattern matching
+let [a, b | tl] = ls
+inspect((a, b, tl)) # (1, 2, [5, 7])
+
+# They can also be accessed by index in O(n) time via the nth function
+inspect(nth(ls, 2)) # 5
+
+# Range expressions
+inspect([1..10]) # [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+inspect([1,5..25]) # [1, 5, 9, 13, 17, 21]
+
+# List comprehensions
+inspect([n * n for n in [1..100] if n mod 12 == 0]) # [144, 576, 1296, 2304, 3600, 5184, 7056, 9216]
 ```
 
 #### Captures and Pipes
