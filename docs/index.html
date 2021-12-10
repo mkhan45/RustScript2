@@ -1,21 +1,19 @@
 <html>
     <head>
         <title> RustScript </title>
-        <script src="js/rustscript_web.bc.runtime.js"></script>
-        <script src="js/rustscript_web.bc.js"></script>
     </head>
     <body>
         <h1>
-            Experimental web RustScript
+            Web RustScript
         </h1>
         <p>
-            Significantly slower and more error prone than native RustScript
+            Don't abuse
         </p>
         <div>
         <textarea id="code" style="font-family: monospace; font-size: 1.5em; width: 80ch; height: 40ch;"></textarea>
         </div>
         <button onclick="run_code()">Run</button>
-        <div id="output" style="font-family: Comic Sans MS, Comic Sans, cursive"></div>
+        <div id="output" style="font-family: monospace; font-size: 1.25em"></div>
     </body>
 
     <script>
@@ -25,39 +23,16 @@
         var start_code = (new URLSearchParams(window.location.search)).get("code");
         textarea.value = start_code;
 
-        console.stdlog = console.log.bind(console);
-        console.logs = [];
-        console.log = function(){
-            console.logs.push(Array.from(arguments));
-            console.stdlog.apply(console, arguments);
-        }
-
-        var ss = null;
-        var state = null;
-        var first_run = true;
-        var error = true;
-
-        function run_code() {
+        async function run_code() {
             let code = textarea.value;
 
-            try {
-                if (first_run || error) {
-                    first_run = false;
-                    error = false;
-                    [_, ss, state] = rustscript.run(code, "textarea");
-                } else {
-                    [_, ss, state] = rustscript.run_with(code, "textarea", ss, state);
-                }
-            } catch {
-                console.log("error");
-                error = true;
-            } finally {
-                output.innerHTML = "";
-                for (const log of console.logs) {
-                    output.innerHTML += log[0] + "<br>";
-                }
-                console.logs = [];
-            }
+            const resp = await fetch("https://rustscript-exec.mikail-khan.com", {
+                method: 'POST',
+                mode: 'cors',
+                body: code,
+            });
+
+            output.innerHTML = await resp.text();
 
             let code_encoded = encodeURIComponent(code);
             let new_search = `${window.location.pathname}?code=${code_encoded}`;

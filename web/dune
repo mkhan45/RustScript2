@@ -1,7 +1,0 @@
-(executable
-  (name rustscript_web)
-  (libraries rustscript js_of_ocaml)
-
-  (modes js)
-  (preprocess
-  (pps js_of_ocaml-ppx)))
