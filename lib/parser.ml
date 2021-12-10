@@ -43,8 +43,10 @@ and parse_paren_expr xs min_bp =
             match rest with
                 | {data = Comma; _}::rest -> aux rest true (nx::acc)
                 | {data = RParen; location}::rest -> (nx::acc), rest, saw_comma, location
-                | {location; _}::_ ->
-                    printf "Error parsing parenthesised expression at %s\n" (location_to_string location);
+                | {location; data}::_ ->
+                    printf "Error parsing parenthesised expression at %s: Expected comma or newline, got %s \n" 
+                        (location_to_string location)
+                        (string_of_tok data);
                     assert false
                 | [] ->
                     printf "Error parsing parenthesised expression at end of file\n";
