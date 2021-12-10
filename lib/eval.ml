@@ -530,11 +530,7 @@ and eval_lambda_capture capture ss loc state =
 and unwrap_thunk thunk state ss loc = match thunk with
     | Thunk {thunk_fn; thunk_args; thunk_fn_name = ResolvedIdent thunk_fn_name_id} ->
             let inner_state = (bind thunk_fn.lambda_args thunk_args ss loc) thunk_fn.enclosed_state in
-            let inner_state = if (not (Map.mem inner_state thunk_fn_name_id)) then
-                Map.set inner_state ~key:thunk_fn_name_id ~data:(Lambda thunk_fn)
-            else
-                inner_state
-            in
+            let inner_state = Map.set inner_state ~key:thunk_fn_name_id ~data:(Lambda thunk_fn) in
             let call_stack = match ss.call_stack with
                 | ((id, loc), n)::xs when Int.equal id thunk_fn_name_id -> ((id, loc), n + 1)::xs
                 | _ -> ((thunk_fn_name_id, loc), 1)::ss.call_stack

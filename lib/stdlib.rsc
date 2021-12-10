@@ -207,12 +207,12 @@ let set_nth(ls, i, x) = match i
     | 0 -> [x | $ls]
     | i -> [^ls | set_nth($ls, i - 1, x)]
 
-let merge(xs, ys, cmp) = match (xs, ys)
+let merge = fn(xs, ys, cmp) => match (xs, ys)
     | (ls, [])|([], ls) -> ls
     | ([x|xs], [y|ys]) when cmp(x, y) <= 0 -> [x | merge(xs, [y|ys], cmp)]
     | ([x|xs], [y|ys]) -> [y | merge([x|xs], ys, cmp)]
 
-let sort(ls, cmp) = {
+let sort = fn(ls, cmp) => {
     let pairs = fn(ls) => match ls
         | [a, b | tl] -> [merge(a, b, cmp) | pairs(tl)]
         | _ -> ls
