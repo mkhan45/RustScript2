@@ -12,7 +12,184 @@ I wrote RustScript originally in Java because it was part of a school project,
 ignoring performance/code quality because I only had one night to do it.
 
 This is an improved version of RustScript with improved performance and more features
-written to learn OCaml. Still WIP
+written to learn OCaml.
+
+### Language Tour
+
+#### Basic types:
+
+RustScript has 5 basic types
+```ex
+let x = 5 # integer
+let f = 5.0 # float
+let s = "Hello" # string
+let b = T # boolean
+let a = :atom # atom
+```
+
+#### Compound types:
+
+There are also a few compound types
+```ex
+let t = (1, "hello", :aaa) # tuples
+let ls = [1, 2, 3, 4, 5] # lists
+let m = %{one: 2, "three" => 3} # maps
+let f1 = fn(x) => x * 2 # closures
+let f2(x) = x * 2 # functions
+```
+
+#### Patterns:
+
+All bindings in RustScript are done through pattern matching. Aside from the primitives, there
+are:
+
+```ex
+let (a, (b, c), d) = (1, (2, 3), 4) # tuple patterns
+inspect((a, b, c, d)) # (1, 2, 3, 4)
+
+let [a, b, c] = [1, 2, 3] # list patterns
+inspect((a, b, c)) # (1, 2, 3)
+
+let [a, b | tl] = [1, 2, 3, 4] # list head/tail patterns
+inspect((a, b, tl)) # (1, 2, [3, 4])
+
+let %{one, "two" => two} = %{one: 1, "two" => 2, unused: 0} # map patterns
+inspect((one, two)) # (1, 2)
+
+let _ = :something # wildcard pattern
+# no bindings are created
+
+let [x | xs] as ls = [1, 2, 3] # as patterns
+inspect((x, xs, ls)) # (1, [2, 3], [1, 2, 3])
+```
+
+While pattern matching is most frequently used in let bindings, it is also used in `if let` expressions, `match` expressions,
+and function arguments.
+
+`if let` expressions are used for refutable patterns:
+
+```ex
+let result = (:ok, 5)
+if let (:ok, n) = result then
+    inspect(n)
+else
+    println("Error")
+```
+
+`match` expressions:
+
+```ex
+let ls = [1, 2, 3, 4]
+match ls
+    | [1 | xs] -> println("Starts with 1")
+    | [_ | xs] -> println("Starts with something other than 1")
+```
+
+#### Closures:
+
+```ex
+let a = 5
+let f = fn(x) => x * a # f captures a
+
+inspect(f(2)) # 10
+
+let g = fn(a, [x | xs]) = (a * x, xs) # pattern matching works in function arguments
+inspect(g(1, [2, 3, 4])) # (2, [3, 4])
+```
+
+#### Named functions:
+
+Named functions do not capture their environment. As a result, they run
+slightly faster and can be made mutually recursive
+
+```
+let f(x) = x * 2
+inspect(f(2)) # 4
+```
+
+#### Maps:
+
+```ex
+# pairs with non-atom keys use "=>" arrows
+let x = %{"one" => 1, "two" => 2, "three" => 3}
+
+# pairs with atom keys use colons
+let y = %{one: 1, two: 2, three: 3}
+
+# the following are equivalent:
+%{one: 1, two: 2}
+%{:one => 1, :two, 2}
+
+# Maps are accessed via function call syntax
+inspect(x("one")) # 1
+inspect(y(:one)) # 1
+
+# However it's often more convenient to pattern match over them,
+# especially with atoms as keys
+
+let %{"one" => one, "two" => two} = x
+inspect((one, two)) # the three does not get bound
+
+let %{one, two} = y # key punning, equivalent to the next line
+let %{:one => one, :two => two} = y
+
+# Maps can be updated using update syntax
+let m = %{one: 1, two: 2}
+let g = %{three: 3 | m}
+inspect(g) # %{:one: 1, :three: 3, :two: 2}
+```
+
+#### Lists
+
+```ex
+# Lists are heterogenous linkedlists.
+let ls = [1, 2, 5, 7]
+
+# Generally, lists are accessed via pattern matching
+let [a, b | tl] = ls
+inspect((a, b, tl)) # (1, 2, [5, 7])
+
+# They can also be accessed by index in O(n) time via the nth function
+inspect(nth(ls, 2)) # 5
+
+# Range expressions
+inspect([1..10]) # [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+inspect([1,5..25]) # [1, 5, 9, 13, 17, 21]
+
+# List comprehensions
+inspect([n * n for n in [1..100] if n mod 12 == 0]) # [144, 576, 1296, 2304, 3600, 5184, 7056, 9216]
+```
+
+#### Captures and Pipes
+
+```ex
+# Currying is emulated via function captures
+
+let polynomial = fn(a, b, c, x) => a * x * x + b * x + c
+let f = polynomial(2, 3, 4, _)
+let g = polynomial(_, _, _, 10)
+
+inspect(f(10)) # 234
+inspect(g(2, 3, 4)) # 234
+
+# Captures are especially useful in combination with the pipe operator.
+# The following code takes advantage of the standard add, sub, mul, and div functions
+# as well as the fact that inspect returns its arguments unchanged after printing them
+
+let f = polynomial(2, 3, 4)
+
+10
+|> f
+|> inspect # 234
+|> add(_, 10)
+|> inspect # 244
+|> div(_, 100)
+|> inspect # 2.44
+|> sub(1000, _)
+|> inspect # 997.56
+|> mul(_, 10)
+|> inspect # -9975.599
+```
 
 ### Build
 
