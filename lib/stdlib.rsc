@@ -245,6 +245,9 @@ let leq(a, b) = a <= b
 let lt(a, b) = a < b
 let gt(a, b) = a > b
 
+let fst((a, _)) = a
+let snd((_, b)) = b
+
 let inspect(n) = inspect__builtin(n)
 let print(n) = print__builtin(n)
 let println(n) = println__builtin(n)
