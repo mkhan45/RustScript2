@@ -23,6 +23,10 @@ let () =
     match args |> Array.to_list with
         | [_] ->
             repl state ss
+        | _::"compile"::filenames ->
+            let compiled = List.fold_left ~init:"" ~f:(fun s f -> s ^ "\n" ^ Compile.compile_file f) filenames
+            in
+            printf "%s" compiled
         | _::filenames -> 
             let _ = List.fold_left ~init:(ss, state) ~f:(fun s f -> Run.run_file f s) filenames
             in

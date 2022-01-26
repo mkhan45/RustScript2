@@ -1,7 +1,7 @@
 (library
  (public_name rustscript)
  (libraries base stdio lwt cohttp cohttp-lwt-unix safepass)
- (modules run types parser scanner eval operators preprocess)
+ (modules run types parser scanner eval operators preprocess compile)
  (preprocess (pps ppx_blob))
  (preprocessor_deps (file stdlib.rsc)))
 
