@@ -12,19 +12,28 @@ let compile_val v = match v with
 let rec bind pat expr ss = 
     let _bind lhs rhs = bind lhs rhs ss in
     let _ident = List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal in
-    match pat, expr with
-    | SinglePat (UnresolvedIdent s), expr ->
+    match pat with
+    | SinglePat (UnresolvedIdent s) ->
             Printf.sprintf "let __ident_%s = %s" s (compile_expr expr ss)
-    | NumberPat lhs, expr ->
-            Printf.sprintf "if (%f !== (%s)) throw 'Invalid binding'" lhs (compile_expr expr ss)
-    | IntegerPat lhs, expr ->
-            Printf.sprintf "if (%d !== (%s)) throw 'Invalid binding'" lhs (compile_expr expr ss)
+    | NumberPat _ | IntegerPat _ | StringPat _ | UnresolvedAtomPat _ -> ""
+    | TuplePat ls ->
+            let bind_ls = String.concat ~sep:", " (List.map ~f:compile_pat ls) in
+            Printf.sprintf "let [%s] = %s" bind_ls (compile_expr expr ss)
     | _ -> 
             Stdio.printf "%s" (string_of_pat ss pat);
             assert false
 
+and check_match pat expr ~ss =
+    match pat, expr with
+    | SinglePat _, _ -> ""
+    | NumberPat lhs, expr ->
+            Printf.sprintf "if (%f !== (%s)) throw 'Invalid binding'" lhs (compile_expr expr ss)
+    | IntegerPat lhs, expr ->
+            Printf.sprintf "if (%d !== (%s)) throw 'Invalid binding'" lhs (compile_expr expr ss)
+    | _ -> assert false
+
 and compile_pat pat = match pat with
-    | TuplePat ls -> Printf.sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:compile_pat ls))
+    | TuplePat ls -> Printf.sprintf "[%s]" (String.concat ~sep:", " (List.map ~f:compile_pat ls))
     | SinglePat (UnresolvedIdent s) -> Printf.sprintf("__ident_%s") s
     | _ -> assert false
 
@@ -33,6 +42,12 @@ and compile_expr expr ?tc:(tc=false) ss =
     match expr with
     | {data = Atomic v; _} ->
             compile_val v
+    | {data = BlockExpr ls; _} ->
+            let (expr_ls, last) = List.split_n ls ((List.length ls) - 1) in
+            let last = List.hd_exn last in
+            let fold_step = fun acc expr -> acc ^ (compile expr) ^ ";\n" in
+            let items = List.fold_left ~init:"" ~f:fold_step expr_ls in
+            Printf.sprintf "{\n%s\nreturn %s\n}" items (compile last)
     | {data = IdentExpr (ResolvedIdent n); _} -> 
             Printf.sprintf "__ident_%s" (List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal n)
     | {data = IdentExpr (UnresolvedIdent n); _} -> 
@@ -70,13 +85,19 @@ and compile_expr expr ?tc:(tc=false) ss =
     | {data = Let l; _} -> 
             bind l.assignee l.assigned_expr ss
     | {data = TupleExpr ls; _} ->
-        Printf.sprintf "(%s)" (String.concat ~sep:", " (List.map ~f:compile ls))
+        Printf.sprintf "[%s]" (String.concat ~sep:", " (List.map ~f:compile ls))
     | {data = LambdaCall {callee = UnresolvedIdent "println"; call_args = {data = TupleExpr [call_args]; _}}; _} -> 
             Printf.sprintf "console.log(%s)" (compile call_args)
-    | {data = LambdaCall {callee = UnresolvedIdent fn; call_args; _}; _} -> 
-            Printf.sprintf "__ident_%s%s" fn (compile call_args)
+    | {data = LambdaCall {callee = UnresolvedIdent fn; call_args = {data = TupleExpr call_args; _}; _}; _} -> 
+            let args = String.concat ~sep:", " (List.map ~f:compile call_args) in
+            Printf.sprintf "__ident_%s(%s)" fn args
     | {data = LambdaDef d; _} -> 
-            Printf.sprintf "%s => %s" (compile_pat d.lambda_def_args) (compile d.lambda_def_expr)
+            let args = match d.lambda_def_args with
+            | TuplePat args -> args
+            | _ -> assert false
+            in
+            let args = String.concat ~sep:", " (List.map ~f:compile_pat args) in
+            Printf.sprintf "%s => %s" args (compile d.lambda_def_expr)
     | _ -> 
             Stdio.printf "%s\n" (string_of_expr ss expr.data);
             assert false
