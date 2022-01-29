@@ -18,7 +18,7 @@ let rec bind pat expr ss =
     | NumberPat _ | IntegerPat _ | StringPat _ | UnresolvedAtomPat _ -> ""
     | TuplePat ls ->
             let bind_ls = String.concat ~sep:", " (List.map ~f:compile_pat ls) in
-            Printf.sprintf "var [%s] = %s" bind_ls (compile_expr expr ss)
+            Printf.sprintf "let [%s] = %s" bind_ls (compile_expr expr ss)
     | _ -> 
             Stdio.printf "%s" (string_of_pat ss pat);
             assert false
@@ -48,7 +48,7 @@ and compile_expr expr ?tc:(tc=false) ss =
             let last = List.hd_exn last in
             let fold_step = fun acc expr -> acc ^ (compile expr) ^ ";\n" in
             let items = List.fold_left ~init:"" ~f:fold_step expr_ls in
-            Printf.sprintf "{\n%s\nreturn %s\n}" items (compile last)
+            Printf.sprintf "(_ => {\n%s\nreturn %s\n})()" items (compile last)
     | {data = IdentExpr (ResolvedIdent n); _} -> 
             Printf.sprintf "__ident_%s" (List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal n)
     | {data = IdentExpr (UnresolvedIdent n); _} -> 
@@ -66,7 +66,7 @@ and compile_expr expr ?tc:(tc=false) ss =
     | {data = Binary({op = Div; lhs; rhs}); _} -> 
             Printf.sprintf "%s / %s" (compile lhs) (compile rhs)
     | {data = Binary({op = EQ; lhs; rhs}); _} -> 
-            Printf.sprintf "%s === %s" (compile lhs) (compile rhs)
+            Printf.sprintf "rustscript_equal(%s, %s)" (compile lhs) (compile rhs)
     | {data = Binary({op = NEQ; lhs; rhs}); _} -> 
             Printf.sprintf "%s !== %s" (compile lhs) (compile rhs)
     | {data = Binary({op = LEQ; lhs; rhs}); _} -> 
@@ -88,7 +88,7 @@ and compile_expr expr ?tc:(tc=false) ss =
     | {data = TupleExpr ls; _} ->
         Printf.sprintf "[%s]" (String.concat ~sep:", " (List.map ~f:compile ls))
     | {data = LambdaCall {callee = UnresolvedIdent "println"; call_args = {data = TupleExpr [call_args]; _}}; _} -> 
-            Printf.sprintf "console.log(%s)" (compile call_args)
+            Printf.sprintf "console.log(rustscript_tostring(%s))" (compile call_args)
     | {data = LambdaCall {callee = UnresolvedIdent fn; call_args = {data = TupleExpr call_args; _}; _}; _} -> 
             let args = String.concat ~sep:", " (List.map ~f:compile call_args) in
             Printf.sprintf "__ident_%s(%s)" fn args
@@ -108,7 +108,8 @@ and compile_expr expr ?tc:(tc=false) ss =
             let body = compile fn_def_func.fn_expr in
             Printf.sprintf "const __ident_%s = (%s) => %s" name args body
     | {data = IfExpr {cond; then_expr; else_expr}; _} ->
-            Printf.sprintf "%s ? %s : %s" (compile cond) (compile then_expr) (compile else_expr)
+            Printf.sprintf "(_ => {if (%s) { return (_ => %s)() } else { return (_ => %s)() }})()" 
+                            (compile cond) (compile then_expr) (compile else_expr)
     | _ -> 
             Stdio.printf "%s\n" (string_of_expr ss expr.data);
             assert false
@@ -126,7 +127,8 @@ let compile_str ?ss:(ss=let ss, _ = Run.default_state () in ss) ?name:(name="com
         loop tokens []
     in
     let fold_step = fun acc expr -> acc ^ (compile_expr expr ss) ^ ";\n" in
-    List.fold_left ~init:"" ~f:fold_step expr_ls
+    let shim = [%blob "shim.js"] in
+    shim ^ "\n" ^ List.fold_left ~init:"" ~f:fold_step expr_ls
 
 let compile_file filename =
     let in_stream = Stdio.In_channel.create filename in

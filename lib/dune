@@ -3,7 +3,7 @@
  (libraries base stdio lwt cohttp cohttp-lwt-unix safepass)
  (modules run types parser scanner eval operators preprocess compile)
  (preprocess (pps ppx_blob))
- (preprocessor_deps (file stdlib.rsc)))
+ (preprocessor_deps (file stdlib.rsc) (file shim.js)))
 
 (env
   (release
