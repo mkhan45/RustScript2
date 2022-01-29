@@ -14,11 +14,11 @@ let rec bind pat expr ss =
     let _ident = List.Assoc.find_exn (List.Assoc.inverse ss.static_idents) ~equal:Int.equal in
     match pat with
     | SinglePat (UnresolvedIdent s) ->
-            Printf.sprintf "let __ident_%s = %s" s (compile_expr expr ss)
+            Printf.sprintf "var __ident_%s = %s" s (compile_expr expr ss)
     | NumberPat _ | IntegerPat _ | StringPat _ | UnresolvedAtomPat _ -> ""
     | TuplePat ls ->
             let bind_ls = String.concat ~sep:", " (List.map ~f:compile_pat ls) in
-            Printf.sprintf "let [%s] = %s" bind_ls (compile_expr expr ss)
+            Printf.sprintf "var [%s] = %s" bind_ls (compile_expr expr ss)
     | _ -> 
             Stdio.printf "%s" (string_of_pat ss pat);
             assert false
@@ -35,6 +35,7 @@ and check_match pat expr ~ss =
 and compile_pat pat = match pat with
     | TuplePat ls -> Printf.sprintf "[%s]" (String.concat ~sep:", " (List.map ~f:compile_pat ls))
     | SinglePat (UnresolvedIdent s) -> Printf.sprintf("__ident_%s") s
+    | NumberPat _ | IntegerPat _ -> "_"
     | _ -> assert false
 
 and compile_expr expr ?tc:(tc=false) ss =
@@ -97,7 +98,17 @@ and compile_expr expr ?tc:(tc=false) ss =
             | _ -> assert false
             in
             let args = String.concat ~sep:", " (List.map ~f:compile_pat args) in
-            Printf.sprintf "%s => %s" args (compile d.lambda_def_expr)
+            Printf.sprintf "(%s) => %s" args (compile d.lambda_def_expr)
+    | {data = FnDef {fn_name = UnresolvedIdent name; fn_def_func}; _} ->
+            let args = match fn_def_func.fn_args with
+            | TuplePat args -> args
+            | _ -> assert false
+            in
+            let args = String.concat ~sep:", " (List.map ~f:compile_pat args) in
+            let body = compile fn_def_func.fn_expr in
+            Printf.sprintf "const __ident_%s = (%s) => %s" name args body
+    | {data = IfExpr {cond; then_expr; else_expr}; _} ->
+            Printf.sprintf "%s ? %s : %s" (compile cond) (compile then_expr) (compile else_expr)
     | _ -> 
             Stdio.printf "%s\n" (string_of_expr ss expr.data);
             assert false
