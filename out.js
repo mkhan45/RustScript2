@@ -138,22 +138,70 @@ for(var t,r=this;r instanceof En;){var e=Fe(r);e.__index__=0,e.__values__=T,t?u.
 wi&&(An.prototype[wi]=Xe),An}();typeof define=="function"&&typeof define.amd=="object"&&define.amd?($n._=rt, define(function(){return rt})):Nn?((Nn.exports=rt)._=rt,Fn._=rt):$n._=rt}).call(this);
 
 const _ = this._;
+const assert = console.assert;
+
+const ll_bind_n = (ls, n) => {
+    let result = [];
+    let current = ls;
+    for (let i = 0; i < n; i += 1) {
+        result.push(current.val);
+        current = current.next;
+    }
+
+    assert(current === null);
+    return result;
+}
+
+const ll_bind_head_tail = (ls, n) => {
+    let result = [];
+    let current = ls;
+    for (let i = 0; i < n; i += 1) {
+        result.push(current.val);
+        current = current.next;
+    }
+
+    result.push(current);
+    return result;
+}
+
+const ll_to_string = ls => {
+    let result = [];
+
+    while (ls !== undefined && ls !== null) {
+        result.push(ls.val);
+        ls = ls.next;
+    }
+
+    return `[${result}]`;
+}
 
 const ll_from_ls = ls => {
     let res = null;
-    for (let i = ls.length - 1; i >= 0; i += 1)
+    for (let i = ls.length - 1; i >= 0; i -= 1)
         res = {val: ls[i], next: res}
     
     return res;
+}
+
+const prepend_arr = (arr, ll) => {
+    assert(ll === null || ll.val !== null);
+
+    let new_ll = ll;
+    for (let i = arr.length - 1; i >= 0; i -= 1)
+        new_ll = {val: arr[i], next: new_ll};
+
+    return new_ll;
 }
 
 const rustscript_tostring = v => {
     if (typeof v === "string") {
         return v
     } else if (Array.isArray(v)) {
-        return `[${v.map(rustscript_tostring).join()}]`
+        return `(${v.map(rustscript_tostring).join()})`
     } else if (v === undefined) {
         return "undefined";
+    } else if (v !== null && v.val) {
+        return ll_to_string(v);
     } else {
         return v.toString();
     }
@@ -185,6 +233,16 @@ const rsc_matches = (val, pat) => {
 }
 
 const rsc_inspect = val => console.log(rustscript_tostring(val));
+const rsc_print = val => process.stdout.write(val);
+const rsc_println = val => console.log(val);
+
+const range_step = (start, end, step) => {
+    if (start >= end) {
+        return null;
+    } else {
+        return {val: start, next: range_step(start + step, end, step)};
+    }
+}
 
 const mk_thunk = (fn, args) => {
     return {
@@ -203,23 +261,66 @@ const unwrap_thunk = thunk => {
     return res;
 }
 
-const __ident_1_fib = (__ident_2_n) => 
+const __ident_1_range = (__ident_2_a, __ident_3_b) => mk_thunk(range_step, [__ident_2_a, __ident_3_b, 1]);
+var __ident_4_f = ((__ident_5_x, __ident_6_y) => (_ => {
+var __ident_7_c = (__ident_5_x * __ident_6_y);
+
+return ((__ident_7_c + __ident_5_x) + __ident_6_y)
+})());
+var __ident_8_t = [unwrap_thunk(__ident_4_f(10, 5)), unwrap_thunk(__ident_4_f(5, 10))];
+var [__ident_2_a, __ident_3_b] = __ident_8_t;
+var __ident_4_f = (([__ident_2_a, __ident_3_b], __ident_7_c) => ((__ident_2_a * __ident_3_b) + __ident_7_c));
+unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_4_f([5, 10], 15))));
+const __ident_9_g = (__ident_5_x) => (__ident_5_x * 2);
+unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_9_g(5))));
+const __ident_10_fib = (__ident_5_x) => (_ => {if ((__ident_5_x < 2)) { return (_ => __ident_5_x)() } else { return (_ => (unwrap_thunk(__ident_10_fib((__ident_5_x - 1))) + unwrap_thunk(__ident_10_fib((__ident_5_x - 2)))))() }})();
+unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_10_fib(10))));
+const __ident_11_range_tup = (__ident_12_l, __ident_13_r) => (_ => {if (rustscript_equal(__ident_12_l, __ident_13_r)) { return (_ => [])() } else { return (_ => [__ident_12_l, unwrap_thunk(__ident_11_range_tup((__ident_12_l + 1), __ident_13_r))])() }})();
+unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_11_range_tup(5, 15))));
+const __ident_14_map = (__ident_4_f, __ident_15_ls) => (_ => {if (rustscript_equal(__ident_15_ls, [])) { return (_ => [])() } else { return (_ => (_ => {
+unwrap_thunk(rsc_inspect(__ident_15_ls));
+var [__ident_16_hd, __ident_17_tl] = __ident_15_ls;
+
+return [__ident_16_hd, unwrap_thunk(__ident_14_map(__ident_4_f, __ident_17_tl))]
+})())() }})();
+unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_14_map(__ident_10_fib, unwrap_thunk(__ident_11_range_tup(1, 10))))));
+const __ident_18_fib2 = (__ident_19_n) => 
             (() => {
-                const __ident_3_match_val = __ident_2_n;
+                const __ident_20_match_val = __ident_19_n;
                 if (false) {}
                 
                 
                 
-                else if ((rsc_matches(__ident_3_match_val, {__rsc_pat_type: 0, l: (0), r: (1)})) && (true)) {
-                    if (__ident_3_match_val === 0) { __ident_3_match_val } else if (__ident_3_match_val === 1) { __ident_3_match_val }
+                
+                else if ((__ident_20_match_val === 0) && (true)) {
+                    __ident_20_match_val
+                    return 1
+                }
+                
+                else if ((__ident_20_match_val === 1) && (true)) {
+                    __ident_20_match_val
                     return 1
                 }
                 
                 else if ((true) && (true)) {
-                    __ident_3_match_val
-                    return (unwrap_thunk(__ident_1_fib((__ident_2_n - 1))) + unwrap_thunk(__ident_1_fib((__ident_2_n - 2))))
+                    __ident_20_match_val
+                    return (unwrap_thunk(__ident_10_fib((__ident_19_n - 1))) + unwrap_thunk(__ident_10_fib((__ident_19_n - 2))))
                 }
                 
             })()
             ;
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_1_fib(30))));
+unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_18_fib2(10))));
+unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_18_fib2(10))));
+unwrap_thunk(((__ident_2_a) => unwrap_thunk(((__ident_2_a) => unwrap_thunk(((__ident_2_a) => unwrap_thunk(((__ident_2_a) => unwrap_thunk(rsc_inspect((__ident_2_a / 2))))((__ident_2_a - 20))))((__ident_2_a * 20))))((__ident_2_a + 50))))(10));
+unwrap_thunk(rsc_inspect(((((10 + 50) * 20) - 20) / 2)));
+var [__ident_2_a, __ident_3_b, __ident_7_c] = [1, 2, 3];
+var __ident_4_f = ((__ident_5_x) => (__ident_5_x * __ident_3_b));
+unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_4_f(2))));
+var __ident_15_ls = ll_from_ls([1, 4, 5]);
+unwrap_thunk(rsc_inspect(__ident_15_ls));
+var [__ident_2_a, __ident_3_b, __ident_7_c] = ll_bind_n(__ident_15_ls, 3);
+unwrap_thunk(rsc_inspect([__ident_2_a, __ident_3_b, __ident_7_c]));
+var __ident_15_ls = ll_from_ls([1, 2, 3, 4, 5, 6]);
+var [__ident_2_a, __ident_3_b, __ident_7_c,__ident_17_tl] = ll_bind_head_tail(__ident_15_ls, 3);
+unwrap_thunk(rsc_inspect([__ident_2_a, __ident_3_b, __ident_7_c, __ident_17_tl]));
+unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_1_range(1, 10))));

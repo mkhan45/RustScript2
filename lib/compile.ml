@@ -21,6 +21,7 @@ let new_ident name =
 
 and get_ident name = match name with
     | "inspect" -> "rsc_inspect"
+    | "range_step" -> "range_step"
     | _ ->
         let id = Hashtbl.find_exn !idents name in
         Printf.sprintf "__ident_%d_%s" id name
@@ -45,6 +46,13 @@ let rec bind pat expr ss =
     | TuplePat ls ->
             let bind_ls = String.concat ~sep:", " (List.map ~f:compile_bind_pat ls) in
             Printf.sprintf "var [%s] = %s" bind_ls (compile_expr expr ss)
+    | ListPat FullPat ls ->
+            let bind_ls = String.concat ~sep:", " (List.map ~f:compile_bind_pat ls) in
+            Printf.sprintf "var [%s] = ll_bind_n(%s, %d)" bind_ls (compile_expr expr ss) (List.length ls)
+    | ListPat HeadTailPat (ls, tail) ->
+            let bind_ls = String.concat ~sep:", " (List.map ~f:compile_bind_pat ls) in
+            Printf.sprintf "var [%s,%s] = ll_bind_head_tail(%s, %d)" 
+                bind_ls (compile_bind_pat tail) (compile_expr expr ss) (List.length ls)
     | OrPat (l, r) ->
             Printf.sprintf "if (%s) { %s } else if (%s) { %s }" 
                 (pat_cond expr l ~ss) (bind l expr ss)
@@ -130,6 +138,10 @@ and compile_expr expr ?tc:(tc=false) ss =
             bind l.assignee l.assigned_expr ss
     | {data = TupleExpr ls; _} ->
         Printf.sprintf "[%s]" (String.concat ~sep:", " (List.map ~f:compile ls))
+    | {data = ListExpr (ls, Some tail); _} ->
+        Printf.sprintf "prepend_arr([%s], %s)" (String.concat ~sep:", " (List.map ~f:compile ls)) (compile tail)
+    | {data = ListExpr (ls, None); _} ->
+        Printf.sprintf "ll_from_ls([%s])" (String.concat ~sep:", " (List.map ~f:compile ls))
     | {data = LambdaCall {callee = UnresolvedIdent fn; call_args = {data = TupleExpr call_args; _}; _}; _} -> 
             let args = String.concat ~sep:", " (List.map ~f:compile call_args) in
             if tc then
