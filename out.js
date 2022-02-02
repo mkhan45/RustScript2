@@ -1,4 +1,3 @@
-
 /**
  * @license
  * Lodash lodash.com/license | Underscore.js 1.8.3 underscorejs.org/LICENSE
@@ -173,8 +172,10 @@ const rsc_matches = (val, pat) => {
     }
 
     if (Array.isArray(val) && Array.isArray(pat)) {
-        return _(val).zip(pat).every((v, p) => rsc_matches(v, p)).value;
+        return _(val).zip(pat).every(([v, p]) => rsc_matches(v, p));
     }
+
+    return false;
 }
 
 const rsc_inspect = val => console.log(rustscript_tostring(val));
@@ -196,54 +197,29 @@ const unwrap_thunk = thunk => {
     return res;
 }
 
-var __ident_1_f = ((__ident_2_x, __ident_3_y) => (_ => {
-var __ident_4_c = (__ident_2_x * __ident_3_y);
-
-return ((__ident_4_c + __ident_2_x) + __ident_3_y)
-})());
-var __ident_5_t = [unwrap_thunk(__ident_1_f(10, 5)), unwrap_thunk(__ident_1_f(5, 10))];
-var [__ident_6_a, __ident_7_b] = __ident_5_t;
-var __ident_1_f = (([__ident_6_a, __ident_7_b], __ident_4_c) => ((__ident_6_a * __ident_7_b) + __ident_4_c));
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_1_f([5, 10], 15))));
-const __ident_8_g = (__ident_2_x) => (__ident_2_x * 2);
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_8_g(5))));
-const __ident_9_fib = (__ident_2_x) => (_ => {if ((__ident_2_x < 2)) { return (_ => __ident_2_x)() } else { return (_ => (unwrap_thunk(__ident_9_fib((__ident_2_x - 1))) + unwrap_thunk(__ident_9_fib((__ident_2_x - 2)))))() }})();
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_9_fib(10))));
-const __ident_10_range = (__ident_11_l, __ident_12_r) => (_ => {if (rustscript_equal(__ident_11_l, __ident_12_r)) { return (_ => [])() } else { return (_ => [__ident_11_l, unwrap_thunk(__ident_10_range((__ident_11_l + 1), __ident_12_r))])() }})();
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_10_range(5, 15))));
-const __ident_13_map = (__ident_1_f, __ident_14_ls) => (_ => {if (rustscript_equal(__ident_14_ls, [])) { return (_ => [])() } else { return (_ => (_ => {
-unwrap_thunk(rsc_inspect(__ident_14_ls));
-var [__ident_15_hd, __ident_16_tl] = __ident_14_ls;
-
-return [__ident_15_hd, unwrap_thunk(__ident_13_map(__ident_1_f, __ident_16_tl))]
-})())() }})();
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_13_map(__ident_9_fib, unwrap_thunk(__ident_10_range(1, 10))))));
-const __ident_17_fib2 = (__ident_18_n) => 
+const __ident_1_ack = (__ident_2_m, __ident_3_n) => 
             (() => {
-                const __ident_19_match_val = __ident_18_n;
+                const __ident_4_match_val = [__ident_2_m, __ident_3_n];
                 if (false) {}
                 
                 
                 
                 
-                else if ((__ident_19_match_val === 0) && (true)) {
-                    __ident_19_match_val
-                    return 1
+                else if ((rsc_matches(__ident_4_match_val, [0, null])) && (true)) {
+                    var [__ident_5_unused, __ident_5_unused] = __ident_4_match_val
+                    return (__ident_3_n + 1)
                 }
                 
-                else if ((__ident_19_match_val === 1) && (true)) {
-                    __ident_19_match_val
-                    return 1
+                else if ((rsc_matches(__ident_4_match_val, [null, 0])) && (true)) {
+                    var [__ident_5_unused, __ident_5_unused] = __ident_4_match_val
+                    return unwrap_thunk(__ident_1_ack((__ident_2_m - 1), 1))
                 }
                 
                 else if ((true) && (true)) {
-                    __ident_19_match_val
-                    return (unwrap_thunk(__ident_9_fib((__ident_18_n - 1))) + unwrap_thunk(__ident_9_fib((__ident_18_n - 2))))
+                    __ident_4_match_val
+                    return unwrap_thunk(__ident_1_ack((__ident_2_m - 1), unwrap_thunk(__ident_1_ack(__ident_2_m, (__ident_3_n - 1)))))
                 }
                 
             })()
             ;
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_17_fib2(10))));
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_17_fib2(10))));
-unwrap_thunk(((__ident_6_a) => unwrap_thunk(((__ident_6_a) => unwrap_thunk(((__ident_6_a) => unwrap_thunk(((__ident_6_a) => unwrap_thunk(rsc_inspect((__ident_6_a / 2))))((__ident_6_a - 20))))((__ident_6_a * 20))))((__ident_6_a + 50))))(10));
-unwrap_thunk(rsc_inspect(((((10 + 50) * 20) - 20) / 2)));
+unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_1_ack(3, 8))));
