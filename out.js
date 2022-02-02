@@ -1,3 +1,4 @@
+
 /**
  * @license
  * Lodash lodash.com/license | Underscore.js 1.8.3 underscorejs.org/LICENSE
@@ -175,6 +176,11 @@ const rsc_matches = (val, pat) => {
         return _(val).zip(pat).every(([v, p]) => rsc_matches(v, p));
     }
 
+    // or pattern
+    if (pat.__rsc_pat_type === 0) {
+        return rsc_matches(val, pat.l) || rsc_matches(val, pat.r);
+    }
+
     return false;
 }
 
@@ -197,29 +203,23 @@ const unwrap_thunk = thunk => {
     return res;
 }
 
-const __ident_1_ack = (__ident_2_m, __ident_3_n) => 
+const __ident_1_fib = (__ident_2_n) => 
             (() => {
-                const __ident_4_match_val = [__ident_2_m, __ident_3_n];
+                const __ident_3_match_val = __ident_2_n;
                 if (false) {}
                 
                 
                 
-                
-                else if ((rsc_matches(__ident_4_match_val, [0, null])) && (true)) {
-                    var [__ident_5_unused, __ident_5_unused] = __ident_4_match_val
-                    return (__ident_3_n + 1)
-                }
-                
-                else if ((rsc_matches(__ident_4_match_val, [null, 0])) && (true)) {
-                    var [__ident_5_unused, __ident_5_unused] = __ident_4_match_val
-                    return unwrap_thunk(__ident_1_ack((__ident_2_m - 1), 1))
+                else if ((rsc_matches(__ident_3_match_val, {__rsc_pat_type: 0, l: (0), r: (1)})) && (true)) {
+                    if (__ident_3_match_val === 0) { __ident_3_match_val } else if (__ident_3_match_val === 1) { __ident_3_match_val }
+                    return 1
                 }
                 
                 else if ((true) && (true)) {
-                    __ident_4_match_val
-                    return unwrap_thunk(__ident_1_ack((__ident_2_m - 1), unwrap_thunk(__ident_1_ack(__ident_2_m, (__ident_3_n - 1)))))
+                    __ident_3_match_val
+                    return (unwrap_thunk(__ident_1_fib((__ident_2_n - 1))) + unwrap_thunk(__ident_1_fib((__ident_2_n - 2))))
                 }
                 
             })()
             ;
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_1_ack(3, 8))));
+unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_1_fib(30))));

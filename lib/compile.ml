@@ -45,6 +45,10 @@ let rec bind pat expr ss =
     | TuplePat ls ->
             let bind_ls = String.concat ~sep:", " (List.map ~f:compile_bind_pat ls) in
             Printf.sprintf "var [%s] = %s" bind_ls (compile_expr expr ss)
+    | OrPat (l, r) ->
+            Printf.sprintf "if (%s) { %s } else if (%s) { %s }" 
+                (pat_cond expr l ~ss) (bind l expr ss)
+                (pat_cond expr r ~ss) (bind r expr ss)
     | _ -> 
             Stdio.printf "%s" (string_of_pat ss pat);
             assert false
@@ -64,6 +68,7 @@ and compile_pat pat = match pat with
     | TuplePat ls -> Printf.sprintf "[%s]" (String.concat ~sep:", " (List.map ~f:compile_pat ls))
     | IntegerPat i -> Printf.sprintf "%d" i
     | NumberPat f -> Printf.sprintf "%f" f
+    | OrPat (l, r) -> Printf.sprintf "{__rsc_pat_type: 0, l: (%s), r: (%s)}" (compile_pat l) (compile_pat r)
     | WildcardPat -> "null"
     | _ -> assert false
 
