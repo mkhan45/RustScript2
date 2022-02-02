@@ -7,3 +7,5 @@ let euler2 = {
 
     aux((0, 2), 0)
 }
+
+inspect(euler2)
