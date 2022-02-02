@@ -57,3 +57,7 @@ let ls = [1, 2, 3, 4, 5, 6]
 let [a, b, c | tl] = ls
 (a, b, c, tl) |> inspect
 [1..10] |> inspect
+
+let m = %{"one" => 1, "two" => 2, 3 => "three"}
+m |> inspect
+m(3) |> inspect

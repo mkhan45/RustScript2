@@ -193,17 +193,23 @@ const prepend_arr = (arr, ll) => {
     return new_ll;
 }
 
-const rustscript_tostring = v => {
+const to_string__builtin = v => {
     if (typeof v === "string") {
-        return v
+        return `"${v}"`
     } else if (Array.isArray(v)) {
-        return `(${v.map(rustscript_tostring).join()})`
-    } else if (v === undefined) {
+        return `(${v.map(to_string__builtin).join()})`
+    } else if (v.__is_rsc_map) {
+        let res = [];
+        for (const [key, val] of v.map.entries()) {
+            res.push(`${to_string__builtin(key)} => ${to_string__builtin(val)}`);
+        }
+        return `%{\n\t${res.join("\n\t")}\n}`
+    }else if (v === undefined) {
         return "undefined";
     } else if (v !== null && v.val) {
         return ll_to_string(v);
     } else {
-        return v.toString();
+        return JSON.stringify(v);
     }
 }
 
@@ -232,15 +238,17 @@ const rsc_matches = (val, pat) => {
     return false;
 }
 
-const rsc_inspect = val => console.log(rustscript_tostring(val));
-const rsc_print = val => process.stdout.write(val);
-const rsc_println = val => console.log(val);
+const inspect__builtin = val => console.log(to_string__builtin(val));
+const print__builtin = val => process.stdout.write(val);
+const println__builtin = val => console.log(val);
+const string_to_num__builtin = parseFloat;
+const string_to_int__builtin = parseInt
 
-const range_step = (start, end, step) => {
+const range_step__builtin = (start, end, step) => {
     if (start >= end) {
         return null;
     } else {
-        return {val: start, next: range_step(start + step, end, step)};
+        return {val: start, next: range_step__builtin(start + step, end, step)};
     }
 }
 
@@ -261,7 +269,14 @@ const unwrap_thunk = thunk => {
     return res;
 }
 
-const __ident_1_range = (__ident_2_a, __ident_3_b) => mk_thunk(range_step, [__ident_2_a, __ident_3_b, 1]);
+const __rsc_mk_map = m => {
+    let f = x => m.get(x);
+    f.map = m;
+    f.__is_rsc_map = true;
+    return f;
+}
+
+const __ident_1_range = (__ident_2_a, __ident_3_b) => mk_thunk(range_step__builtin, [__ident_2_a, __ident_3_b, 1]);
 var __ident_4_f = ((__ident_5_x, __ident_6_y) => (_ => {
 var __ident_7_c = (__ident_5_x * __ident_6_y);
 
@@ -270,20 +285,20 @@ return ((__ident_7_c + __ident_5_x) + __ident_6_y)
 var __ident_8_t = [unwrap_thunk(__ident_4_f(10, 5)), unwrap_thunk(__ident_4_f(5, 10))];
 var [__ident_2_a, __ident_3_b] = __ident_8_t;
 var __ident_4_f = (([__ident_2_a, __ident_3_b], __ident_7_c) => ((__ident_2_a * __ident_3_b) + __ident_7_c));
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_4_f([5, 10], 15))));
+unwrap_thunk(inspect__builtin(unwrap_thunk(__ident_4_f([5, 10], 15))));
 const __ident_9_g = (__ident_5_x) => (__ident_5_x * 2);
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_9_g(5))));
+unwrap_thunk(inspect__builtin(unwrap_thunk(__ident_9_g(5))));
 const __ident_10_fib = (__ident_5_x) => (_ => {if ((__ident_5_x < 2)) { return (_ => __ident_5_x)() } else { return (_ => (unwrap_thunk(__ident_10_fib((__ident_5_x - 1))) + unwrap_thunk(__ident_10_fib((__ident_5_x - 2)))))() }})();
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_10_fib(10))));
+unwrap_thunk(inspect__builtin(unwrap_thunk(__ident_10_fib(10))));
 const __ident_11_range_tup = (__ident_12_l, __ident_13_r) => (_ => {if (rustscript_equal(__ident_12_l, __ident_13_r)) { return (_ => [])() } else { return (_ => [__ident_12_l, unwrap_thunk(__ident_11_range_tup((__ident_12_l + 1), __ident_13_r))])() }})();
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_11_range_tup(5, 15))));
+unwrap_thunk(inspect__builtin(unwrap_thunk(__ident_11_range_tup(5, 15))));
 const __ident_14_map = (__ident_4_f, __ident_15_ls) => (_ => {if (rustscript_equal(__ident_15_ls, [])) { return (_ => [])() } else { return (_ => (_ => {
-unwrap_thunk(rsc_inspect(__ident_15_ls));
+unwrap_thunk(inspect__builtin(__ident_15_ls));
 var [__ident_16_hd, __ident_17_tl] = __ident_15_ls;
 
 return [__ident_16_hd, unwrap_thunk(__ident_14_map(__ident_4_f, __ident_17_tl))]
 })())() }})();
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_14_map(__ident_10_fib, unwrap_thunk(__ident_11_range_tup(1, 10))))));
+unwrap_thunk(inspect__builtin(unwrap_thunk(__ident_14_map(__ident_10_fib, unwrap_thunk(__ident_11_range_tup(1, 10))))));
 const __ident_18_fib2 = (__ident_19_n) => 
             (() => {
                 const __ident_20_match_val = __ident_19_n;
@@ -309,18 +324,21 @@ const __ident_18_fib2 = (__ident_19_n) =>
                 
             })()
             ;
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_18_fib2(10))));
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_18_fib2(10))));
-unwrap_thunk(((__ident_2_a) => unwrap_thunk(((__ident_2_a) => unwrap_thunk(((__ident_2_a) => unwrap_thunk(((__ident_2_a) => unwrap_thunk(rsc_inspect((__ident_2_a / 2))))((__ident_2_a - 20))))((__ident_2_a * 20))))((__ident_2_a + 50))))(10));
-unwrap_thunk(rsc_inspect(((((10 + 50) * 20) - 20) / 2)));
+unwrap_thunk(inspect__builtin(unwrap_thunk(__ident_18_fib2(10))));
+unwrap_thunk(inspect__builtin(unwrap_thunk(__ident_18_fib2(10))));
+unwrap_thunk(((__ident_2_a) => unwrap_thunk(((__ident_2_a) => unwrap_thunk(((__ident_2_a) => unwrap_thunk(((__ident_2_a) => unwrap_thunk(inspect__builtin((__ident_2_a / 2))))((__ident_2_a - 20))))((__ident_2_a * 20))))((__ident_2_a + 50))))(10));
+unwrap_thunk(inspect__builtin(((((10 + 50) * 20) - 20) / 2)));
 var [__ident_2_a, __ident_3_b, __ident_7_c] = [1, 2, 3];
 var __ident_4_f = ((__ident_5_x) => (__ident_5_x * __ident_3_b));
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_4_f(2))));
+unwrap_thunk(inspect__builtin(unwrap_thunk(__ident_4_f(2))));
 var __ident_15_ls = ll_from_ls([1, 4, 5]);
-unwrap_thunk(rsc_inspect(__ident_15_ls));
+unwrap_thunk(inspect__builtin(__ident_15_ls));
 var [__ident_2_a, __ident_3_b, __ident_7_c] = ll_bind_n(__ident_15_ls, 3);
-unwrap_thunk(rsc_inspect([__ident_2_a, __ident_3_b, __ident_7_c]));
+unwrap_thunk(inspect__builtin([__ident_2_a, __ident_3_b, __ident_7_c]));
 var __ident_15_ls = ll_from_ls([1, 2, 3, 4, 5, 6]);
 var [__ident_2_a, __ident_3_b, __ident_7_c,__ident_17_tl] = ll_bind_head_tail(__ident_15_ls, 3);
-unwrap_thunk(rsc_inspect([__ident_2_a, __ident_3_b, __ident_7_c, __ident_17_tl]));
-unwrap_thunk(rsc_inspect(unwrap_thunk(__ident_1_range(1, 10))));
+unwrap_thunk(inspect__builtin([__ident_2_a, __ident_3_b, __ident_7_c, __ident_17_tl]));
+unwrap_thunk(inspect__builtin(unwrap_thunk(__ident_1_range(1, 10))));
+var __ident_21_m = __rsc_mk_map(new Map([[("one"), (1)],[("two"), (2)],[(3), ("three")]]));
+unwrap_thunk(inspect__builtin(__ident_21_m));
+unwrap_thunk(inspect__builtin(unwrap_thunk(__ident_21_m(3))));

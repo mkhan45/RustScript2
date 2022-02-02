@@ -20,8 +20,9 @@ let new_ident name =
         s
 
 and get_ident name = match name with
-    | "inspect" -> "rsc_inspect"
-    | "range_step" -> "range_step"
+    | "inspect" -> "inspect__builtin"
+    | "range_step" -> "range_step__builtin"
+    | "println" -> "println__builtin"
     | _ ->
         let id = Hashtbl.find_exn !idents name in
         Printf.sprintf "__ident_%d_%s" id name
@@ -86,6 +87,18 @@ and compile_bind_pat pat = match pat with
     | IntegerPat _ | NumberPat _ | WildcardPat -> new_ident "unused"
     | _ -> assert false
 
+and compile_map ls tail ss =
+    let rec loop ls acc = match ls with
+    | [] -> List.rev acc
+    | ((k, v)::rest) -> 
+            let pair = Printf.sprintf "[(%s), (%s)]" (compile_expr k ss) (compile_expr v ss) in
+            loop rest (pair::acc)
+    in
+    let args = String.concat ~sep:"," (loop ls []) in
+    match tail with
+    | Some tail -> Printf.sprintf "__rsc_mk_map(new Map([%s, ...(%s).map]))" args (compile_expr tail ss)
+    | None -> Printf.sprintf "__rsc_mk_map(new Map([%s]))" args
+
 and compile_expr expr ?tc:(tc=false) ss =
     let compile ?tc:(tc=false) expr = compile_expr ~tc expr ss in
     match expr with
@@ -142,6 +155,8 @@ and compile_expr expr ?tc:(tc=false) ss =
         Printf.sprintf "prepend_arr([%s], %s)" (String.concat ~sep:", " (List.map ~f:compile ls)) (compile tail)
     | {data = ListExpr (ls, None); _} ->
         Printf.sprintf "ll_from_ls([%s])" (String.concat ~sep:", " (List.map ~f:compile ls))
+    | {data = MapExpr (ls, tail); _} ->
+            compile_map ls tail ss
     | {data = LambdaCall {callee = UnresolvedIdent fn; call_args = {data = TupleExpr call_args; _}; _}; _} -> 
             let args = String.concat ~sep:", " (List.map ~f:compile call_args) in
             if tc then
