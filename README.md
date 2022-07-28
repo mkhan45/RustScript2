@@ -12,7 +12,8 @@ I wrote RustScript originally in Java because it was part of a school project,
 ignoring performance/code quality because I only had one night to do it.
 
 This is an improved version of RustScript with improved performance and more features
-written to learn OCaml.
+written to learn OCaml. It also served as a testbed for features, and a demonstration
+of the 80/20 rule; the language's design was largely based on ease of implementation.
 
 ### Examples:
 
