@@ -8,7 +8,7 @@
 
 V2 of <https://github.com/mkhan45/RustScript>
 
-I wrote RustScript originally in Java because it was part of a school project,
+I originally wrote RustScript in Java because it was part of a school project,
 ignoring performance/code quality because I only had one night to do it.
 
 This is an improved version of RustScript with improved performance and more features
